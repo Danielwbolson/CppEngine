@@ -1,0 +1,34 @@
+
+# Attempt at a sample scene
+aspect_ratio 800 600
+
+# camera
+camera 0 0 -1 0 1 0 1.2 0.01 100
+
+# lights
+#point_light 10 0 0 1 0 1 0 1
+#point_light 0 10 0 1 5 1 0 1
+#point_light 0 0 10 1 10 1 0 1
+#point_light 10 0 10 1 0 1 5 1
+
+# Player
+gameObject player
+component boxCollider 0 0 0 0.2 0.2 1
+# lookat, up, fov, near_plane, far_plane
+component playerMovement 50
+component grab
+endGameObject
+
+# Floor
+gameObject floor
+material 1 1 1 1 1 1 1 1 1 0 0 0 deferredToTexture.vert deferredToTexture.frag
+mesh meshes/floor.obj
+component meshRenderer
+endGameObject
+
+# suzzane
+gameObject Suzzane
+material .5 .5 .5 1 1 1 1 1 1 0 0 0 deferredToTexture.vert deferredToTexture.frag
+mesh meshes/door1.obj
+component meshRenderer
+endGameObject

@@ -1,0 +1,293 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Header Files\Lights">
+      <UniqueIdentifier>{7ca016fe-7441-46f8-9c67-fabd01f15388}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders">
+      <UniqueIdentifier>{e2706d75-dfb3-401c-9bdc-5e95f46c49f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Component">
+      <UniqueIdentifier>{83a966a0-a04b-4526-946b-1c11224e68e2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Scenes">
+      <UniqueIdentifier>{a30dc381-1cd6-4d19-9b26-d0d3a1d50b8d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Utility">
+      <UniqueIdentifier>{2d026639-3267-4dfa-a385-841b68b78989}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Utility">
+      <UniqueIdentifier>{bc823295-b942-4e0e-9704-33408752168b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Maps">
+      <UniqueIdentifier>{2199646a-1590-4a0c-97cc-07468df9719b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Component">
+      <UniqueIdentifier>{c4a8e61c-f48c-4e75-884f-426bcdfefd8c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Systems">
+      <UniqueIdentifier>{ad7a6375-8501-4bf1-b339-f20fb4bcb188}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Component\Engine">
+      <UniqueIdentifier>{9512a08e-5d13-4ce0-bfa4-fef347b1b3cb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Component\Engine\Colliders">
+      <UniqueIdentifier>{2cef7052-b2f9-44a8-8b6f-f0627461ba7a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Component\User">
+      <UniqueIdentifier>{cd87a02b-a999-4703-b5da-3620f316a68c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Component\Engine">
+      <UniqueIdentifier>{d2d785ba-2adf-4dd8-8022-218be22f4a43}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Component\Engine\Collider">
+      <UniqueIdentifier>{5de98c01-7083-45d5-9b4c-6faff61f43ef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Component\User">
+      <UniqueIdentifier>{2d1042ff-4210-4fd9-bb08-4990a197ef19}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Systems">
+      <UniqueIdentifier>{c38937d9-54c9-4b3a-9092-7b6ee7388317}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ObjectData">
+      <UniqueIdentifier>{dcd742ca-8875-462a-838e-5745c3be3ac9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ObjectData">
+      <UniqueIdentifier>{038d9119-681b-4208-a37d-096e02adecc8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\FileTypes">
+      <UniqueIdentifier>{d2077ae3-884b-48ce-9d10-098739f5781c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\FileTypes">
+      <UniqueIdentifier>{0a246b4d-14ef-46ff-adc2-eba63beb1be8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders\Deferred">
+      <UniqueIdentifier>{a9608b9c-aea9-4380-bb68-931b5852483e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders\ForwardPhong">
+      <UniqueIdentifier>{b159d736-acb8-417f-8847-020f9151bf7d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders\Deferred\DeferredLighting">
+      <UniqueIdentifier>{4614884c-99ab-4e5d-90ed-5fa1f975f342}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Shaders\Deferred\DeferredLightVolumes">
+      <UniqueIdentifier>{5fd76abb-b338-4977-a669-f0c0aaeef988}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MainVariables.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\AmbientLight.h">
+      <Filter>Header Files\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DirectionalLight.h">
+      <Filter>Header Files\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Light.h">
+      <Filter>Header Files\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PointLight.h">
+      <Filter>Header Files\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ColliderSystem.h">
+      <Filter>Header Files\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Collider.h">
+      <Filter>Header Files\Component\Engine\Colliders</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Map.h">
+      <Filter>Header Files\FileTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Mesh.h">
+      <Filter>Header Files\ObjectData</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Grab.h">
+      <Filter>Header Files\Component\User</Filter>
+    </ClInclude>
+    <ClInclude Include="src\GameObject.h">
+      <Filter>Header Files\ObjectData</Filter>
+    </ClInclude>
+    <ClInclude Include="src\InteractableObject.h">
+      <Filter>Header Files\Component\User</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Key.h">
+      <Filter>Header Files\Component\User</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Globals.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Material.h">
+      <Filter>Header Files\ObjectData</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PhysicsSystem.h">
+      <Filter>Header Files\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MeshRendererSystem.h">
+      <Filter>Header Files\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="src\MeshRenderer.h">
+      <Filter>Header Files\Component\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Door.h">
+      <Filter>Header Files\Component\User</Filter>
+    </ClInclude>
+    <ClInclude Include="src\BoxCollider.h">
+      <Filter>Header Files\Component\Engine\Colliders</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Component.h">
+      <Filter>Header Files\Component</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SphereCollider.h">
+      <Filter>Header Files\Component\Engine\Colliders</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Parse.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="src\PlayerMovement.h">
+      <Filter>Header Files\Component\User</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SDL_Static_Helper.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SpotLight.h">
+      <Filter>Header Files\Lights</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Systems.h">
+      <Filter>Header Files\Systems</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Scene.h">
+      <Filter>Header Files\FileTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Transform.h">
+      <Filter>Header Files\Component\Engine</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Vec3.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Vec2.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Utility.h">
+      <Filter>Header Files\Utility</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\Camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\BoxCollider.cpp">
+      <Filter>Source Files\Component\Engine\Collider</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ColliderSystem.cpp">
+      <Filter>Source Files\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Grab.cpp">
+      <Filter>Source Files\Component\User</Filter>
+    </ClCompile>
+    <ClCompile Include="src\InteractableObject.cpp">
+      <Filter>Source Files\Component\User</Filter>
+    </ClCompile>
+    <ClCompile Include="src\GameObject.cpp">
+      <Filter>Source Files\ObjectData</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Key.cpp">
+      <Filter>Source Files\Component\User</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Door.cpp">
+      <Filter>Source Files\Component\User</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Map.cpp">
+      <Filter>Source Files\FileTypes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Material.cpp">
+      <Filter>Source Files\ObjectData</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MeshRenderer.cpp">
+      <Filter>Source Files\Component\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\MeshRendererSystem.cpp">
+      <Filter>Source Files\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PhysicsSystem.cpp">
+      <Filter>Source Files\Systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\PlayerMovement.cpp">
+      <Filter>Source Files\Component\User</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SDL_Static_Helper.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SphereCollider.cpp">
+      <Filter>Source Files\Component\Engine\Collider</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Transform.cpp">
+      <Filter>Source Files\Component\Engine</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Vec2.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Vec3.cpp">
+      <Filter>Source Files\Utility</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Mesh.cpp">
+      <Filter>Source Files\ObjectData</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Scene.cpp">
+      <Filter>Source Files\FileTypes</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="scenes\Map1.map">
+      <Filter>Resource Files\Maps</Filter>
+    </None>
+    <None Include="scenes\LightScene.scn">
+      <Filter>Resource Files\Scenes</Filter>
+    </None>
+    <None Include="shaders\deferredLightVolumes.frag">
+      <Filter>Resource Files\Shaders\Deferred\DeferredLightVolumes</Filter>
+    </None>
+    <None Include="shaders\deferredLightVolumes.vert">
+      <Filter>Resource Files\Shaders\Deferred\DeferredLightVolumes</Filter>
+    </None>
+    <None Include="shaders\deferredLighting.frag">
+      <Filter>Resource Files\Shaders\Deferred\DeferredLighting</Filter>
+    </None>
+    <None Include="shaders\deferredLighting.vert">
+      <Filter>Resource Files\Shaders\Deferred\DeferredLighting</Filter>
+    </None>
+    <None Include="shaders\deferredToTexture.frag">
+      <Filter>Resource Files\Shaders\Deferred</Filter>
+    </None>
+    <None Include="shaders\deferredToTexture.vert">
+      <Filter>Resource Files\Shaders\Deferred</Filter>
+    </None>
+    <None Include="shaders\Phong.frag">
+      <Filter>Resource Files\Shaders\ForwardPhong</Filter>
+    </None>
+    <None Include="shaders\Phong.vert">
+      <Filter>Resource Files\Shaders\ForwardPhong</Filter>
+    </None>
+    <None Include="scenes\Scene1.scn">
+      <Filter>Resource Files\Scenes</Filter>
+    </None>
+  </ItemGroup>
+</Project>
