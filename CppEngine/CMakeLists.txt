@@ -89,6 +89,7 @@ set(COMPONENT_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/PlayerMovement.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/Transform.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/colliders/BoxCollider.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/colliders/Collider.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/colliders/SphereCollider.cpp
 )
 

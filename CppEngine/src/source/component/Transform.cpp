@@ -19,10 +19,6 @@ Transform::Transform() {
     model = glm::mat4();
 }
 
-Transform::~Transform() {
-    delete gameObject;
-}
-
 Transform* Transform::clone() const {
     return new Transform(*this);
 }

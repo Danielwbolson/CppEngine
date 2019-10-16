@@ -6,6 +6,10 @@ Camera::Camera() {
     transform = new Transform();
 }
 
+Camera::~Camera() {
+	delete transform;
+}
+
 Camera::Camera(const glm::vec3& lookat, const glm::vec3& u, 
     const int& w, const int& h, const float& f, const float& np, const float& fp) {
 

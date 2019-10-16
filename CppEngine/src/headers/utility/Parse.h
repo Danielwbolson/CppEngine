@@ -175,7 +175,7 @@ static void ObjParse(Mesh& mesh, const std::string fileName) {
     indices.clear();
 }
 
-static Scene SceneParse(Scene& scene, std::string fileName) {
+static void SceneParse(Scene* scene, std::string fileName) {
     FILE *fp;
     char line[1024]; //Assumes no line is longer than 1024 characters!
 
@@ -190,9 +190,9 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
 		exit(1);
     }
 
-    Material currMaterial;
 	GameObject* currGameObject = nullptr;
-    Mesh currMesh;
+    Mesh* currMesh = nullptr;
+	Material* currMaterial = nullptr;
     int window_width, window_height;
 
     //Loop through reading each line
@@ -213,12 +213,12 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
         if (strcmp(command, "aspect_ratio") == 0) {
             sscanf(line, "aspect_ratio %d %d", &window_width, &window_height);
 
-            scene.window_width = window_width;
-            scene.window_height = window_height;
+            scene->window_width = window_width;
+            scene->window_height = window_height;
         }
         else if (strcmp(command, "gameObject") == 0) {
 			if (currGameObject != nullptr) {
-				scene.gameObjects.push_back(currGameObject);
+				scene->gameObjects.push_back(currGameObject);
 			}
 
             currGameObject = new GameObject();
@@ -234,8 +234,6 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
 
             sscanf(line, "camera %f %f %f %f %f %f %f %f %f",
                 &lax, &lay, &laz, &ux, &uy, &uz, &fov, &np, &fp);
-
-            delete mainCamera;
 
             mainCamera = new Camera(
                 glm::vec3(lax, lay, laz),
@@ -312,8 +310,9 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
 
             sscanf(line, "mesh %s", &filename);
 
-            ObjParse(currMesh, filename);
-            currMesh.name = currGameObject->name;
+			currMesh = new Mesh();
+            ObjParse(*currMesh, filename);
+            currMesh->name = currGameObject->name;
         }
         else if (strcmp(command, "material") == 0) { // If the command is a material
             float cr, cg, cb; // color
@@ -326,7 +325,7 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
             sscanf(line, "material %f %f %f %f %f %f %f %f %f %f %f %f %s %s",
                 &cr, &cg, &cb, &ar, &ag, &ab, &dr, &dg, &db, &sr, &sg, &sb, &vert, &frag);
 
-            currMaterial = Material(glm::vec3(cr, cg, cb), glm::vec3(ar, ag, ab), glm::vec3(dr, dg, db), glm::vec3(sr, sg, sb), 
+            currMaterial = new Material(glm::vec3(cr, cg, cb), glm::vec3(ar, ag, ab), glm::vec3(dr, dg, db), glm::vec3(sr, sg, sb), 
                 vert, frag);
         }
         else if (strcmp(command, "directional_light") == 0) { // If the command is a directional light
@@ -339,7 +338,7 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
                 glm::normalize(glm::vec4(dx, dy, dz, dw))
             };
 
-            scene.lights.push_back(d);
+            scene->lights.push_back(d);
         }
         else if (strcmp(command, "spot_light") == 0) { // If the command is a point_light
             float r, g, b, a;
@@ -357,7 +356,7 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
                 angle2
             };
 
-            scene.lights.push_back(s);
+            scene->lights.push_back(s);
         }
         else if (strcmp(command, "point_light") == 0) { // If the command is a spot_light
             float r, g, b, a, x, y, z, w;
@@ -369,7 +368,7 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
                 glm::vec4(x, y, z, w)
             };
 
-            scene.lights.push_back(p);
+            scene->lights.push_back(p);
         }
         else if (strcmp(command, "ambient_light") == 0) { // If the command is a ambient_light
             float r, g, b, a;
@@ -379,7 +378,7 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
                 glm::vec4(r, g, b, a)
             };
 
-            scene.lights.push_back(amb);
+            scene->lights.push_back(amb);
         }
         else {
             fprintf(stderr, "WARNING. Do not know command: %s\n", command);
@@ -388,10 +387,10 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
 
 	// Push in our last gameobject
 	if (currGameObject != nullptr) {
-		scene.gameObjects.push_back(currGameObject);
+		scene->gameObjects.push_back(currGameObject);
 	}
 
-    GameObject* g = scene.FindGameObject("floor");
+    GameObject* g = scene->FindGameObject("floor");
     Transform* t = g->transform;
     t->SetPosition(glm::vec3(0, -1, 0));
     
@@ -406,12 +405,11 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
                 0.5,
                 (float)rand() / (float)RAND_MAX * 40, 1)
         };
-        scene.lights.push_back(p);
+        scene->lights.push_back(p);
     }
-    return scene;
 }
 
-static Map MapParse(Map& map, std::string fileName, Scene* s) {
+static void MapParse(Map* map, std::string fileName, Scene* s) {
     FILE *fp;
     char line[1024]; //Assumes no line is longer than 1024 characters!
 
@@ -442,17 +440,17 @@ static Map MapParse(Map& map, std::string fileName, Scene* s) {
         if ((fieldsRead = sscanf(line, "%d %d", &temp_width, &temp_height)) == 2) {
             width = temp_width;
             height = temp_height;
-            map.Setup(width, height);
+            map->Setup(width, height);
         }
         // Grid entries
         else if ((fieldsRead = sscanf(line, "%s", row)) == 1) {
             for (int j = 0; j < width; j++) {
                 switch (row[j]) {
                 case 's' :
-                    map.layout.push_back(door1);
+                    map->layout.push_back(door1);
                     break;
                 case '0' :
-                    map.layout.push_back(empty);
+                    map->layout.push_back(empty);
                     break;
                 default:
                     break;
@@ -464,14 +462,14 @@ static Map MapParse(Map& map, std::string fileName, Scene* s) {
 
     }
 
-    s->instances.reserve(map.layout.size());
+    s->instances.reserve(map->layout.size());
     // Create actual grid
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
             bool flag = true;
             GameObject* g = new GameObject();
             Transform* t = new Transform();
-            switch (map.layout[map.index(i, j)]) {
+            switch (map->layout[map->index(i, j)]) {
             case empty: {
                 flag = false;
                 break;
@@ -503,8 +501,6 @@ static Map MapParse(Map& map, std::string fileName, Scene* s) {
         g->components[i]->gameObject = g;
     }
     s->instances.push_back(g);
-
-    return map;
 }
 
 #endif

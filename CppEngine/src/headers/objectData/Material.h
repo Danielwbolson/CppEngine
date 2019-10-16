@@ -17,6 +17,8 @@ private:
 
 public:
     Material();
+	~Material();
+
     Material(const glm::vec3&, const glm::vec3&, const glm::vec3&, const glm::vec3&, 
         const std::string&, const std::string&);
 

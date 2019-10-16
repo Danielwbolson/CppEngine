@@ -3,5 +3,5 @@
 #include "GameObject.h"
 
 Component::~Component() {
-	delete gameObject;
+	gameObject = nullptr;
 }

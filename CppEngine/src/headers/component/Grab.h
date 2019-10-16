@@ -12,6 +12,8 @@ private:
 
 public:
     Grab();
+	~Grab();
+
     Grab* clone() const;
 
     void GrabObject(GameObject*);

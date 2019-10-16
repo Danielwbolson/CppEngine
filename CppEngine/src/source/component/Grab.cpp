@@ -9,6 +9,10 @@ Grab::Grab() {
     componentType = "grab";
 }
 
+Grab::~Grab() {
+	grabbedObj = nullptr;
+}
+
 Grab* Grab::clone() const {
     return new Grab(*this);
 }

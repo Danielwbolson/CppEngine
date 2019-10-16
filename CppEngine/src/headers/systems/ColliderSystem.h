@@ -13,6 +13,7 @@ private:
 
 public:
     ColliderSystem();
+	~ColliderSystem();
 
     void Setup(const std::vector<GameObject*>&, const std::vector<Light*>&);
     void ComponentType(const std::string&) const;

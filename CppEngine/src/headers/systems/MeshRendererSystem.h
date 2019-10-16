@@ -45,9 +45,8 @@ private:
     GLuint lightVolume_Vao; GLuint lightVolume_Vbo; GLuint lightVolume_Ibo;
     GLuint quadVao; GLuint quadVbo;
     GLuint combinedShader;
-    GLuint lightUBO;
+    //GLuint lightUBO;
 
-    MeshRenderer* lightSphereMR;
     Mesh lightSphere;
 
     int numLights;

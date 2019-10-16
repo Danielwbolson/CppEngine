@@ -5,7 +5,11 @@
 
 Material::Material() {}
 
-    Material::Material(const glm::vec3& c, const glm::vec3& a, const glm::vec3& d, const glm::vec3& s, 
+Material::~Material() {
+	glDeleteProgram(shaderProgram);
+}
+
+Material::Material(const glm::vec3& c, const glm::vec3& a, const glm::vec3& d, const glm::vec3& s, 
         const std::string& vert, const std::string& frag) {
     this->color = c;
     this->c_ambient = a;

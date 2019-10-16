@@ -27,8 +27,26 @@ MeshRendererSystem::MeshRendererSystem(const int& sW, const int& sH) {
 
 MeshRendererSystem::~MeshRendererSystem() {
     glDeleteProgram(combinedShader);
+
     glDeleteBuffers(1, &quadVbo);
     glDeleteVertexArrays(1, &quadVao);
+
+	glDeleteBuffers(1, &lightVolume_Ibo);
+	glDeleteBuffers(1, &lightVolume_Vbo);
+	glDeleteVertexArrays(1, &lightVolume_Vao);
+	
+	glDeleteFramebuffers(1, &gBuffer.id);
+	glDeleteTextures(1, &gBuffer.positions);
+	glDeleteTextures(1, &gBuffer.normals);
+	glDeleteTextures(1, &gBuffer.diffuse);
+	glDeleteTextures(1, &gBuffer.specular);
+
+	for (int i = 0; i < meshRenderers.size(); i++) {
+		delete meshRenderers[i];
+	}
+	for (int i = 0; i < lights.size(); i++) {
+		delete lights[i];
+	}
 }
 
 void MeshRendererSystem::Setup(const std::vector<GameObject*>& g, const std::vector<Light*>& l) {
@@ -164,9 +182,9 @@ void MeshRendererSystem::Register(const Component* c) {
     // Position
     glGenBuffers(1, &(mr->vbo[0]));
     glBindBuffer(GL_ARRAY_BUFFER, mr->vbo[0]);
-    glBufferData(GL_ARRAY_BUFFER, 3 * mr->mesh.NumPositions() * sizeof(float), &(mr->mesh.pos[0]), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 3 * mr->mesh->NumPositions() * sizeof(float), &(mr->mesh->pos[0]), GL_STATIC_DRAW);
 
-    GLint posAttrib = glGetAttribLocation(mr->material.shaderProgram, "inPosition");
+    GLint posAttrib = glGetAttribLocation(mr->material->shaderProgram, "inPosition");
     glEnableVertexAttribArray(posAttrib);
     glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
     //Attribute, vals/attrib., type, isNormalized, stride, offset
@@ -174,9 +192,9 @@ void MeshRendererSystem::Register(const Component* c) {
     // Normals
     glGenBuffers(1, &(mr->vbo[1]));
     glBindBuffer(GL_ARRAY_BUFFER, mr->vbo[1]);
-    glBufferData(GL_ARRAY_BUFFER, 3 * mr->mesh.NumNorms() * sizeof(float), &(mr->mesh.normals[0]), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 3 * mr->mesh->NumNorms() * sizeof(float), &(mr->mesh->normals[0]), GL_STATIC_DRAW);
 
-    GLint normAttrib = glGetAttribLocation(mr->material.shaderProgram, "inNormal");
+    GLint normAttrib = glGetAttribLocation(mr->material->shaderProgram, "inNormal");
     glEnableVertexAttribArray(normAttrib);
     glVertexAttribPointer(normAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
@@ -195,7 +213,7 @@ void MeshRendererSystem::Register(const Component* c) {
     // Indices
     glGenBuffers(1, &(mr->vbo[3]));
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mr->vbo[3]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mr->mesh.NumIndices() * sizeof(GL_UNSIGNED_INT), &(mr->mesh.indices[0]), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mr->mesh->NumIndices() * sizeof(GL_UNSIGNED_INT), &(mr->mesh->indices[0]), GL_STATIC_DRAW);
 
     glBindVertexArray(0);
 }
@@ -213,25 +231,25 @@ void MeshRendererSystem::Render() const {
 
     // Get all of our meshRenderers to draw to textures
     for (int i = 0; i < meshRenderers.size(); i++) {
-        glUseProgram(meshRenderers[i]->material.shaderProgram);
+        glUseProgram(meshRenderers[i]->material->shaderProgram);
         glBindVertexArray(meshRenderers[i]->vao);
 
         glm::mat4 model = meshRenderers[i]->gameObject->transform->model;
 
-        GLint uniColor = glGetUniformLocation(meshRenderers[i]->material.shaderProgram, "inColor");
-        glUniform3f(uniColor, meshRenderers[i]->material.Color().x, meshRenderers[i]->material.Color().y, meshRenderers[i]->material.Color().z);
-        GLint uniModel = glGetUniformLocation(meshRenderers[i]->material.shaderProgram, "model");
+        GLint uniColor = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "inColor");
+        glUniform3f(uniColor, meshRenderers[i]->material->Color().x, meshRenderers[i]->material->Color().y, meshRenderers[i]->material->Color().z);
+        GLint uniModel = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "model");
         glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
-        GLint uniView = glGetUniformLocation(meshRenderers[i]->material.shaderProgram, "view");
+        GLint uniView = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "view");
         glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
-        GLint uniProj = glGetUniformLocation(meshRenderers[i]->material.shaderProgram, "proj");
+        GLint uniProj = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "proj");
         glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
 
         // Indices
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshRenderers[i]->vbo[3]);
 
         // Use our shader and draw our program
-        glDrawElements(GL_TRIANGLES, meshRenderers[i]->mesh.NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
+        glDrawElements(GL_TRIANGLES, meshRenderers[i]->mesh->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
     }
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);

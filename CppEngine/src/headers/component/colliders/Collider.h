@@ -14,6 +14,8 @@ public:
     bool colliding;
     GameObject* colliderObj;
 
+	~Collider();
+
     virtual bool CollisionDetect(const Collider&, const float&) const = 0;
     virtual void Update(const float&) = 0;
     virtual float MaxBoundsInDir(const glm::vec3&) const = 0;

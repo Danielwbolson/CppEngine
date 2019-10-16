@@ -14,6 +14,8 @@ private:
 
 public:
     BoxCollider() {}
+	~BoxCollider() {}
+
     BoxCollider(const glm::vec3&, const float&, const float&, const bool&);
     BoxCollider* clone() const;
 

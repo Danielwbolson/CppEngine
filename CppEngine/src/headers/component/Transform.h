@@ -12,7 +12,6 @@ class Transform : public Component {
 
 public:
     Transform();
-    ~Transform();
     Transform* clone() const;
 
     Transform(const Transform&);

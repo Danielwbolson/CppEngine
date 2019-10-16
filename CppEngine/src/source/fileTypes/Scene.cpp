@@ -7,11 +7,17 @@
 Scene::Scene() : window_width(640), window_height(480), background{ glm::vec3(0, 0, 0) } {}
 
 Scene::~Scene() {
-    gameObjects.clear();
+	for (int i = 0; i < gameObjects.size(); i++) {
+		delete gameObjects[i];
+	}
 
-    instances.clear();
+	for (int i = 0; i < instances.size(); i++) {
+		delete instances[i];
+	}
 
-    lights.clear();
+	for (int i = 0; i < lights.size(); i++) {
+		delete lights[i];
+	}
 }
 
 GameObject* Scene::FindGameObject(const std::string& name) {

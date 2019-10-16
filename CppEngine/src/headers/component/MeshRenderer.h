@@ -15,12 +15,14 @@ public:
     GLuint vbo[4];
     GLuint vao;
 
-    Mesh mesh;
-    Material material;
+    Mesh* mesh;
+    Material* material;
 
 public:
     MeshRenderer() {}
-    MeshRenderer(const Mesh&, const Material&);
+	~MeshRenderer();
+
+    MeshRenderer(Mesh*, Material*);
     MeshRenderer* clone() const;
 
 };
