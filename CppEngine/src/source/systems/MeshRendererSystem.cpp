@@ -264,7 +264,7 @@ void MeshRendererSystem::Render() const {
     glUniform1i(glGetUniformLocation(combinedShader, "gSpecularExp"), 3);
 
 	glDepthMask(GL_FALSE);
-	//glDisable(GL_DEPTH_TEST);
+	glDisable(GL_DEPTH_TEST);
 
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
@@ -273,13 +273,24 @@ void MeshRendererSystem::Render() const {
     // Indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
 
+	glm::vec3 camPos = mainCamera->transform->position;
+
     // instead of drawing arrays, draw spheres at each light position
     for (int i = 0; i < numLights; i++) {
         glm::vec4 pos = pointLights[i].position;
         glm::vec4 color = pointLights[i].color;
 
         float lum = .6f * color.g + .3f * color.r + .1f * color.b;
-        float radScal = sqrt(lum / 0.001f) / 10.0f;
+        float radScal = sqrt(lum * 10);
+
+		float radius = lum * radScal;
+
+		// Swith culling if inside light volume
+		if (glm::length(camPos - glm::vec3(pos.x, pos.y, pos.z)) < radius) {
+			glCullFace(GL_FRONT);
+		} else {
+			glCullFace(GL_BACK);
+		}
 
         glm::mat4 model;
         model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
@@ -297,6 +308,7 @@ void MeshRendererSystem::Render() const {
         glDrawElements(GL_TRIANGLES, lightSphere.NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
     }
 
+	glCullFace(GL_BACK);
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
