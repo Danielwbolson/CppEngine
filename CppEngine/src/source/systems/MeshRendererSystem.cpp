@@ -239,9 +239,6 @@ void MeshRendererSystem::Render() const {
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glDepthMask(GL_FALSE);
-    glDisable(GL_DEPTH_TEST);
-
     glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
     glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
@@ -265,6 +262,9 @@ void MeshRendererSystem::Render() const {
     glUniform1i(glGetUniformLocation(combinedShader, "gNormal"), 1);
     glUniform1i(glGetUniformLocation(combinedShader, "gDiffuse"), 2);
     glUniform1i(glGetUniformLocation(combinedShader, "gSpecularExp"), 3);
+
+	glDepthMask(GL_FALSE);
+	//glDisable(GL_DEPTH_TEST);
 
     glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
