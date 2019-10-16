@@ -58,12 +58,14 @@ static void ObjParse(Mesh& mesh, const std::string fileName) {
     FILE *fp;
     char line[1024]; //Assumes no line is longer than 1024 characters!
 
+	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
+
     // open the file containing the scene description
-    fp = fopen(fileName.c_str(), "r");
+    fp = fopen(fullFile.c_str(), "r");
 
     // check for errors in opening the file
     if (fp == NULL) {
-        fprintf(stderr, "Can't open file '%s'\n", fileName.c_str());
+        fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
     }
 
     std::vector<glm::vec3> rawVerts;
@@ -176,16 +178,18 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
     FILE *fp;
     char line[1024]; //Assumes no line is longer than 1024 characters!
 
+	std::string fullFile = VK_ROOT_DIR"scenes/" + fileName;
+
     // open the file containing the scene description
-    fp = fopen(fileName.c_str(), "r");
+    fp = fopen(fullFile.c_str(), "r");
 
     // check for errors in opening the file
     if (fp == NULL) {
-        fprintf(stderr, "Can't open file '%s'\n", fileName.c_str());
+        fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
     }
 
     Material currMaterial;
-    GameObject* currGameObject = new GameObject();
+	GameObject* currGameObject = nullptr;
     Mesh currMesh;
     int window_width, window_height;
 
@@ -211,6 +215,10 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
             scene.window_height = window_height;
         }
         else if (strcmp(command, "gameObject") == 0) {
+			if (currGameObject != nullptr) {
+				scene.gameObjects.push_back(currGameObject);
+			}
+
             currGameObject = new GameObject();
             char name[1024];
 
@@ -297,17 +305,12 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
             }
             else { continue; }
         }
-        else if (strcmp(command, "endGameObject") == 0) {
-            scene.gameObjects.push_back(currGameObject);
-        }
         else if (strcmp(command, "mesh") == 0) {
             char filename[1024];
 
             sscanf(line, "mesh %s", &filename);
 
-			std::string fullFile = VK_ROOT_DIR + std::string(filename);
-
-            ObjParse(currMesh, fullFile);
+            ObjParse(currMesh, filename);
             currMesh.name = currGameObject->name;
         }
         else if (strcmp(command, "material") == 0) { // If the command is a material
@@ -381,6 +384,11 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
         }
     }
 
+	// Push in our last gameobject
+	if (currGameObject != nullptr) {
+		scene.gameObjects.push_back(currGameObject);
+	}
+
     GameObject* g = scene.FindGameObject("floor");
     Transform* t = g->transform;
     t->SetPosition(glm::vec3(0, -1, 0));
@@ -405,12 +413,14 @@ static Map MapParse(Map& map, std::string fileName, Scene* s) {
     FILE *fp;
     char line[1024]; //Assumes no line is longer than 1024 characters!
 
+	std::string fullFile = VK_ROOT_DIR"maps/" + fileName;
+
     // open the file containing the scene description
-    fp = fopen(fileName.c_str(), "r");
+    fp = fopen(fullFile.c_str(), "r");
 
     // check for errors in opening the file
     if (fp == NULL) {
-        fprintf(stderr, "Can't open file '%s'\n", fileName.c_str());
+        fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
     }
 
     int i = 0;

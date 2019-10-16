@@ -10,6 +10,8 @@
 #define GLM_FORCE_RADIANS
 #include "glad/glad.h"
 
+#include "Configuration.h"
+
 namespace util {
 
     static void loadShader(GLuint shaderID, const GLchar* shaderSource) {
@@ -26,8 +28,8 @@ namespace util {
     }
 
     static const std::string fileToString(std::string filename) {
-        std::string f = "./shaders/" + filename;
-        std::ifstream file(f);
+        std::string fullFile = VK_ROOT_DIR"shaders/"+ filename;
+        std::ifstream file(fullFile);
         std::stringstream buf;
         buf << file.rdbuf();
 

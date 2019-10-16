@@ -22,7 +22,7 @@ MeshRendererSystem::MeshRendererSystem(const int& sW, const int& sH) {
     components = std::vector<Component*>();
     pointLights = std::vector<PointLight>();
 
-    ObjParse(lightSphere, VK_ROOT_DIR"meshes/sphere.obj");
+    ObjParse(lightSphere, "sphere.obj");
 }
 
 MeshRendererSystem::~MeshRendererSystem() {

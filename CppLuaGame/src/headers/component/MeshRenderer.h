@@ -2,10 +2,11 @@
 #ifndef MESH_RENDERER_H_
 #define MESH_RENDERER_H_
 
+#include "glad/glad.h"
+
 #include "Component.h"
 #include "Mesh.h"
 #include "Material.h"
-#include "SDL_opengl.h"
 
 class MeshRenderer : public Component {
 

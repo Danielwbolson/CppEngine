@@ -21,6 +21,8 @@ endif()
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Configuration.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/headers/Configuration.h)
 
+
+
 set(LAPTOP_SDL D:/SDL2-2.0.8/)
 set(DESKTOP_SDL E:/SDL2-2.0.10/)
 
@@ -31,13 +33,38 @@ if (UNIX AND NOT APPLE)
 elseif (APPLE)
   find_package( SDL2 REQUIRED component main)
 elseif(MSVC)
-  link_directories( ${DESKTOP_SDL}lib/x64 )
-  set( SDL2_INCLUDE_DIRS ${DESKTOP_SDL}include )
-  #link_directories( ${LAPTOP_SDL}lib/x64)
-  #set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)
+  #link_directories( ${DESKTOP_SDL}lib/x64 )
+  #set( SDL2_INCLUDE_DIRS ${DESKTOP_SDL}include )
+  link_directories( ${LAPTOP_SDL}lib/x64)
+  set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)
   
   set( SDL2_LIBRARIES SDL2 SDL2main )
 endif()
+
+
+
+set(SYSTEM_LIBS "")
+if (UNIX AND NOT APPLE)
+	set(SYSTEM_LIBS
+		dl
+		stdc++fs
+	)
+endif()
+
+set(LIBS
+	${SYSTEM_LIBS}
+	${SDL2_LIBRARIES}
+)
+
+
+
+find_package(OpenGL REQUIRED)
+
+file(GLOB glad_src external/glad/*.c)
+add_library(glad ${glad_src})
+
+
+
 
 set(COMPONENT_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/Component.h
@@ -179,40 +206,7 @@ set(INCLUDE_DIRS
 	${OPENGL_INCLUDE_DIRS}
 )
 
-find_package(OpenGL REQUIRED)
 
-set(SYSTEM_LIBS "")
-if (UNIX AND NOT APPLE)
-	set(SYSTEM_LIBS
-		dl
-		stdc++fs
-	)
-endif()
-
-set(LIBS
-	${SYSTEM_LIBS}
-	${SDL2_LIBRARIES}
-)
-
-if (MSVC)
-	set(LIB_DIRS
-		${LIB_DIRS}
-		${CMAKE_CURRENT_SOURCE_DIR}/external/vulkan/1.1.121.2/Lib
-	)
-	set(LIBS
-		${LIBS}
-		vulkan-1
-	)
-else()
-	find_package(VULKAN REQUIRED)
-	set(LIBS
-		LIBS	
-		Vulkan::Vulkan
-	)
-endif()
-
-file(GLOB glad_src external/glad/*.c)
-add_library(glad ${glad_src})
 
 link_directories(${LIB_DIRS})
 include_directories(${INCLUDE_DIRS})
@@ -227,3 +221,9 @@ if (MSVC)
 endif()
 
 target_link_libraries(CppLuaGame ${LIBS} glad)
+
+# Put necessary lib files in our build directory
+add_custom_command(TARGET CppLuaGame POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/libs"
+        $<TARGET_FILE_DIR:CppLuaGame>)
