@@ -1,0 +1,57 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "CMakePredefinedTargets", "CMakePredefinedTargets", "{C82D3FE4-4FB2-374D-87B7-1CE6CE8B6842}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "CppLuaGame", "CppLuaGame.vcxproj", "{31D6B741-C566-3CAC-B8ED-DC47E7F3FD72}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D0B809A3-68F1-32B5-A30F-943A76FDCC6D} = {D0B809A3-68F1-32B5-A30F-943A76FDCC6D}
+		{5EF51682-1531-3C72-9078-1E392679FC28} = {5EF51682-1531-3C72-9078-1E392679FC28}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ALL_BUILD", "ALL_BUILD.vcxproj", "{FB243F5A-A4B4-314A-80E6-7FF5FB3603DE}"
+	ProjectSection(ProjectDependencies) = postProject
+		{31D6B741-C566-3CAC-B8ED-DC47E7F3FD72} = {31D6B741-C566-3CAC-B8ED-DC47E7F3FD72}
+		{D0B809A3-68F1-32B5-A30F-943A76FDCC6D} = {D0B809A3-68F1-32B5-A30F-943A76FDCC6D}
+		{5EF51682-1531-3C72-9078-1E392679FC28} = {5EF51682-1531-3C72-9078-1E392679FC28}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ZERO_CHECK", "ZERO_CHECK.vcxproj", "{D0B809A3-68F1-32B5-A30F-943A76FDCC6D}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "glad", "glad.vcxproj", "{5EF51682-1531-3C72-9078-1E392679FC28}"
+	ProjectSection(ProjectDependencies) = postProject
+		{D0B809A3-68F1-32B5-A30F-943A76FDCC6D} = {D0B809A3-68F1-32B5-A30F-943A76FDCC6D}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{31D6B741-C566-3CAC-B8ED-DC47E7F3FD72}.Debug|x64.ActiveCfg = Debug|x64
+		{31D6B741-C566-3CAC-B8ED-DC47E7F3FD72}.Debug|x64.Build.0 = Debug|x64
+		{31D6B741-C566-3CAC-B8ED-DC47E7F3FD72}.Release|x64.ActiveCfg = Release|x64
+		{31D6B741-C566-3CAC-B8ED-DC47E7F3FD72}.Release|x64.Build.0 = Release|x64
+		{FB243F5A-A4B4-314A-80E6-7FF5FB3603DE}.Debug|x64.ActiveCfg = Debug|x64
+		{FB243F5A-A4B4-314A-80E6-7FF5FB3603DE}.Release|x64.ActiveCfg = Release|x64
+		{D0B809A3-68F1-32B5-A30F-943A76FDCC6D}.Debug|x64.ActiveCfg = Debug|x64
+		{D0B809A3-68F1-32B5-A30F-943A76FDCC6D}.Debug|x64.Build.0 = Debug|x64
+		{D0B809A3-68F1-32B5-A30F-943A76FDCC6D}.Release|x64.ActiveCfg = Release|x64
+		{D0B809A3-68F1-32B5-A30F-943A76FDCC6D}.Release|x64.Build.0 = Release|x64
+		{5EF51682-1531-3C72-9078-1E392679FC28}.Debug|x64.ActiveCfg = Debug|x64
+		{5EF51682-1531-3C72-9078-1E392679FC28}.Debug|x64.Build.0 = Debug|x64
+		{5EF51682-1531-3C72-9078-1E392679FC28}.Release|x64.ActiveCfg = Release|x64
+		{5EF51682-1531-3C72-9078-1E392679FC28}.Release|x64.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{FB243F5A-A4B4-314A-80E6-7FF5FB3603DE} = {C82D3FE4-4FB2-374D-87B7-1CE6CE8B6842}
+		{D0B809A3-68F1-32B5-A30F-943A76FDCC6D} = {C82D3FE4-4FB2-374D-87B7-1CE6CE8B6842}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A43DD86A-7D91-3B73-825D-C63C6EFC1993}
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

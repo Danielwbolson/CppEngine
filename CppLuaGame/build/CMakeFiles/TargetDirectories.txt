@@ -1,0 +1,4 @@
+C:/Users/Daniel/Desktop/CppLuaGame/CppLuaGame/build/CMakeFiles/glad.dir
+C:/Users/Daniel/Desktop/CppLuaGame/CppLuaGame/build/CMakeFiles/CppLuaGame.dir
+C:/Users/Daniel/Desktop/CppLuaGame/CppLuaGame/build/CMakeFiles/ALL_BUILD.dir
+C:/Users/Daniel/Desktop/CppLuaGame/CppLuaGame/build/CMakeFiles/ZERO_CHECK.dir

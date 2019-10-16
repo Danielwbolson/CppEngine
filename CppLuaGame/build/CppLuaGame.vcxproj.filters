@@ -1,0 +1,260 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\Component.cpp">
+      <Filter>src\source\component</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\Door.cpp">
+      <Filter>src\source\component</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\Grab.cpp">
+      <Filter>src\source\component</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\InteractableObject.cpp">
+      <Filter>src\source\component</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\Key.cpp">
+      <Filter>src\source\component</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\MeshRenderer.cpp">
+      <Filter>src\source\component</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\PlayerMovement.cpp">
+      <Filter>src\source\component</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\Transform.cpp">
+      <Filter>src\source\component</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\colliders\BoxCollider.cpp">
+      <Filter>src\source\component\colliders</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\component\colliders\SphereCollider.cpp">
+      <Filter>src\source\component\colliders</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\fileTypes\Map.cpp">
+      <Filter>src\source\fileTypes</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\fileTypes\Scene.cpp">
+      <Filter>src\source\fileTypes</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\objectData\GameObject.cpp">
+      <Filter>src\source\objectData</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\objectData\Material.cpp">
+      <Filter>src\source\objectData</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\objectData\Mesh.cpp">
+      <Filter>src\source\objectData</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\systems\ColliderSystem.cpp">
+      <Filter>src\source\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\systems\MeshRendererSystem.cpp">
+      <Filter>src\source\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\systems\PhysicsSystem.cpp">
+      <Filter>src\source\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\utility\SDL_Static_Helper.cpp">
+      <Filter>src\source\utility</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\utility\Vec2.cpp">
+      <Filter>src\source\utility</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\utility\Vec3.cpp">
+      <Filter>src\source\utility</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\Camera.cpp">
+      <Filter>src\source</Filter>
+    </ClCompile>
+    <ClCompile Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\source\main.cpp">
+      <Filter>src\source</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\Component.h">
+      <Filter>src\headers\component</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\Door.h">
+      <Filter>src\headers\component</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\Grab.h">
+      <Filter>src\headers\component</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\InteractableObject.h">
+      <Filter>src\headers\component</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\Key.h">
+      <Filter>src\headers\component</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\MeshRenderer.h">
+      <Filter>src\headers\component</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\PlayerMovement.h">
+      <Filter>src\headers\component</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\Transform.h">
+      <Filter>src\headers\component</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\colliders\BoxCollider.h">
+      <Filter>src\headers\component\colliders</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\colliders\Collider.h">
+      <Filter>src\headers\component\colliders</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\component\colliders\SphereCollider.h">
+      <Filter>src\headers\component\colliders</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\fileTypes\Map.h">
+      <Filter>src\headers\fileTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\fileTypes\Scene.h">
+      <Filter>src\headers\fileTypes</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\lights\AmbientLight.h">
+      <Filter>src\headers\lights</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\lights\DirectionalLight.h">
+      <Filter>src\headers\lights</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\lights\Light.h">
+      <Filter>src\headers\lights</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\lights\PointLight.h">
+      <Filter>src\headers\lights</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\lights\SpotLight.h">
+      <Filter>src\headers\lights</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\objectData\GameObject.h">
+      <Filter>src\headers\objectData</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\objectData\Material.h">
+      <Filter>src\headers\objectData</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\objectData\Mesh.h">
+      <Filter>src\headers\objectData</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\systems\ColliderSystem.h">
+      <Filter>src\headers\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\systems\MeshRendererSystem.h">
+      <Filter>src\headers\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\systems\PhysicsSystem.h">
+      <Filter>src\headers\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\systems\Systems.h">
+      <Filter>src\headers\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\utility\Globals.h">
+      <Filter>src\headers\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\utility\Parse.h">
+      <Filter>src\headers\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\utility\SDL_Static_Helper.h">
+      <Filter>src\headers\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\utility\Utility.h">
+      <Filter>src\headers\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\utility\Vec2.h">
+      <Filter>src\headers\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\utility\Vec3.h">
+      <Filter>src\headers\utility</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\Camera.h">
+      <Filter>src\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\MainVariables.h">
+      <Filter>src\headers</Filter>
+    </ClInclude>
+    <ClInclude Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\src\headers\Configuration.h">
+      <Filter>src\headers</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\shaders\deferredLighting.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\shaders\deferredLighting.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\shaders\deferredLightVolumes.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\shaders\deferredLightVolumes.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\shaders\deferredToTexture.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\shaders\deferredToTexture.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\shaders\Phong.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="C:\Users\Daniel\Desktop\CppLuaGame\CppLuaGame\shaders\Phong.frag">
+      <Filter>shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="shaders">
+      <UniqueIdentifier>{47CDEF13-02B1-3D42-B956-0A0A03443313}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{80CDED21-41B2-3397-95AA-8BC2EA4A7BD8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\headers">
+      <UniqueIdentifier>{3CC747D7-D202-3DFD-95E5-AEEAC7A2AE28}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\headers\component">
+      <UniqueIdentifier>{C6AE6E31-9570-3DC2-857E-CC5E30E71EE0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\headers\component\colliders">
+      <UniqueIdentifier>{C2C7647B-20B2-3109-BF18-5C6E42436153}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\headers\fileTypes">
+      <UniqueIdentifier>{9175CDBD-481C-3BB5-B2CC-806D0B968959}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\headers\lights">
+      <UniqueIdentifier>{C2D21697-F411-3DEB-8222-B8B76EF5FF61}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\headers\objectData">
+      <UniqueIdentifier>{847F3864-0DD4-37AF-B670-855EC263707A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\headers\systems">
+      <UniqueIdentifier>{B1CC6697-1921-34FD-9140-FDC87E084CE3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\headers\utility">
+      <UniqueIdentifier>{9D824CF8-9276-3012-A246-003735EB7F4D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\source">
+      <UniqueIdentifier>{AC6C254D-9C31-32E6-8647-03263A34E47A}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\source\component">
+      <UniqueIdentifier>{D190FE2E-B9E2-329C-B32B-EC1378CF7D94}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\source\component\colliders">
+      <UniqueIdentifier>{9B5F3A8F-B898-3F45-81B4-1898791909D4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\source\fileTypes">
+      <UniqueIdentifier>{9B916165-A3E7-35EA-8C87-9BF4B8CDA892}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\source\objectData">
+      <UniqueIdentifier>{365504C2-E9B9-34A1-BFE1-6FDDE2FFF68E}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\source\systems">
+      <UniqueIdentifier>{532D77C7-EFEA-34D4-846E-7FDC65772B97}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\source\utility">
+      <UniqueIdentifier>{A913CF6A-D6DF-32FE-8893-88F13A0DECCD}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
