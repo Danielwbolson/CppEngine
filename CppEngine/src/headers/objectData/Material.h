@@ -2,8 +2,9 @@
 #ifndef MATERIAL_H_
 #define MATERIAL_H_
 
-#define GLM_FORCE_RADIANS
 #include "glad/glad.h"
+
+#define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
 #include <string>

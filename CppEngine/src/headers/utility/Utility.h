@@ -40,11 +40,19 @@ namespace util {
         // Vert and frag shaders, compiled from file
         GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
         const std::string vertString = util::fileToString(vert);
+		if (vertString == "") {
+			fprintf(stderr, "Failed to load vertex shader: %s", vert.c_str());
+			exit(1);
+		}
         const GLchar* vertexSource = vertString.c_str();
         util::loadShader(vertexShader, vertexSource);
 
         GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
         const std::string fragString = util::fileToString(frag);
+		if (fragString == "") {
+			fprintf(stderr, "Failed to load fragment shader: %s", frag.c_str());
+			exit(1);
+		}
         const GLchar* fragmentSource = fragString.c_str();
         util::loadShader(fragmentShader, fragmentSource);
 

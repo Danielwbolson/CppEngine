@@ -4,6 +4,7 @@
 
 #include "Component.h"
 
+#define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
 class Collider : public Component {

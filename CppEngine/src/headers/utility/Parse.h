@@ -66,6 +66,7 @@ static void ObjParse(Mesh& mesh, const std::string fileName) {
     // check for errors in opening the file
     if (fp == NULL) {
         fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
+		exit(1);
     }
 
     std::vector<glm::vec3> rawVerts;
@@ -186,6 +187,7 @@ static Scene SceneParse(Scene& scene, std::string fileName) {
     // check for errors in opening the file
     if (fp == NULL) {
         fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
+		exit(1);
     }
 
     Material currMaterial;
@@ -421,6 +423,7 @@ static Map MapParse(Map& map, std::string fileName, Scene* s) {
     // check for errors in opening the file
     if (fp == NULL) {
         fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
+		exit(1);
     }
 
     int i = 0;

@@ -3,6 +3,8 @@
 #define DIRECTIONAL_LIGHT_H_
 
 #include "Light.h"
+
+#define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
 struct DirectionalLight : public Light {

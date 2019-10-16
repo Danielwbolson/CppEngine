@@ -4,8 +4,8 @@
 
 #include "Systems.h"
 
-#define GLM_FORCE_RADIANS
 #include "glad/glad.h"
+#define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
 #include "MeshRenderer.h"

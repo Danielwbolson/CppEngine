@@ -2,6 +2,7 @@
 #ifndef MESH_H_
 #define MESH_H_
 
+#define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 #include "Vec2.h"
 

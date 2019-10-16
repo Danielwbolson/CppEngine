@@ -2,6 +2,7 @@
 #ifndef CAMERA_H_
 #define CAMERA_H_
 
+#define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 #include "Transform.h"
 
