@@ -307,7 +307,6 @@ void MeshRendererSystem::Render() const {
 
         float lum = .6f * color.g + .3f * color.r + .1f * color.b;
         float radScal = sqrt(lum * 10);
-
 		float radius = lum * radScal;
 
         glm::mat4 model;
@@ -346,47 +345,7 @@ void MeshRendererSystem::Render() const {
 }
 
 bool MeshRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
-	/* http://www8.cs.umu.se/kurser/5DV051/HT12/lab/plane_extraction.pdf */
-	glm::vec4 left = glm::vec4(
-		projViewMat[0][3] + projViewMat[0][0],
-		projViewMat[1][3] + projViewMat[1][0],
-		projViewMat[2][3] + projViewMat[2][0],
-		projViewMat[3][3] + projViewMat[3][0]);
-
-	glm::vec4 right = glm::vec4(
-		projViewMat[0][3] - projViewMat[0][0],
-		projViewMat[1][3] - projViewMat[1][0],
-		projViewMat[2][3] - projViewMat[2][0],
-		projViewMat[3][3] - projViewMat[3][0]);
-
-	glm::vec4 bottom = glm::vec4(
-		projViewMat[0][3] + projViewMat[0][1],
-		projViewMat[1][3] + projViewMat[1][1],
-		projViewMat[2][3] + projViewMat[2][1],
-		projViewMat[3][3] + projViewMat[3][1]);
-
-	glm::vec4 top = glm::vec4(
-		projViewMat[0][3] - projViewMat[0][1],
-		projViewMat[1][3] - projViewMat[1][1],
-		projViewMat[2][3] - projViewMat[2][1],
-		projViewMat[3][3] - projViewMat[3][1]);
-
-	glm::vec4 nearPlane = glm::vec4(
-		projViewMat[0][2],
-		projViewMat[1][2],
-		projViewMat[2][2],
-		projViewMat[3][2]);
-
-	glm::vec4 farPlane = glm::vec4(
-		projViewMat[0][3] - projViewMat[0][2],
-		projViewMat[1][3] - projViewMat[1][2],
-		projViewMat[2][3] - projViewMat[2][2],
-		projViewMat[3][3] - projViewMat[3][2]);
-
-	glm::vec4 planes[] = {
-		left, right, bottom, top, nearPlane, farPlane
-	};
-
+	
 	Bounds b = *(mesh->bounds);
 	glm::vec3 maxPoint = b.Max(model);
 	glm::vec3 minPoint = b.Min(model);
@@ -398,10 +357,12 @@ bool MeshRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, c
 		directly at the mesh and all of its bounds points are ouside the 
 		frustum. So even though it is right in front of me, it is culled
 		due to only checking it's extremes.
-	*/
 
-	// Checks if every plane can "see" the most likely point. If every plane can see
-	// at least one point that means our mesh is at least partially visible.
+		Checks if every plane can "see" the most likely point. If every plane can see
+		at least one point that means our mesh is at least partially visible.
+	*/
+	std::vector<glm::vec4> planes = mainCamera->frustumPlanes;
+
 	int success = 0;
 	for (int j = 0; j < 6; j++) {
 		float val = std::max(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)

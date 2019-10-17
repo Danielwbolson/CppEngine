@@ -423,7 +423,7 @@ static void SceneParse(Scene* scene, std::string fileName) {
             glm::vec4(
                 (float)rand() / (float)RAND_MAX * 40,
                 0.5,
-                (float)rand() / (float)RAND_MAX * 40, 1)
+                -(float)rand() / (float)RAND_MAX * 40, 1)
         };
         scene->lights.push_back(p);
     }
@@ -511,7 +511,7 @@ static void MapParse(Map* map, std::string fileName, Scene* s) {
 
             if (flag) {
                 t = g->transform;
-                t->SetPosition(glm::vec3((float)s->cube_width * i, 0, (float)s->cube_width * j));
+                t->SetPosition(glm::vec3((float)s->cube_width * i, 0, -(float)s->cube_width * j));
                 for (int k = 0; k < g->components.size(); k++) {
                     g->components[k]->gameObject = g;
                 }

@@ -75,7 +75,6 @@ set(COMPONENT_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/MeshRenderer.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/PlayerMovement.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/Transform.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/Bounds.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/colliders/BoxCollider.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/colliders/Collider.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/colliders/SphereCollider.h
@@ -89,7 +88,6 @@ set(COMPONENT_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/MeshRenderer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/PlayerMovement.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/Transform.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/Bounds.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/colliders/BoxCollider.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/colliders/Collider.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/colliders/SphereCollider.cpp
@@ -116,11 +114,13 @@ set(OBJECTDATA_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData/GameObject.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData/Material.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData/Mesh.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData/Bounds.h
 )
 set(OBJECTDATA_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/objectData/GameObject.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/objectData/Material.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/objectData/Mesh.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/objectData/Bounds.cpp
 )
 
 set(SYSTEMS_H

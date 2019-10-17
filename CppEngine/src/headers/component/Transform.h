@@ -15,6 +15,7 @@ private:
 
 public:
     Transform();
+	Transform(const glm::vec3&, const glm::vec3&, const glm::vec3&);
     Transform* clone() const;
 
     Transform(const Transform&);

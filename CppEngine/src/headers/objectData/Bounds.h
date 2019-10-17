@@ -2,6 +2,7 @@
 #ifndef BOUNDS_H_
 #define BOUNDS_H_
 
+#define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
 #include <vector>

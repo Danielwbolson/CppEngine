@@ -6,6 +6,8 @@
 #include "glm/glm.hpp"
 #include "Transform.h"
 
+#include <vector>
+
 class Camera {
 
 public:
@@ -16,6 +18,7 @@ public:
         const int&, const int&, const float&, const float&, const float&);
 
     void Update(const float&);
+	void UpdateFrustumPlanes();
 
     Camera operator=(const Camera&);
 
@@ -23,6 +26,8 @@ public:
 
     glm::mat4 view;
     glm::mat4 proj;
+
+	std::vector<glm::vec4> frustumPlanes;
 
     float fov, aspect_ratio;
     float near_plane, far_plane;
