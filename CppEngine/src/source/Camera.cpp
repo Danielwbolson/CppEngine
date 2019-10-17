@@ -31,8 +31,8 @@ void Camera::Update(const float& dt) {
     float forward = 4.0f * (SDL_Input::keyboard[SDL_SCANCODE_W] - SDL_Input::keyboard[SDL_SCANCODE_S]);
     float right = 4.0f * (SDL_Input::keyboard[SDL_SCANCODE_D] - SDL_Input::keyboard[SDL_SCANCODE_A]);
     transform->UpdateVelocity(forward, right);
+	transform->UpdateRotation(glm::vec3(SDL_Input::xRel, SDL_Input::yRel, 0));
 
-    transform->rotation = glm::vec3(SDL_Input::xRel, SDL_Input::yRel, 0);
     transform->Update(dt);
 
 	view = glm::lookAt(transform->position, transform->position + transform->forward, transform->up);

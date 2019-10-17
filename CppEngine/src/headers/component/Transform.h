@@ -10,6 +10,9 @@
 
 class Transform : public Component {
 
+private:
+	float pitch;
+
 public:
     Transform();
     Transform* clone() const;
@@ -18,6 +21,8 @@ public:
     Transform& operator=(const Transform&);
 
     void UpdateVelocity(const float&, const float&);
+	void UpdateRotation(const glm::vec3&);
+
 	void Rotate(const float&, const glm::vec3&);
 	void Translate(const glm::vec3&);
 

@@ -59,6 +59,11 @@ void Transform::UpdateVelocity(const float& f, const float& r) {
     velocity = forward * f + right * r;
 }
 
+void Transform::UpdateRotation(const glm::vec3& rot) {
+	rotation += rot;
+	rotation.y = glm::clamp(rotation.y, (float)-M_PI / 2.0f * 0.99f, (float)M_PI / 2.0f * 0.99f);
+}
+
 void Transform::Rotate(const float& value, const glm::vec3& axis) {
 	model = glm::rotate(model, value, axis);
 }
@@ -70,9 +75,10 @@ void Transform::Translate(const glm::vec3& amount) {
 void Transform::Update(const float& dt) {
     position += velocity * dt;
 
+	model = glm::mat4(1.0);
 	Rotate(-rotation.x, glm::vec3(0, 1, 0));
-    Rotate(rotation.y, glm::vec3(1, 0, 0));
-	Translate(velocity * dt);
+	Rotate(rotation.y, glm::vec3(1, 0, 0));
+	Translate(position + velocity * dt);
 
     forward = glm::vec3(model[2]);
     up = glm::vec3(model[1]);

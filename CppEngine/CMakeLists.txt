@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.8)
 
-project (CppLuaGame LANGUAGES CXX C)
+project (CppEngine LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -212,19 +212,19 @@ set(INCLUDE_DIRS
 link_directories(${LIB_DIRS})
 include_directories(${INCLUDE_DIRS})
 
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT CppLuaGame)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT CppEngine)
 
-add_executable(CppLuaGame ${SRC} ${INCS} ${SHADERS})
+add_executable(CppEngine ${SRC} ${INCS} ${SHADERS})
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ALL_FILES})
 
 if (MSVC)
-	target_compile_options(CppLuaGame PRIVATE "/MP")
+	target_compile_options(CppEngine PRIVATE "/MP")
 endif()
 
-target_link_libraries(CppLuaGame ${LIBS} glad)
+target_link_libraries(CppEngine ${LIBS} glad)
 
 # Put necessary lib files in our build directory
-add_custom_command(TARGET CppLuaGame POST_BUILD
+add_custom_command(TARGET CppEngine POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/libs"
-        $<TARGET_FILE_DIR:CppLuaGame>)
+        $<TARGET_FILE_DIR:CppEngine>)

@@ -4,19 +4,13 @@ aspect_ratio 800 600
 
 # camera
 camera 0 0 0 0 0 -1 0 1 0 1.2 0.01 100
-	   #pos, dir,   up,   fov, near_plane, far_plane
+#pos, forward, up, fov, near_plane, far_plane
 
 # lights
 #point_light 10 0 0 1 0 1 0 1
 #point_light 0 10 0 1 5 1 0 1
 #point_light 0 0 10 1 10 1 0 1
 #point_light 10 0 10 1 0 1 5 1
-
-# Player
-gameObject player
-component boxCollider 0 0 0 0.2 0.2 1
-component playerMovement 50
-component grab
 
 # Floor
 gameObject floor
