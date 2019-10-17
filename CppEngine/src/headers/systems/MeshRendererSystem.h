@@ -8,6 +8,7 @@
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
+#include "GameObject.h"
 #include "MeshRenderer.h"
 #include "PointLight.h"
 #include "Mesh.h"
@@ -61,6 +62,8 @@ public:
 
     void Update(const float&) {}
     void Render() const;
+
+	bool FrustumCull(const Mesh*, const glm::mat4&, const glm::mat4&) const;
 };
 
 #endif

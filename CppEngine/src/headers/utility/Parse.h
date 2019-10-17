@@ -28,6 +28,7 @@
 #include "Grab.h"
 
 #include "Mesh.h"
+#include "Bounds.h"
 #include "GameObject.h"
 #include "Material.h"
 
@@ -69,6 +70,14 @@ static void ObjParse(Mesh& mesh, const std::string fileName) {
 		exit(1);
     }
 
+	// For calculating bounds
+	float minx = INFINITY;
+	float miny = INFINITY;
+	float minz = INFINITY;
+	float maxx = -INFINITY;
+	float maxy = -INFINITY;
+	float maxz = -INFINITY;
+
     std::vector<glm::vec3> rawVerts;
     std::vector<glm::vec3> rawNormals;
     std::vector<Vec2> rawUvs;
@@ -106,6 +115,13 @@ static void ObjParse(Mesh& mesh, const std::string fileName) {
 
             sscanf(line, "v %f %f %f", &v.x, &v.y, &v.z);
             rawVerts.push_back(v);
+
+			if (v.x > maxx) { maxx = v.x; }
+			if (v.y > maxy) { maxy = v.y; }
+			if (v.z > maxz) { maxz = v.z; }
+			if (v.x < minx) { minx = v.x; }
+			if (v.y < miny) { miny = v.y; }
+			if (v.z < minz) { minz = v.z; }
         }
         // uvs
         else if (strcmp(command, "vt") == 0) {
@@ -173,6 +189,8 @@ static void ObjParse(Mesh& mesh, const std::string fileName) {
     normals.clear();
     uvs.clear();
     indices.clear();
+
+	mesh.bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
 }
 
 static void SceneParse(Scene* scene, std::string fileName) {

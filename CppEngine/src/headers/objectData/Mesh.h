@@ -6,6 +6,8 @@
 #include "glm/glm.hpp"
 #include "Vec2.h"
 
+#include "Bounds.h"
+
 #include <vector>
 
 class Mesh {
@@ -23,7 +25,10 @@ public:
     std::vector<Vec2> uvs;
     std::vector<unsigned int> indices;
 
+	Bounds* bounds;
+
     Mesh();
+	~Mesh();
     Mesh(std::vector<glm::vec3>, std::vector<glm::vec3>, std::vector<Vec2>, std::vector<unsigned int>);
 
     std::string ComponentType() const { return "mesh"; }

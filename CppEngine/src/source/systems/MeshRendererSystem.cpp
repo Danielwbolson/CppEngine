@@ -231,10 +231,15 @@ void MeshRendererSystem::Render() const {
 
     // Get all of our meshRenderers to draw to textures
     for (int i = 0; i < meshRenderers.size(); i++) {
+
+		glm::mat4 model = meshRenderers[i]->gameObject->transform->model;
+
+		// Pre-emptively frustum cull unnecessary meshes
+		if (FrustumCull(meshRenderers[i]->mesh, model, proj * view)) { continue; }
+
+
         glUseProgram(meshRenderers[i]->material->shaderProgram);
         glBindVertexArray(meshRenderers[i]->vao);
-
-        glm::mat4 model = meshRenderers[i]->gameObject->transform->model;
 
         GLint uniColor = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "inColor");
         glUniform3f(uniColor, meshRenderers[i]->material->Color().x, meshRenderers[i]->material->Color().y, meshRenderers[i]->material->Color().z);
@@ -303,17 +308,23 @@ void MeshRendererSystem::Render() const {
 
 		float radius = lum * radScal;
 
+        glm::mat4 model;
+        model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
+        model = glm::scale(model, lum * glm::vec3(radScal, radScal, radScal));
+
+
+		// Pre-emptively frustum cull unnecessary meshes
+		if (FrustumCull(&lightSphere, model, proj * view)) { continue; }
+
+
+		glm::mat4 pvmMatrix = proj * view * model;
+
 		// Swith culling if inside light volume
 		if (glm::length(camPos - glm::vec3(pos.x, pos.y, pos.z)) < radius) {
 			glCullFace(GL_FRONT);
 		} else {
 			glCullFace(GL_BACK);
 		}
-
-        glm::mat4 model;
-        model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
-        model = glm::scale(model, lum * glm::vec3(radScal, radScal, radScal));
-        glm::mat4 pvmMatrix = proj * view * model;
 
         GLint pvm = glGetUniformLocation(combinedShader, "pvm");
         glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
@@ -330,4 +341,73 @@ void MeshRendererSystem::Render() const {
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
+}
+
+bool MeshRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
+	/* http://www8.cs.umu.se/kurser/5DV051/HT12/lab/plane_extraction.pdf */
+	glm::vec4 left = glm::vec4(
+		projViewMat[0][3] + projViewMat[0][0],
+		projViewMat[1][3] + projViewMat[1][0],
+		projViewMat[2][3] + projViewMat[2][0],
+		projViewMat[3][3] + projViewMat[3][0]);
+
+	glm::vec4 right = glm::vec4(
+		projViewMat[0][3] - projViewMat[0][0],
+		projViewMat[1][3] - projViewMat[1][0],
+		projViewMat[2][3] - projViewMat[2][0],
+		projViewMat[3][3] - projViewMat[3][0]);
+
+	glm::vec4 bottom = glm::vec4(
+		projViewMat[0][3] + projViewMat[0][1],
+		projViewMat[1][3] + projViewMat[1][1],
+		projViewMat[2][3] + projViewMat[2][1],
+		projViewMat[3][3] + projViewMat[3][1]);
+
+	glm::vec4 top = glm::vec4(
+		projViewMat[0][3] - projViewMat[0][1],
+		projViewMat[1][3] - projViewMat[1][1],
+		projViewMat[2][3] - projViewMat[2][1],
+		projViewMat[3][3] - projViewMat[3][1]);
+
+	glm::vec4 nearPlane = glm::vec4(
+		projViewMat[0][2],
+		projViewMat[1][2],
+		projViewMat[2][2],
+		projViewMat[3][2]);
+
+	glm::vec4 farPlane = glm::vec4(
+		projViewMat[0][3] - projViewMat[0][2],
+		projViewMat[1][3] - projViewMat[1][2],
+		projViewMat[2][3] - projViewMat[2][2],
+		projViewMat[3][3] - projViewMat[3][2]);
+
+	Bounds b = *(mesh->bounds);
+	glm::vec3 max = b.Max(model);
+	glm::vec3 min = b.Min(model);
+
+	std::vector<glm::vec3> cam_to_b = std::vector<glm::vec3>(8);
+	cam_to_b[0] = glm::vec3(max.x, max.y, max.z);
+	cam_to_b[1] = glm::vec3(max.x, min.y, max.z);
+	cam_to_b[2] = glm::vec3(max.x, max.y, min.z);
+	cam_to_b[3] = glm::vec3(max.x, min.y, min.z);
+	cam_to_b[4] = glm::vec3(min.x, max.y, max.z);
+	cam_to_b[5] = glm::vec3(min.x, min.y, max.z);
+	cam_to_b[6] = glm::vec3(min.x, max.y, min.z);
+	cam_to_b[7] = glm::vec3(min.x, min.y, min.z);
+
+	for (int j = 0; j < cam_to_b.size(); j++) {
+		int success = 0;
+		success += (left.x * cam_to_b[j].x + left.y * cam_to_b[j].y + left.z * cam_to_b[j].z + left.w > 0);
+		success += (right.x * cam_to_b[j].x + right.y * cam_to_b[j].y + right.z * cam_to_b[j].z + right.w > 0);
+		success += (top.x * cam_to_b[j].x + top.y * cam_to_b[j].y + top.z * cam_to_b[j].z + top.w > 0);
+		success += (bottom.x * cam_to_b[j].x + bottom.y	* cam_to_b[j].y + bottom.z * cam_to_b[j].z + bottom.w > 0);
+		success += (nearPlane.x * cam_to_b[j].x + nearPlane.y * cam_to_b[j].y + nearPlane.z * cam_to_b[j].z + nearPlane.w > 0);
+		success += (farPlane.x * cam_to_b[j].x + farPlane.y * cam_to_b[j].y + farPlane.z * cam_to_b[j].z + farPlane.w > 0);
+
+		if (success == 6) {
+			return false;
+		}
+	}
+
+	return true;
 }
