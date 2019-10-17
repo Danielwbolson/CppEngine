@@ -4,6 +4,8 @@
 #include "Parse.h"
 #include "Configuration.h"
 
+#include <algorithm>
+
 #include "glm/gtc/type_ptr.hpp"
 
 void checkGLError(const std::string& s) { 
@@ -381,32 +383,36 @@ bool MeshRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, c
 		projViewMat[2][3] - projViewMat[2][2],
 		projViewMat[3][3] - projViewMat[3][2]);
 
+	glm::vec4 planes[] = {
+		left, right, bottom, top, nearPlane, farPlane
+	};
+
 	Bounds b = *(mesh->bounds);
-	glm::vec3 max = b.Max(model);
-	glm::vec3 min = b.Min(model);
+	glm::vec3 maxPoint = b.Max(model);
+	glm::vec3 minPoint = b.Min(model);
 
-	std::vector<glm::vec3> cam_to_b = std::vector<glm::vec3>(8);
-	cam_to_b[0] = glm::vec3(max.x, max.y, max.z);
-	cam_to_b[1] = glm::vec3(max.x, min.y, max.z);
-	cam_to_b[2] = glm::vec3(max.x, max.y, min.z);
-	cam_to_b[3] = glm::vec3(max.x, min.y, min.z);
-	cam_to_b[4] = glm::vec3(min.x, max.y, max.z);
-	cam_to_b[5] = glm::vec3(min.x, min.y, max.z);
-	cam_to_b[6] = glm::vec3(min.x, max.y, min.z);
-	cam_to_b[7] = glm::vec3(min.x, min.y, min.z);
+	/* https://fgiesen.wordpress.com/2010/10/17/view-frustum-culling/ 
+	* Method 4 
+		Switched to this method instead of checking each bounding box point
+		because I ran into issues with large meshes. I would be looking 
+		directly at the mesh and all of its bounds points are ouside the 
+		frustum. So even though it is right in front of me, it is culled
+		due to only checking it's extremes.
+	*/
 
-	for (int j = 0; j < cam_to_b.size(); j++) {
-		int success = 0;
-		success += (left.x * cam_to_b[j].x + left.y * cam_to_b[j].y + left.z * cam_to_b[j].z + left.w > 0);
-		success += (right.x * cam_to_b[j].x + right.y * cam_to_b[j].y + right.z * cam_to_b[j].z + right.w > 0);
-		success += (top.x * cam_to_b[j].x + top.y * cam_to_b[j].y + top.z * cam_to_b[j].z + top.w > 0);
-		success += (bottom.x * cam_to_b[j].x + bottom.y	* cam_to_b[j].y + bottom.z * cam_to_b[j].z + bottom.w > 0);
-		success += (nearPlane.x * cam_to_b[j].x + nearPlane.y * cam_to_b[j].y + nearPlane.z * cam_to_b[j].z + nearPlane.w > 0);
-		success += (farPlane.x * cam_to_b[j].x + farPlane.y * cam_to_b[j].y + farPlane.z * cam_to_b[j].z + farPlane.w > 0);
+	// Checks if every plane can "see" the most likely point. If every plane can see
+	// at least one point that means our mesh is at least partially visible.
+	int success = 0;
+	for (int j = 0; j < 6; j++) {
+		float val = std::max(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)
+			+ std::max(minPoint.y * planes[j].y, maxPoint.y * planes[j].y)
+			+ std::max(minPoint.z * planes[j].z, maxPoint.z * planes[j].z)
+			+ planes[j].w;
+		success += (val > 0);
+	}
 
-		if (success == 6) {
-			return false;
-		}
+	if (success == 6) { 
+		return false;
 	}
 
 	return true;
