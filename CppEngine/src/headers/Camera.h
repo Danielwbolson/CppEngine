@@ -12,7 +12,7 @@ public:
     Camera();
 	~Camera();
 
-    Camera(const glm::vec3&, const glm::vec3&, 
+    Camera(const glm::vec3&, const glm::vec3&, const glm::vec3&, 
         const int&, const int&, const float&, const float&, const float&);
 
     void Update(const float&);
@@ -23,9 +23,6 @@ public:
 
     glm::mat4 view;
     glm::mat4 proj;
-
-    glm::vec3 lookAt;
-    glm::vec3 up;
 
     float fov, aspect_ratio;
     float near_plane, far_plane;

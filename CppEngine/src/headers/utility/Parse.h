@@ -228,16 +228,18 @@ static void SceneParse(Scene* scene, std::string fileName) {
             currGameObject->name = name;
         }
         else if (strcmp(command, "camera") == 0) {
-            float lax, lay, laz;
+			float px, py, pz;
+            float fx, fy, fz;
             float ux, uy, uz;
             float fov, np, fp;
 
-            sscanf(line, "camera %f %f %f %f %f %f %f %f %f",
-                &lax, &lay, &laz, &ux, &uy, &uz, &fov, &np, &fp);
+            sscanf(line, "camera %f %f %f %f %f %f %f %f %f %f %f %f",
+                &px, &py, &pz, &fx, &fy, &fz, &ux, &uy, &uz, &fov, &np, &fp);
 
             mainCamera = new Camera(
-                glm::vec3(lax, lay, laz),
-                glm::normalize(glm::vec3(ux, uy, uz)),
+				glm::vec3(px, py, pz),
+                glm::vec3(fx, fy, fz),
+                glm::vec3(ux, uy, uz),
                 window_width,
                 window_height,
                 fov, np, fp);
@@ -407,6 +409,12 @@ static void SceneParse(Scene* scene, std::string fileName) {
         };
         scene->lights.push_back(p);
     }
+
+	g = nullptr;
+	t = nullptr;
+	currMaterial = nullptr;
+	currMesh = nullptr;
+	currGameObject = nullptr;
 }
 
 static void MapParse(Map* map, std::string fileName, Scene* s) {

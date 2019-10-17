@@ -1,7 +1,6 @@
 
 #include "Material.h"
 #include "Utility.h"
-#include "Configuration.h"
 
 Material::Material() {}
 

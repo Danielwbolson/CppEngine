@@ -57,6 +57,7 @@ namespace SDL_Input {
         }
         _window = *window;
 
+		SDL_ShowCursor(SDL_DISABLE);
         SDL_SetRelativeMouseMode(SDL_TRUE);
         keyboard = SDL_GetKeyboardState(NULL);
 

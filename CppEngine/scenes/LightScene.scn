@@ -3,8 +3,8 @@
 aspect_ratio 800 600
 
 # camera
-camera 0 0 -1 0 1 0 1.2 0.01 100
-# lookat, up, fov, near_plane, far_plane
+camera 0 0 0 0 0 -1 0 1 0 1.2 0.01 100
+	   #pos, dir,   up,   fov, near_plane, far_plane
 
 # lights
 #point_light 10 0 0 1 0 1 0 1

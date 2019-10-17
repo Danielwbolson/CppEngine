@@ -33,8 +33,7 @@ void Grab::Update(const float& dt) {
         grabbedObj->transform->UpdateVelocity(
             gameObject->transform->velocity.x, gameObject->transform->velocity.z);
 
-        grabbedObj->transform->UpdatePosition(
-            gameObject->transform->position + 2.0f * gameObject->transform->forward);
+        grabbedObj->transform->position = gameObject->transform->position + 2.0f * gameObject->transform->forward;
 
         grabbedObj->transform->forward = gameObject->transform->forward;
     }
@@ -48,7 +47,6 @@ void Grab::GrabObject(GameObject* c) {
     isHolding = true;
     grabbedObj = c;
 
-    grabbedObj->transform->UpdatePosition(
-        gameObject->transform->position + 2.0f * gameObject->transform->forward);
+    grabbedObj->transform->position = gameObject->transform->position + 2.0f * gameObject->transform->forward;
     grabbedObj->transform->forward = gameObject->transform->forward;
 }

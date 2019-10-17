@@ -55,22 +55,24 @@ Transform& Transform::operator=(const Transform& t) {
     return *this;
 }
 
-void Transform::UpdatePosition(const glm::vec3& v) {
-    model = glm::translate(model, -position);
-    position = v;
-    model = glm::translate(model, position);
-}
-
 void Transform::UpdateVelocity(const float& f, const float& r) {
     velocity = forward * f + right * r;
+}
+
+void Transform::Rotate(const float& value, const glm::vec3& axis) {
+	model = glm::rotate(model, value, axis);
+}
+
+void Transform::Translate(const glm::vec3& amount) {
+	model = glm::translate(model, amount);
 }
 
 void Transform::Update(const float& dt) {
     position += velocity * dt;
 
-    model = glm::translate(model, velocity * dt);
-    model = glm::rotate(model, glm::clamp(-rotation.x, (float)(-M_PI / 2.0 * 0.9), (float)(M_PI / 2.0f * 0.9f)), glm::vec3(0, 1, 0));
-    model = glm::rotate(model, glm::clamp(rotation.y, (float)(-M_PI / 2.0 * 0.9), (float)(M_PI / 2.0f * 0.9f)), glm::vec3(1, 0, 0));
+	Rotate(-rotation.x, glm::vec3(0, 1, 0));
+    Rotate(rotation.y, glm::vec3(1, 0, 0));
+	Translate(velocity * dt);
 
     forward = glm::vec3(model[2]);
     up = glm::vec3(model[1]);

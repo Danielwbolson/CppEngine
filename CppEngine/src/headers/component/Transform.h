@@ -17,8 +17,10 @@ public:
     Transform(const Transform&);
     Transform& operator=(const Transform&);
 
-    void UpdatePosition(const glm::vec3&);
     void UpdateVelocity(const float&, const float&);
+	void Rotate(const float&, const glm::vec3&);
+	void Translate(const glm::vec3&);
+
     void Update(const float&);
 
     void SetPosition(const glm::vec3& p) { 
