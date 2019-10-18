@@ -14,6 +14,7 @@ private:
 
 public:
     PhysicsSystem();
+	~PhysicsSystem();
 
     void Setup(const std::vector<GameObject*>&, const std::vector<Light*>&);
     void ComponentType(const std::string&) const;

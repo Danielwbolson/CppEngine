@@ -4,6 +4,9 @@
 PhysicsSystem::PhysicsSystem() {
 
 }
+PhysicsSystem::~PhysicsSystem() {
+
+}
 
 void PhysicsSystem::Setup(const std::vector<GameObject*>& g, const std::vector<Light*>& l) {
 
