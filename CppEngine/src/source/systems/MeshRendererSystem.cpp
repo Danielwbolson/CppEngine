@@ -220,7 +220,9 @@ void MeshRendererSystem::Register(const Component* c) {
     glBindVertexArray(0);
 }
 
-void MeshRendererSystem::Render() const {
+void MeshRendererSystem::Render() {
+	totalTriangles = 0;
+
     // Bind our deferred texture buffer
     glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 
@@ -254,6 +256,8 @@ void MeshRendererSystem::Render() const {
 
         // Indices
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshRenderers[i]->vbo[3]);
+
+		totalTriangles += meshRenderers[i]->mesh->NumIndices() / 3;
 
         // Use our shader and draw our program
         glDrawElements(GL_TRIANGLES, meshRenderers[i]->mesh->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
@@ -333,6 +337,8 @@ void MeshRendererSystem::Render() const {
         glUniform4f(lightPos, pos.x, pos.y, pos.z, pos.w);
         GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
         glUniform4f(lightCol, color.r, color.g, color.b, color.a);
+
+		totalTriangles += lightSphere.NumIndices() / 3;
 
         // User our shader and draw our program
         glDrawElements(GL_TRIANGLES, lightSphere.NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices

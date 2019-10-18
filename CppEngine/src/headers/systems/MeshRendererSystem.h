@@ -53,6 +53,8 @@ private:
     int numLights;
 
 public:
+	int totalTriangles = 0;
+
     MeshRendererSystem(const int&, const int&);
     ~MeshRendererSystem();
 
@@ -61,7 +63,7 @@ public:
     void Register(const Component*);
 
     void Update(const float&) {}
-    void Render() const;
+    void Render();
 
 	bool FrustumCull(const Mesh*, const glm::mat4&, const glm::mat4&) const;
 };

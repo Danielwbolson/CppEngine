@@ -21,7 +21,7 @@ public:
     virtual void Register(const Component*) = 0;
 
     virtual void Update(const float&) = 0;
-    virtual void Render() const = 0;
+    virtual void Render() = 0;
 };
 
 #endif

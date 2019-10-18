@@ -20,7 +20,7 @@ public:
     void Register(const Component*);
 
     void Update(const float&);
-    void Render() const {}
+    void Render() {}
 };
 
 #endif
