@@ -33,10 +33,10 @@ if (UNIX AND NOT APPLE)
 elseif (APPLE)
   find_package( SDL2 REQUIRED component main)
 elseif(MSVC)
-  #link_directories( ${DESKTOP_SDL}lib/x64 )
-  #( SDL2_INCLUDE_DIRS ${DESKTOP_SDL}include )
-  link_directories( ${LAPTOP_SDL}lib/x64)
-  set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)
+  link_directories( ${DESKTOP_SDL}lib/x64 )
+  set(SDL2_INCLUDE_DIRS ${DESKTOP_SDL}include )
+  #link_directories( ${LAPTOP_SDL}lib/x64)
+  #set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)
   
   set( SDL2_LIBRARIES SDL2 SDL2main )
 endif()
@@ -149,6 +149,15 @@ set(UTILITY_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/utility/Vec3.cpp
 )
 
+set(MANAGER_H
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers/AssetManager.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers/MemoryManager.h
+)
+set(MANAGER_CPP
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/managers/AssetManager.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/managers/MemoryManager.cpp
+)
+
 set(OTHER_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/Camera.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/MainVariables.h
@@ -177,6 +186,7 @@ set(INCS
 	${OBJECTDATA_H}
 	${SYSTEMS_H}
 	${UTILITY_H}
+	${MANAGER_H}
 	${OTHER_H}
 )
 set(SRC
@@ -185,6 +195,7 @@ set(SRC
 	${OBJECTDATA_CPP}
 	${SYSTEMS_CPP}
 	${UTILITY_CPP}
+	${MANAGER_CPP}
 	${OTHER_CPP}
 )
 set(ALL_FILES
@@ -203,6 +214,7 @@ set(INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/lights
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility
 	
 	${SDL2_INCLUDE_DIRS}
