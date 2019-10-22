@@ -11,7 +11,7 @@ ColliderSystem::~ColliderSystem() {
 	}
 }
 
-void ColliderSystem::Setup(const std::vector<GameObject*>& g, const std::vector<Light*>& l) {
+void ColliderSystem::Setup() {
 
 }
 

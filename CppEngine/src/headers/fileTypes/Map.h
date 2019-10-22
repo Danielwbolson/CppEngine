@@ -18,6 +18,8 @@ private:
 public:
     std::vector<int> layout;
 
+	int cubeWidth = 2;
+
     Map();
     int index(const int& i, const int& j) { return i * width + j; }
     void Setup(const int&, const int&);

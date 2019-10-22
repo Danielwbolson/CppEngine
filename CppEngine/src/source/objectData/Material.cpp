@@ -24,9 +24,18 @@ Material Material::operator=(const Material& m) {
     this->shaderProgram = m.shaderProgram;
 
     this->color = m.color;
-    this->c_ambient = m.Ambient();
-    this->c_diffuse = m.Diffuse();
-    this->c_specular = m.Specular();
+    this->c_ambient = m.c_ambient;
+    this->c_diffuse = m.c_diffuse;
+    this->c_specular = m.c_specular;
 
     return *this;
+}
+
+bool Material::operator==(const Material& rhs) const {
+	return (
+		this->color == rhs.color &&
+		this->c_ambient == rhs.c_ambient &&
+		this->c_diffuse == rhs.c_diffuse &&
+		this->c_specular == rhs.c_specular
+	);
 }

@@ -14,8 +14,8 @@ MeshRenderer::~MeshRenderer() {
 	}
 	glDeleteVertexArrays(1, &vao);
 
-	delete material;
-	delete mesh;
+	material = nullptr;
+	mesh = nullptr;
 }
 
 MeshRenderer* MeshRenderer::clone() const {

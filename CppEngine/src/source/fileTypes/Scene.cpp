@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-Scene::Scene() : window_width(640), window_height(480), background{ glm::vec3(0, 0, 0) } {}
+Scene::Scene() : windowWidth(640), windowHeight(480), background{ glm::vec3(0, 0, 0) } {}
 
 Scene::~Scene() {
 	for (int i = 0; i < gameObjects.size(); i++) {

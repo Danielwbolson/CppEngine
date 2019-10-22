@@ -37,7 +37,6 @@ const GLfloat quadVerts[12] = {
 class MeshRendererSystem : public Systems {
 private:
     std::vector<MeshRenderer*> meshRenderers;
-    std::vector<Light*> lights;
     std::vector<PointLight> pointLights;
     std::vector<glm::vec4> lightPositions;
 
@@ -48,7 +47,7 @@ private:
     GLuint combinedShader;
     //GLuint lightUBO;
 
-    Mesh lightSphere;
+    Mesh* lightSphere;
 
     int numLights;
 
@@ -58,7 +57,7 @@ public:
     MeshRendererSystem(const int&, const int&);
     ~MeshRendererSystem();
 
-    void Setup(const std::vector<GameObject*>&, const std::vector<Light*>&);
+    void Setup();
     void ComponentType(const std::string&) const;
     void Register(const Component*);
 

@@ -13,9 +13,8 @@
 
 class Scene {
 public:
-    int window_width;
-    int window_height;
-    int cube_width = 2;
+    int windowWidth;
+    int windowHeight;
 
     std::vector<GameObject*> gameObjects;
     std::vector<GameObject*> instances;

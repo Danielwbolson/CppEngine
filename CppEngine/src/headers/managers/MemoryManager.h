@@ -3,8 +3,8 @@
 #define MEMORY_MANAGER_H_
 
 class MemoryManager {
-
-
+public:
+	MemoryManager() {}
 
 };
 

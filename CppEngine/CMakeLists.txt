@@ -137,7 +137,6 @@ set(SYSTEMS_CPP
 
 set(UTILITY_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Globals.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Parse.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/SDL_Static_Helper.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Utility.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Vec2.h

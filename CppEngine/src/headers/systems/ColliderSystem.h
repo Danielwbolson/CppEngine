@@ -15,7 +15,7 @@ public:
     ColliderSystem();
 	~ColliderSystem();
 
-    void Setup(const std::vector<GameObject*>&, const std::vector<Light*>&);
+    void Setup();
     void ComponentType(const std::string&) const;
     void Register(const Component*);
 

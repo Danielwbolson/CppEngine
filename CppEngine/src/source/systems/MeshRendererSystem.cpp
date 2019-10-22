@@ -1,8 +1,12 @@
 
 #include "MeshRendererSystem.h"
 #include "Utility.h"
-#include "Parse.h"
 #include "Configuration.h"
+#include "Scene.h"
+
+#include "AssetManager.h"
+#include "Camera.h"
+#include "Globals.h"
 
 #include <algorithm>
 
@@ -20,11 +24,10 @@ MeshRendererSystem::MeshRendererSystem(const int& sW, const int& sH) {
     screenHeight = sH;
     numLights = 1000;
 
-    gameObjects = std::vector<GameObject*>();
-    components = std::vector<Component*>();
+    meshRenderers = std::vector<MeshRenderer*>();
     pointLights = std::vector<PointLight>();
 
-    ObjParse(lightSphere, "sphere.obj");
+    lightSphere = assetManager->LoadObj("sphere.obj");
 }
 
 MeshRendererSystem::~MeshRendererSystem() {
@@ -44,29 +47,31 @@ MeshRendererSystem::~MeshRendererSystem() {
 	glDeleteTextures(1, &gBuffer.specular);
 
 	for (int i = 0; i < meshRenderers.size(); i++) {
-		delete meshRenderers[i];
+		meshRenderers[i] = nullptr;
 	}
-	for (int i = 0; i < lights.size(); i++) {
-		delete lights[i];
+
+	for (int i = 0; i < pointLights.size(); i++) {
+		pointLights[i] = nullptr;
 	}
+
+	pointLights.clear();
+	meshRenderers.clear();
+	lightPositions.clear();
 }
 
-void MeshRendererSystem::Setup(const std::vector<GameObject*>& g, const std::vector<Light*>& l) {
-    // Get our list of gameObjects
-    gameObjects = g;
-    lights = l;
-    for (int i = 0; i < lights.size(); i++) {
-        PointLight p = *((PointLight*)lights[i]);
+void MeshRendererSystem::Setup() {
+    for (int i = 0; i < mainScene->lights.size(); i++) {
+        PointLight p = *((PointLight*)mainScene->lights[i]);
         pointLights.push_back(p);
 
         lightPositions.push_back(p.position);
     }
 
     // Get our list of related components, in this case MeshRenderers
-    for (int i = 0; i < gameObjects.size(); i++) {
-        MeshRenderer* mr = (MeshRenderer*)gameObjects[i]->GetComponent("meshRenderer");
+    for (int i = 0; i < mainScene->instances.size(); i++) {
+        MeshRenderer* mr = (MeshRenderer*)mainScene->instances[i]->GetComponent("meshRenderer");
         if (mr) {
-            components.push_back(mr);
+			meshRenderers.push_back(mr);
             Register(mr);
         }
     }
@@ -81,14 +86,14 @@ void MeshRendererSystem::Setup(const std::vector<GameObject*>& g, const std::vec
 
     glGenBuffers(1, &lightVolume_Vbo);
     glBindBuffer(GL_ARRAY_BUFFER, lightVolume_Vbo);
-    glBufferData(GL_ARRAY_BUFFER, lightSphere.NumPositions() * 3 * sizeof(float), &(lightSphere.pos[0]), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, lightSphere->NumPositions() * 3 * sizeof(float), &(lightSphere->pos[0]), GL_STATIC_DRAW);
     glEnableVertexAttribArray(glGetAttribLocation(combinedShader, "inPos"));
     glVertexAttribPointer(glGetAttribLocation(combinedShader, "inPos"), 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     // index buffer for sphere
     glGenBuffers(1, &lightVolume_Ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightSphere.NumIndices() * sizeof(GL_UNSIGNED_INT), &(lightSphere.indices[0]), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightSphere->NumIndices() * sizeof(GL_UNSIGNED_INT), &(lightSphere->indices[0]), GL_STATIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     /*glGenVertexArrays(1, &quadVao);
@@ -176,7 +181,6 @@ void MeshRendererSystem::ComponentType(const std::string&) const {
 void MeshRendererSystem::Register(const Component* c) {
     // Quick reference
     MeshRenderer* mr = (MeshRenderer*)c;
-    meshRenderers.push_back(mr);
 
     glGenVertexArrays(1, &(mr->vao));
     glBindVertexArray(mr->vao);
@@ -246,7 +250,7 @@ void MeshRendererSystem::Render() {
         glBindVertexArray(meshRenderers[i]->vao);
 
         GLint uniColor = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "inColor");
-        glUniform3f(uniColor, meshRenderers[i]->material->Color().x, meshRenderers[i]->material->Color().y, meshRenderers[i]->material->Color().z);
+        glUniform3f(uniColor, meshRenderers[i]->material->color.x, meshRenderers[i]->material->color.y, meshRenderers[i]->material->color.z);
         GLint uniModel = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "model");
         glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
         GLint uniView = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "view");
@@ -319,7 +323,7 @@ void MeshRendererSystem::Render() {
 
 
 		// Pre-emptively frustum cull unnecessary meshes
-		if (FrustumCull(&lightSphere, model, proj * view)) { continue; }
+		if (FrustumCull(lightSphere, model, proj * view)) { continue; }
 
 
 		glm::mat4 pvmMatrix = proj * view * model;
@@ -338,10 +342,10 @@ void MeshRendererSystem::Render() {
         GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
         glUniform4f(lightCol, color.r, color.g, color.b, color.a);
 
-		totalTriangles += lightSphere.NumIndices() / 3;
+		totalTriangles += lightSphere->NumIndices() / 3;
 
         // User our shader and draw our program
-        glDrawElements(GL_TRIANGLES, lightSphere.NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
+        glDrawElements(GL_TRIANGLES, lightSphere->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
     }
 
 	glCullFace(GL_BACK);
