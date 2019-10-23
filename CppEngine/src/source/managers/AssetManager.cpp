@@ -233,7 +233,7 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 	FILE *fp;
 	char line[1024]; //Assumes no line is longer than 1024 characters!
 
-	std::string fullFile = VK_ROOT_DIR"scenes/" + fileName;
+	std::string fullFile = VK_ROOT_DIR + fileName;
 
 	// open the file containing the scene description
 	fp = fopen(fullFile.c_str(), "r");
@@ -459,7 +459,7 @@ Map* AssetManager::LoadMap(const std::string fileName, Scene* scene) {
 	FILE *fp;
 	char line[1024]; //Assumes no line is longer than 1024 characters!
 
-	std::string fullFile = VK_ROOT_DIR"maps/" + fileName;
+	std::string fullFile = VK_ROOT_DIR + fileName;
 
 	// open the file containing the scene description
 	fp = fopen(fullFile.c_str(), "r");
