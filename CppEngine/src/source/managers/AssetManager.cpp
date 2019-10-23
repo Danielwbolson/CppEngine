@@ -81,11 +81,11 @@ Mesh* AssetManager::LoadObj(const std::string fileName) {
 
 	std::vector<glm::vec3> rawVerts;
 	std::vector<glm::vec3> rawNormals;
-	std::vector<Vec2> rawUvs;
+	std::vector<glm::vec2> rawUvs;
 
 	std::vector<glm::vec3> verts;
 	std::vector<glm::vec3> normals;
-	std::vector<Vec2> uvs;
+	std::vector<glm::vec2> uvs;
 	std::vector<unsigned int> indices;
 
 
@@ -143,7 +143,7 @@ Mesh* AssetManager::LoadObj(const std::string fileName) {
 		}
 		// uvs
 		else if (strcmp(command, "vt") == 0) {
-			Vec2 uv;
+			glm::vec2 uv;
 
 			sscanf(line, "vt %f %f", &uv.x, &uv.y);
 			rawUvs.push_back(uv);

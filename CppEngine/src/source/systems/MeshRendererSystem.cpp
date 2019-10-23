@@ -50,10 +50,6 @@ MeshRendererSystem::~MeshRendererSystem() {
 		meshRenderers[i] = nullptr;
 	}
 
-	for (int i = 0; i < pointLights.size(); i++) {
-		pointLights[i] = nullptr;
-	}
-
 	pointLights.clear();
 	meshRenderers.clear();
 	lightPositions.clear();

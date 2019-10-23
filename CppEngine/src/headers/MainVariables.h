@@ -17,8 +17,16 @@
 #include "MemoryManager.h"
 
 #include "Map.h"
-
 #include "Configuration.h"
+
+#include "LuaSupport.h"
+
+const std::string mapFile = "map.txt";
+const std::string sceneFile = "scene.txt";
+std::string gameFolder = "";
+std::string luaMain = "";
+
+lua_State* luaState;
 
 int screenWidth = 1920;
 int screenHeight = 1080;
@@ -42,7 +50,9 @@ MemoryManager* memoryManager;
 
 // Helper functions
 int Init();
-void Update();
-void Render();
+void InitLua();
 void InitSystems();
+void Update();
+void UpdateLua();
+void Render();
 void CleanUp();

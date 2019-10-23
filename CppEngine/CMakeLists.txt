@@ -19,7 +19,7 @@ elseif (MSVC)
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Ox")
 endif()
 
-configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Configuration.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/headers/Configuration.h)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Configuration.h.in ${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Configuration.h)
 
 
 
@@ -63,43 +63,50 @@ find_package(OpenGL REQUIRED)
 file(GLOB glad_src external/glad/*.c)
 add_library(glad ${glad_src})
 
+file(GLOB lua_src external/lua-5.3.5/src/*.c)
+add_library(lua ${lua_src})
+
 
 
 
 set(COMPONENT_H
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/Component.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/Door.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/Grab.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/InteractableObject.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/Key.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/MeshRenderer.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/PlayerMovement.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/Transform.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/colliders/BoxCollider.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/colliders/Collider.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/colliders/SphereCollider.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Component.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Door.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Grab.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/InteractableObject.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Key.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/MeshRenderer.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/PlayerMovement.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Transform.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/colliders/BoxCollider.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/colliders/Collider.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/colliders/SphereCollider.h
 )
 set(COMPONENT_CPP
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/Component.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/Door.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/Grab.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/InteractableObject.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/Key.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/MeshRenderer.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/PlayerMovement.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/Transform.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/colliders/BoxCollider.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/colliders/Collider.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/component/colliders/SphereCollider.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Component.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Door.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Grab.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/InteractableObject.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Key.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/MeshRenderer.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/PlayerMovement.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Transform.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/colliders/BoxCollider.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/colliders/Collider.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/colliders/SphereCollider.cpp
 )
 
-set(FILETYPES_H
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/fileTypes/Map.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/fileTypes/Scene.h
+set(CORE_H
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/Map.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/Scene.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/Camera.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/GameObject.h
 )
-set(FILETYPES_CPP
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/fileTypes/Map.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/fileTypes/Scene.cpp
+set(CORE_CPP
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/Map.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/Scene.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/Camera.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/GameObject.cpp
 )
 
 set(LIGHTS_H
@@ -110,17 +117,24 @@ set(LIGHTS_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/lights/SpotLight.h
 )
 
-set(OBJECTDATA_H
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData/GameObject.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData/Material.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData/Mesh.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData/Bounds.h
+set(MANAGER_H
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers/AssetManager.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers/MemoryManager.h
 )
-set(OBJECTDATA_CPP
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/objectData/GameObject.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/objectData/Material.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/objectData/Mesh.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/objectData/Bounds.cpp
+set(MANAGER_CPP
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/managers/AssetManager.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/managers/MemoryManager.cpp
+)
+
+set(MODEL_H
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Material.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Mesh.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Bounds.h
+)
+set(MODEL_CPP
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Material.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Mesh.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Bounds.cpp
 )
 
 set(SYSTEMS_H
@@ -139,32 +153,19 @@ set(UTILITY_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Globals.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/SDL_Static_Helper.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Utility.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Vec2.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Vec3.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Configuration.h
 )
 set(UTILITY_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/utility/SDL_Static_Helper.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/utility/Vec2.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/utility/Vec3.cpp
-)
-
-set(MANAGER_H
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers/AssetManager.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers/MemoryManager.h
-)
-set(MANAGER_CPP
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/managers/AssetManager.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/managers/MemoryManager.cpp
 )
 
 set(OTHER_H
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/Camera.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/MainVariables.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/Configuration.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/LuaSupport.h
 )
 set(OTHER_CPP
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/Camera.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/main.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/LuaSupport.cpp
 )
 
 set(SHADERS
@@ -180,21 +181,21 @@ set(SHADERS
 
 set(INCS
 	${COMPONENT_H}
-	${FILETYPES_H}
+	${CORE_H}
 	${LIGHTS_H}
-	${OBJECTDATA_H}
+	${MANAGER_H}
+	${MODEL_H}
 	${SYSTEMS_H}
 	${UTILITY_H}
-	${MANAGER_H}
 	${OTHER_H}
 )
 set(SRC
 	${COMPONENT_CPP}
-	${FILETYPES_CPP}
-	${OBJECTDATA_CPP}
+	${CORE_CPP}
+	${MANAGER_CPP}
+	${MODEL_CPP}
 	${SYSTEMS_CPP}
 	${UTILITY_CPP}
-	${MANAGER_CPP}
 	${OTHER_CPP}
 )
 set(ALL_FILES
@@ -207,13 +208,13 @@ set(INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/external
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/component/colliders
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/fileTypes
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/colliders
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/lights
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/objectData
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility
 	
 	${SDL2_INCLUDE_DIRS}
@@ -234,7 +235,7 @@ if (MSVC)
 	target_compile_options(CppEngine PRIVATE "/MP")
 endif()
 
-target_link_libraries(CppEngine ${LIBS} glad)
+target_link_libraries(CppEngine ${LIBS} glad lua)
 
 # Put necessary lib files in our build directory
 add_custom_command(TARGET CppEngine POST_BUILD
