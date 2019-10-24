@@ -12,7 +12,6 @@
 class Mesh;
 class Material;
 class Scene;
-class Map;
 
 class AssetManager {
 public:
@@ -26,7 +25,7 @@ public:
 
 	static Mesh* LoadObj(const std::string fileName);
 	static Scene* LoadScene(const std::string fileName);
-	static Map* LoadMap(const std::string fileName, Scene* scene);
+	static void LoadGameObjects(const std::string fileName, Scene* scene);
 	static Material* LoadMaterial(const glm::vec3&, const glm::vec3&, const glm::vec3&, const glm::vec3&,
 		const std::string&, const std::string&);
 };

@@ -7,8 +7,6 @@
 #include <string>
 #include <stdlib.h>
 
-#include "Map.h"
-
 #include "Component.h"
 #include "MeshRenderer.h"
 #include "Collider.h"
@@ -245,9 +243,6 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 	}
 
 	Scene* scene = new Scene();
-	GameObject* currGameObject = nullptr;
-	Mesh* currMesh = nullptr;
-	Material* currMaterial = nullptr;
 	int windowWidth, windowHeight;
 
 	//Loop through reading each line
@@ -265,22 +260,7 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 			continue;
 		}
 
-		if (strcmp(command, "aspect_ratio") == 0) {
-			sscanf(line, "aspect_ratio %d %d", &windowWidth, &windowHeight);
-
-			scene->windowWidth = windowWidth;
-			scene->windowHeight = windowHeight;
-		} else if (strcmp(command, "gameObject") == 0) {
-			if (currGameObject != nullptr) {
-				scene->gameObjects.push_back(currGameObject);
-			}
-
-			currGameObject = new GameObject();
-			char name[1024];
-
-			sscanf(line, "gameObject %s", name);
-			currGameObject->name = name;
-		} else if (strcmp(command, "camera") == 0) {
+		if (strcmp(command, "camera") == 0) {
 			float px, py, pz;
 			float fx, fy, fz;
 			float ux, uy, uz;
@@ -296,6 +276,106 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 				windowWidth,
 				windowHeight,
 				fov, np, fp);
+		} else if (strcmp(command, "directional_light") == 0) { // If the command is a directional light
+			float r, g, b, a, dx, dy, dz, dw;
+			sscanf(line, "directional_light %f %f %f %f %f %f %f %f",
+				&r, &g, &b, &a, &dx, &dy, &dz, &dw);
+
+			DirectionalLight* d = new DirectionalLight{
+				glm::vec4(r, g, b, a),
+				glm::normalize(glm::vec4(dx, dy, dz, dw))
+			};
+
+			scene->lights.push_back(d);
+		} else if (strcmp(command, "spot_light") == 0) { // If the command is a point_light
+			float r, g, b, a;
+			float px, py, pz, pw;
+			float dx, dy, dz, dw;
+			float angle1, angle2;
+			sscanf(line, "spot_light %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
+				&r, &g, &b, &a, &px, &py, &pz, &pw, &dx, &dy, &dz, &dw, &angle1, &angle2);
+
+			SpotLight* s = new SpotLight{
+				glm::vec4(r, g, b, a),
+				glm::vec4(px, py, pz, pw),
+				glm::normalize(glm::vec4(dx, dy, dz, dw)),
+				angle1,
+				angle2
+			};
+
+			scene->lights.push_back(s);
+		} else if (strcmp(command, "point_light") == 0) { // If the command is a spot_light
+			float r, g, b, a, x, y, z, w;
+			sscanf(line, "point_light %f %f %f %f %f %f %f %f",
+				&r, &g, &b, &a, &x, &y, &z, &w);
+
+			PointLight* p = new PointLight{
+				glm::vec4(r, g, b, a),
+				glm::vec4(x, y, z, w)
+			};
+
+			scene->lights.push_back(p);
+		} else if (strcmp(command, "ambient_light") == 0) { // If the command is a ambient_light
+			float r, g, b, a;
+			sscanf(line, "ambient_light %f %f %f %f", &r, &g, &b, &a);
+
+			AmbientLight* amb = new AmbientLight{
+				glm::vec4(r, g, b, a)
+			};
+
+			scene->lights.push_back(amb);
+		} else {
+			fprintf(stderr, "WARNING. Do not know command: %s\n", command);
+		}
+	}
+
+	return scene;
+}
+
+void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
+	FILE *fp;
+	char line[1024]; //Assumes no line is longer than 1024 characters!
+
+	std::string fullFile = VK_ROOT_DIR + fileName;
+
+	// open the file containing the scene description
+	fp = fopen(fullFile.c_str(), "r");
+
+	// check for errors in opening the file
+	if (fp == NULL) {
+		fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
+		exit(1);
+	}
+
+	GameObject* currGameObject = nullptr;
+	Mesh* currMesh = nullptr;
+	Material* currMaterial = nullptr;
+
+	//Loop through reading each line
+	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
+		if (line[0] == '#') {
+			//fprintf(stderr, "Skipping comment: %s", line);
+			continue;
+		}
+
+		char command[1024];
+		int fieldsRead = sscanf(line, "%s ", command); //Read first word in the line (i.e., the command type)
+
+		if (fieldsRead < 1) { //No command read
+			//Blank line
+			continue;
+		}
+
+		if (strcmp(command, "gameObject") == 0) {
+			if (currGameObject != nullptr) {
+				scene->gameObjects.push_back(currGameObject);
+			}
+
+			currGameObject = new GameObject();
+			char name[1024];
+
+			sscanf(line, "gameObject %s", name);
+			currGameObject->name = name;
 		} else if (strcmp(command, "component") == 0) {
 			char type[1024];
 
@@ -370,54 +450,6 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 
 			currMaterial = LoadMaterial(glm::vec3(cr, cg, cb), glm::vec3(ar, ag, ab), glm::vec3(dr, dg, db), glm::vec3(sr, sg, sb),
 				vert, frag);
-		} else if (strcmp(command, "directional_light") == 0) { // If the command is a directional light
-			float r, g, b, a, dx, dy, dz, dw;
-			sscanf(line, "directional_light %f %f %f %f %f %f %f %f",
-				&r, &g, &b, &a, &dx, &dy, &dz, &dw);
-
-			DirectionalLight* d = new DirectionalLight{
-				glm::vec4(r, g, b, a),
-				glm::normalize(glm::vec4(dx, dy, dz, dw))
-			};
-
-			scene->lights.push_back(d);
-		} else if (strcmp(command, "spot_light") == 0) { // If the command is a point_light
-			float r, g, b, a;
-			float px, py, pz, pw;
-			float dx, dy, dz, dw;
-			float angle1, angle2;
-			sscanf(line, "spot_light %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
-				&r, &g, &b, &a, &px, &py, &pz, &pw, &dx, &dy, &dz, &dw, &angle1, &angle2);
-
-			SpotLight* s = new SpotLight{
-				glm::vec4(r, g, b, a),
-				glm::vec4(px, py, pz, pw),
-				glm::normalize(glm::vec4(dx, dy, dz, dw)),
-				angle1,
-				angle2
-			};
-
-			scene->lights.push_back(s);
-		} else if (strcmp(command, "point_light") == 0) { // If the command is a spot_light
-			float r, g, b, a, x, y, z, w;
-			sscanf(line, "point_light %f %f %f %f %f %f %f %f",
-				&r, &g, &b, &a, &x, &y, &z, &w);
-
-			PointLight* p = new PointLight{
-				glm::vec4(r, g, b, a),
-				glm::vec4(x, y, z, w)
-			};
-
-			scene->lights.push_back(p);
-		} else if (strcmp(command, "ambient_light") == 0) { // If the command is a ambient_light
-			float r, g, b, a;
-			sscanf(line, "ambient_light %f %f %f %f", &r, &g, &b, &a);
-
-			AmbientLight* amb = new AmbientLight{
-				glm::vec4(r, g, b, a)
-			};
-
-			scene->lights.push_back(amb);
 		} else {
 			fprintf(stderr, "WARNING. Do not know command: %s\n", command);
 		}
@@ -428,113 +460,8 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 		scene->gameObjects.push_back(currGameObject);
 	}
 
-	GameObject* g = scene->FindGameObject("floor");
-	Transform* t = g->transform;
-	t->SetPosition(glm::vec3(0, -1, 0));
-
-	g = nullptr;
-	t = nullptr;
 	currMaterial = nullptr;
 	currMesh = nullptr;
 	currGameObject = nullptr;
 
-	return scene;
-}
-
-Map* AssetManager::LoadMap(const std::string fileName, Scene* scene) {
-	FILE *fp;
-	char line[1024]; //Assumes no line is longer than 1024 characters!
-
-	std::string fullFile = VK_ROOT_DIR + fileName;
-
-	// open the file containing the scene description
-	fp = fopen(fullFile.c_str(), "r");
-
-	// check for errors in opening the file
-	if (fp == NULL) {
-		fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
-		exit(1);
-	}
-
-	Map* map = new Map();
-	int i = 0;
-	int width, height;
-	//Loop through reading each line
-	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
-		if (line[0] == '#') {
-			//fprintf(stderr, "Skipping comment: %s", line);
-			continue;
-		}
-
-		int fieldsRead; char row[100];
-
-		// Bounds of grid
-		int temp_width, temp_height;
-		if ((fieldsRead = sscanf(line, "%d %d", &temp_width, &temp_height)) == 2) {
-			width = temp_width;
-			height = temp_height;
-			map->Setup(width, height);
-		}
-		// Grid entries
-		else if ((fieldsRead = sscanf(line, "%s", row)) == 1) {
-			for (int j = 0; j < width; j++) {
-				switch (row[j]) {
-				case 's':
-					map->layout.push_back(door1);
-					break;
-				case '0':
-					map->layout.push_back(empty);
-					break;
-				default:
-					break;
-				}
-			}
-			i++;
-		} else { continue; }
-
-	}
-
-	scene->instances.reserve(map->layout.size());
-	// Create actual grid
-	for (int i = 0; i < height; i++) {
-		for (int j = 0; j < width; j++) {
-			bool flag = true;
-			GameObject* g = new GameObject();
-			Transform* t = new Transform();
-			switch (map->layout[map->index(i, j)]) {
-			case empty:
-			{
-				flag = false;
-				break;
-			}
-			case door1:
-			{
-				g = new GameObject(*(scene->FindGameObject("Suzzane")));
-				break;
-			}
-			default:
-				flag = false;
-				break;
-			}
-
-			if (flag) {
-				t = g->transform;
-				t->SetPosition(glm::vec3((float)map->cubeWidth * i, 0, -(float)map->cubeWidth * j));
-				for (int k = 0; k < g->components.size(); k++) {
-					g->components[k]->gameObject = g;
-				}
-				scene->instances.push_back(g);
-			}
-		}
-	}
-
-	GameObject* g = new GameObject(*(scene->FindGameObject("floor")));
-	Transform* t = g->transform;
-	t->SetPosition(glm::vec3(0, -1, 0));
-	for (int i = 0; i < g->components.size(); i++) {
-		g->components[i]->gameObject = g;
-	}
-	scene->instances.push_back(g);
-
-	return map;
 }

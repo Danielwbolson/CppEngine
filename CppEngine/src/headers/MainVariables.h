@@ -16,23 +16,22 @@
 #include "AssetManager.h"
 #include "MemoryManager.h"
 
-#include "Map.h"
 #include "Configuration.h"
 
 #include "lua-5.3.5/src/lua.hpp"
 #include "LuaSupport.h"
 #include "sol/sol.hpp"
 
-const std::string mapFile = "map.txt";
 const std::string sceneFile = "scene.txt";
+const std::string gameObjectsFile = "gameObjects.txt";
+std::string luaMain = "main.lua";
 std::string gameFolder = "";
-std::string luaMain = "";
 
 sol::state lua;
 sol::function frameUpdate;
 
-int screenWidth = 1920;
-int screenHeight = 1080;
+int windowWidth = 1200;
+int windowHeight = 800;
 int engineComponentsSize = 3;
 
 float luaTimeSpeed = 1;
@@ -40,7 +39,6 @@ float startTime, printTime;
 bool quit = false;
 
 std::vector<Systems*> systems;
-Map* map;
 
 // SDL objects
 SDL_Window* window;

@@ -1,25 +1,5 @@
-
-# Attempt at a sample scene
-aspect_ratio 800 600
-
 # camera
 camera 20 3 5 0 -0.5 -1 0 1 0 1.2 0.01 1000
 #pos, forward, up, fov, near_plane, far_plane
 
 # lights
-#point_light 10 0 0 1 0 1 0 1
-#point_light 0 10 0 1 5 1 0 1
-#point_light 0 0 10 1 10 1 0 1
-#point_light 10 0 10 1 0 1 5 1
-
-# Floor
-gameObject floor
-material 1 1 1 1 1 1 1 1 1 0 0 0 deferredToTexture.vert deferredToTexture.frag
-mesh floor.obj
-component meshRenderer
-
-# suzzane
-gameObject Suzzane
-material .5 .5 .5 1 1 1 1 1 1 0 0 0 deferredToTexture.vert deferredToTexture.frag
-mesh door1.obj
-component meshRenderer
