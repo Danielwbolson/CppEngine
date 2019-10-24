@@ -10,7 +10,7 @@ add_definitions(-D_CRT_SECURE_NO_DEPRECATE)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if (UNIX AND NOT APPLE)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wextra -Wno-implicit-fallthrough -Wshadow -Wno-unused-variable -Wno-unused-function")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -Werror -Wextra -Wno-implicit-fallthrough -Wshadow -Wno-unused-variable -Wno-unused-function")
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
 	set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O2") # look up Ofast
 elseif (MSVC)
@@ -33,10 +33,10 @@ if (UNIX AND NOT APPLE)
 elseif (APPLE)
   find_package( SDL2 REQUIRED component main)
 elseif(MSVC)
-  #link_directories( ${DESKTOP_SDL}lib/x64 )
-  #set(SDL2_INCLUDE_DIRS ${DESKTOP_SDL}include )
-  link_directories( ${LAPTOP_SDL}lib/x64)
-  set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)
+  link_directories( ${DESKTOP_SDL}lib/x64 )
+  set(SDL2_INCLUDE_DIRS ${DESKTOP_SDL}include )
+  #link_directories( ${LAPTOP_SDL}lib/x64)
+  #set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)
   
   set( SDL2_LIBRARIES SDL2 SDL2main )
 endif()
@@ -65,7 +65,6 @@ add_library(glad ${glad_src})
 
 file(GLOB lua_src external/lua-5.3.5/src/*.c)
 add_library(lua ${lua_src})
-
 
 
 
@@ -206,6 +205,7 @@ set(ALL_FILES
 
 set(INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/external
+	${CMAKE_CURRENT_SOURCE_DIR}/external/sol2/single/include
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components

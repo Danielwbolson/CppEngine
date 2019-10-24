@@ -19,19 +19,23 @@
 #include "Map.h"
 #include "Configuration.h"
 
+#include "lua-5.3.5/src/lua.hpp"
 #include "LuaSupport.h"
+#include "sol/sol.hpp"
 
 const std::string mapFile = "map.txt";
 const std::string sceneFile = "scene.txt";
 std::string gameFolder = "";
 std::string luaMain = "";
 
-lua_State* luaState;
+sol::state lua;
+sol::function frameUpdate;
 
 int screenWidth = 1920;
 int screenHeight = 1080;
 int engineComponentsSize = 3;
 
+float luaTimeSpeed = 1;
 float startTime, printTime;
 bool quit = false;
 
@@ -53,6 +57,6 @@ int Init();
 void InitLua();
 void InitSystems();
 void Update();
-void UpdateLua();
+void UpdateLua(const float&);
 void Render();
 void CleanUp();

@@ -3,13 +3,15 @@
 #define LUA_SUPPORT_H_
 
 #include "lua-5.3.5/src/lua.hpp"
+#include "sol/sol.hpp"
+#include "Globals.h"
 
-void luaSetup(lua_State* L);
+void luaSetup(sol::state& L);
 
 // output functionName(lua_State* luaState);
 
-int addLight(lua_State* L);
-int addModel(lua_State* L);
-int addInstance(lua_State* L);
+int addPointLight(const float&, const float&, const float&, const float&, const float&, const float&, const float&, const float&);
+int addModel();
+int addInstance();
 
 #endif // LUA_SUPPORT_H_

@@ -22,7 +22,6 @@ void checkGLError(const std::string& s) {
 MeshRendererSystem::MeshRendererSystem(const int& sW, const int& sH) {
     screenWidth = sW;
     screenHeight = sH;
-    numLights = 1000;
 
     meshRenderers = std::vector<MeshRenderer*>();
     pointLights = std::vector<PointLight>();
@@ -305,7 +304,7 @@ void MeshRendererSystem::Render() {
 	glm::vec3 camPos = mainCamera->transform->position;
 
     // instead of drawing arrays, draw spheres at each light position
-    for (int i = 0; i < numLights; i++) {
+    for (int i = 0; i < pointLights.size(); i++) {
         glm::vec4 pos = pointLights[i].position;
         glm::vec4 color = pointLights[i].color;
 

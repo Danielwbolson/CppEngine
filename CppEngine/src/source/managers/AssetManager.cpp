@@ -432,20 +432,6 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 	Transform* t = g->transform;
 	t->SetPosition(glm::vec3(0, -1, 0));
 
-	for (int i = 0; i < 1000; i++) {
-		PointLight* p = new PointLight{
-			glm::vec4(
-				(float)rand() / (float)RAND_MAX * 4,
-				(float)rand() / (float)RAND_MAX * 4,
-				(float)rand() / (float)RAND_MAX * 4, 1),
-			glm::vec4(
-				(float)rand() / (float)RAND_MAX * 40,
-				0.5,
-				-(float)rand() / (float)RAND_MAX * 40, 1)
-		};
-		scene->lights.push_back(p);
-	}
-
 	g = nullptr;
 	t = nullptr;
 	currMaterial = nullptr;

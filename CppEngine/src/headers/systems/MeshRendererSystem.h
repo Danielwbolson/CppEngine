@@ -49,8 +49,6 @@ private:
 
     Mesh* lightSphere;
 
-    int numLights;
-
 public:
 	int totalTriangles = 0;
 
