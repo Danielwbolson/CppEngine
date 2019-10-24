@@ -70,12 +70,7 @@ add_library(lua ${lua_src})
 
 set(COMPONENT_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Component.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Door.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Grab.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/InteractableObject.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Key.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/MeshRenderer.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/PlayerMovement.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Transform.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/colliders/BoxCollider.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/colliders/Collider.h
@@ -83,12 +78,7 @@ set(COMPONENT_H
 )
 set(COMPONENT_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Component.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Door.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Grab.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/InteractableObject.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Key.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/MeshRenderer.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/PlayerMovement.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Transform.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/colliders/BoxCollider.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/colliders/Collider.cpp
@@ -96,13 +86,11 @@ set(COMPONENT_CPP
 )
 
 set(CORE_H
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/Map.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/Scene.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/Camera.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/GameObject.h
 )
 set(CORE_CPP
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/Map.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/Scene.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/Camera.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/GameObject.cpp
