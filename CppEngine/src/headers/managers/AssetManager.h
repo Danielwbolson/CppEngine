@@ -23,6 +23,7 @@ public:
 	static std::vector<Material*> materials;
 	//std::vector<Texture*> textures;
 
+	static Model* tinyLoadObj(const std::string fileName);
 	static Model* LoadObj(const std::string fileName);
 	static Scene* LoadScene(const std::string fileName);
 	static void LoadGameObjects(const std::string fileName, Scene* scene);

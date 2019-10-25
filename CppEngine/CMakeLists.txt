@@ -196,6 +196,7 @@ set(ALL_FILES
 set(INCLUDE_DIRS
 	${CMAKE_CURRENT_SOURCE_DIR}/external
 	${CMAKE_CURRENT_SOURCE_DIR}/external/sol2/single/include
+	${CMAKE_CURRENT_SOURCE_DIR}/external/tinyobjloader
 	
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components

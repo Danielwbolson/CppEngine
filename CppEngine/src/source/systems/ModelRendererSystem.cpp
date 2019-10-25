@@ -29,7 +29,7 @@ ModelRendererSystem::ModelRendererSystem(const int& sW, const int& sH) {
     pointLights = std::vector<PointLight>();
 
 	// We know that this is a mesh, not a model
-    lightSphere = (assetManager->LoadObj("sphere.obj"))->meshes[0];
+    lightSphere = (assetManager->tinyLoadObj("sphere.obj"))->meshes[0];
 }
 
 ModelRendererSystem::~ModelRendererSystem() {

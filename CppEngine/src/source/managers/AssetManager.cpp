@@ -1,11 +1,15 @@
 
 #include "AssetManager.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
 #include <cstdio>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <stdlib.h>
+#include <unordered_map>
 
 #include "Component.h"
 #include "ModelRenderer.h"
@@ -48,6 +52,112 @@ AssetManager::~AssetManager() {
 		delete materials[i];
 	}
 	materials.clear();
+}
+
+struct vertex {
+	glm::vec3 pos;
+	glm::vec3 normal;
+	glm::vec2 uv;
+
+	bool operator==(const vertex& rhs) {
+		return pos == rhs.pos && normal == rhs.normal && uv == rhs.uv;
+	}
+};
+
+Model* AssetManager::tinyLoadObj(const std::string fileName) {
+
+	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
+
+	tinyobj::attrib_t attrib;
+	std::vector<tinyobj::shape_t> shapes;
+	std::vector<tinyobj::material_t> mats;
+
+	std::string warn;
+	std::string err;
+
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &mats, &warn, &err, fullFile.c_str());
+
+	Model* model = new Model();
+	for (const auto& shape : shapes) {
+
+		// For calculating bounds
+		float minx = INFINITY;
+		float miny = INFINITY;
+		float minz = INFINITY;
+		float maxx = -INFINITY;
+		float maxy = -INFINITY;
+		float maxz = -INFINITY;
+
+		// Per shape info		
+		std::vector<glm::vec3> positions;
+		std::vector<glm::vec3> normals;
+		std::vector<glm::vec2> uvs;
+		std::vector<unsigned int> indices;
+
+		std::vector<vertex> vertices;
+		std::vector<vertex> rawVertices;
+
+		Mesh* mesh = new Mesh();
+		for (const auto& index : shape.mesh.indices) {
+			vertex v = {};
+
+			float x = attrib.vertices[3 * index.vertex_index + 0];
+			float y = attrib.vertices[3 * index.vertex_index + 1];
+			float z = attrib.vertices[3 * index.vertex_index + 2];
+			v.pos = glm::vec3(x, y, z);
+
+			// Get bounds
+			if (v.pos.x > maxx) { maxx = v.pos.x; }
+			if (v.pos.y > maxy) { maxy = v.pos.y; }
+			if (v.pos.z > maxz) { maxz = v.pos.z; }
+			if (v.pos.x < minx) { minx = v.pos.x; }
+			if (v.pos.y < miny) { miny = v.pos.y; }
+			if (v.pos.z < minz) { minz = v.pos.z; }
+
+			float nx = attrib.normals[3 * index.normal_index + 0];
+			float ny = attrib.normals[3 * index.normal_index + 1];
+			float nz = attrib.normals[3 * index.normal_index + 2];
+			v.normal = glm::vec3(nx, ny, nz);
+
+			float uvx = attrib.texcoords[2 * index.texcoord_index + 0];
+			float uvy = 1.0f - attrib.texcoords[2 * index.texcoord_index + 1];
+			v.uv = glm::vec2(uvx, uvy);
+
+			// Find if this vert already exists
+			bool exists = false;
+			for (int i = static_cast<int>(vertices.size()) - 1; i >= 0; i--) {
+				if (v == vertices[i]) {
+					exists = true;
+					indices.push_back(i);
+					break;
+				}
+			}
+			if (!exists) {
+				indices.push_back(static_cast<unsigned int>(vertices.size()));
+				vertices.push_back(v);
+				positions.push_back(v.pos);
+				normals.push_back(v.normal);
+				uvs.push_back(v.uv);
+			}
+		}
+
+		mesh->SetIndices(indices);
+		mesh->SetPositions(positions);
+		mesh->SetNormals(normals);
+		mesh->SetUvs(uvs);
+		mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
+		model->meshes.push_back(mesh);
+
+		vertices.clear();
+		rawVertices.clear();
+
+		positions.clear();
+		normals.clear();
+		uvs.clear();
+		indices.clear();
+	}
+
+	return model;
 }
 
 Model* AssetManager::LoadObj(const std::string fileName) {
@@ -441,7 +551,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 
 			sscanf(line, "model %s", &filename);
 
-			currModel = LoadObj(filename);
+			currModel = tinyLoadObj(filename);
 			currModel->name = currGameObject->name;
 
 			// TODO: Hack for now, but eventually need to support materials in obj
