@@ -70,7 +70,7 @@ add_library(lua ${lua_src})
 
 set(COMPONENT_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Component.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/MeshRenderer.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/ModelRenderer.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/Transform.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/colliders/BoxCollider.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/components/colliders/Collider.h
@@ -78,7 +78,7 @@ set(COMPONENT_H
 )
 set(COMPONENT_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Component.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/MeshRenderer.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/ModelRenderer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/Transform.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/colliders/BoxCollider.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/components/colliders/Collider.cpp
@@ -115,24 +115,26 @@ set(MANAGER_CPP
 
 set(MODEL_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Material.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Model.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Mesh.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Bounds.h
 )
 set(MODEL_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Material.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Model.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Mesh.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Bounds.cpp
 )
 
 set(SYSTEMS_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/ColliderSystem.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/MeshRendererSystem.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/ModelRendererSystem.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/PhysicsSystem.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/Systems.h
 )
 set(SYSTEMS_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/ColliderSystem.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/MeshRendererSystem.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/ModelRendererSystem.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/PhysicsSystem.cpp
 )
 

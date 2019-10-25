@@ -1,6 +1,6 @@
 
-#ifndef MESH_RENDERER_SYSTEM_H_
-#define MESH_RENDERER_SYSTEM_H_
+#ifndef MODEL_RENDERER_SYSTEM_H_
+#define MODEL_RENDERER_SYSTEM_H_
 
 #include "Systems.h"
 
@@ -9,8 +9,9 @@
 #include "glm/glm.hpp"
 
 #include "GameObject.h"
-#include "MeshRenderer.h"
+#include "ModelRenderer.h"
 #include "PointLight.h"
+#include "Model.h"
 #include "Mesh.h"
 
 #include <vector>
@@ -34,9 +35,9 @@ const GLfloat quadVerts[12] = {
 };
 
 
-class MeshRendererSystem : public Systems {
+class ModelRendererSystem : public Systems {
 private:
-    std::vector<MeshRenderer*> meshRenderers;
+    std::vector<ModelRenderer*> modelRenderers;
     std::vector<PointLight> pointLights;
     std::vector<glm::vec4> lightPositions;
 
@@ -52,8 +53,8 @@ private:
 public:
 	int totalTriangles = 0;
 
-    MeshRendererSystem(const int&, const int&);
-    ~MeshRendererSystem();
+    ModelRendererSystem(const int&, const int&);
+    ~ModelRendererSystem();
 
     void Setup();
     void ComponentType(const std::string&) const;

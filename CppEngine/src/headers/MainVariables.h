@@ -6,7 +6,7 @@
 #include "SDL_Static_Helper.h"
 
 #include "Systems.h"
-#include "MeshRendererSystem.h"
+#include "ModelRendererSystem.h"
 #include "ColliderSystem.h"
 #include "PhysicsSystem.h"
 

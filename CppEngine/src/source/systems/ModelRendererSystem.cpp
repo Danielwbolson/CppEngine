@@ -1,5 +1,5 @@
 
-#include "MeshRendererSystem.h"
+#include "ModelRendererSystem.h"
 #include "Utility.h"
 #include "Configuration.h"
 #include "Scene.h"
@@ -7,6 +7,8 @@
 #include "AssetManager.h"
 #include "Camera.h"
 #include "Globals.h"
+
+#include "Material.h"
 
 #include <algorithm>
 
@@ -19,17 +21,18 @@ void checkGLError(const std::string& s) {
     }
 }
 
-MeshRendererSystem::MeshRendererSystem(const int& sW, const int& sH) {
+ModelRendererSystem::ModelRendererSystem(const int& sW, const int& sH) {
     screenWidth = sW;
     screenHeight = sH;
 
-    meshRenderers = std::vector<MeshRenderer*>();
+    modelRenderers = std::vector<ModelRenderer*>();
     pointLights = std::vector<PointLight>();
 
-    lightSphere = assetManager->LoadObj("sphere.obj");
+	// We know that this is a mesh, not a model
+    lightSphere = (assetManager->LoadObj("sphere.obj"))->meshes[0];
 }
 
-MeshRendererSystem::~MeshRendererSystem() {
+ModelRendererSystem::~ModelRendererSystem() {
     glDeleteProgram(combinedShader);
 
     glDeleteBuffers(1, &quadVbo);
@@ -45,16 +48,17 @@ MeshRendererSystem::~MeshRendererSystem() {
 	glDeleteTextures(1, &gBuffer.diffuse);
 	glDeleteTextures(1, &gBuffer.specular);
 
-	for (int i = 0; i < meshRenderers.size(); i++) {
-		meshRenderers[i] = nullptr;
+	for (int i = 0; i < modelRenderers.size(); i++) {
+		modelRenderers[i] = nullptr;
 	}
+	modelRenderers.clear();
 
 	pointLights.clear();
-	meshRenderers.clear();
+	modelRenderers.clear();
 	lightPositions.clear();
 }
 
-void MeshRendererSystem::Setup() {
+void ModelRendererSystem::Setup() {
     for (int i = 0; i < mainScene->lights.size(); i++) {
         PointLight p = *((PointLight*)mainScene->lights[i]);
         pointLights.push_back(p);
@@ -64,9 +68,9 @@ void MeshRendererSystem::Setup() {
 
     // Get our list of related components, in this case MeshRenderers
     for (int i = 0; i < mainScene->instances.size(); i++) {
-        MeshRenderer* mr = (MeshRenderer*)mainScene->instances[i]->GetComponent("meshRenderer");
+        ModelRenderer* mr = (ModelRenderer*)mainScene->instances[i]->GetComponent("modelRenderer");
         if (mr) {
-			meshRenderers.push_back(mr);
+			modelRenderers.push_back(mr);
             Register(mr);
         }
     }
@@ -169,57 +173,60 @@ void MeshRendererSystem::Setup() {
     glEnable(GL_DEPTH_TEST);
 }
 
-void MeshRendererSystem::ComponentType(const std::string&) const {
+void ModelRendererSystem::ComponentType(const std::string&) const {
 
 }
 
-void MeshRendererSystem::Register(const Component* c) {
+void ModelRendererSystem::Register(const Component* c) {
     // Quick reference
-    MeshRenderer* mr = (MeshRenderer*)c;
+    ModelRenderer* mr = (ModelRenderer*)c;
 
-    glGenVertexArrays(1, &(mr->vao));
-    glBindVertexArray(mr->vao);
+	// run through every mesh/material for our model
+	for (int i = 0; i < mr->numMeshes; i++) {
+		glGenVertexArrays(1, &(mr->vaos[i]));
+		glBindVertexArray(mr->vaos[i]);
 
-    // Position
-    glGenBuffers(1, &(mr->vbo[0]));
-    glBindBuffer(GL_ARRAY_BUFFER, mr->vbo[0]);
-    glBufferData(GL_ARRAY_BUFFER, 3 * mr->mesh->NumPositions() * sizeof(float), &(mr->mesh->pos[0]), GL_STATIC_DRAW);
+		// Position
+		glGenBuffers(1, &(mr->vbos[i][0]));
+		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][0]);
+		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->NumPositions() * sizeof(float), &(mr->model->meshes[i]->pos[0]), GL_STATIC_DRAW);
 
-    GLint posAttrib = glGetAttribLocation(mr->material->shaderProgram, "inPosition");
-    glEnableVertexAttribArray(posAttrib);
-    glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    //Attribute, vals/attrib., type, isNormalized, stride, offset
+		GLint posAttrib = glGetAttribLocation(mr->model->materials[i]->shaderProgram, "inPosition");
+		glEnableVertexAttribArray(posAttrib);
+		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		//Attribute, vals/attrib., type, isNormalized, stride, offset
 
-    // Normals
-    glGenBuffers(1, &(mr->vbo[1]));
-    glBindBuffer(GL_ARRAY_BUFFER, mr->vbo[1]);
-    glBufferData(GL_ARRAY_BUFFER, 3 * mr->mesh->NumNorms() * sizeof(float), &(mr->mesh->normals[0]), GL_STATIC_DRAW);
+		// Normals
+		glGenBuffers(1, &(mr->vbos[i][1]));
+		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][1]);
+		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->NumNorms() * sizeof(float), &(mr->model->meshes[i]->normals[0]), GL_STATIC_DRAW);
 
-    GLint normAttrib = glGetAttribLocation(mr->material->shaderProgram, "inNormal");
-    glEnableVertexAttribArray(normAttrib);
-    glVertexAttribPointer(normAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		GLint normAttrib = glGetAttribLocation(mr->model->materials[i]->shaderProgram, "inNormal");
+		glEnableVertexAttribArray(normAttrib);
+		glVertexAttribPointer(normAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-    //// UVS
-    //glGenBuffers(1, &(mr->vbo[2]));
-    //glBindBuffer(GL_ARRAY_BUFFER, mr->vbo[2]);
-    //glBufferData(GL_ARRAY_BUFFER, 2 * mr->mesh.NumPositions() * sizeof(float), &(mr->mesh.uvs[0]), GL_STATIC_DRAW);
-    //if ((err = glGetError()) != GL_NO_ERROR) {
-    //    std::cerr << "inbetween OpenGL error: " << err << std::endl;
-    //}
+		//// UVS
+		//glGenBuffers(1, &(mr->vbo[2]));
+		//glBindBuffer(GL_ARRAY_BUFFER, mr->vbo[2]);
+		//glBufferData(GL_ARRAY_BUFFER, 2 * mr->mesh.NumPositions() * sizeof(float), &(mr->mesh.uvs[0]), GL_STATIC_DRAW);
+		//if ((err = glGetError()) != GL_NO_ERROR) {
+		//    std::cerr << "inbetween OpenGL error: " << err << std::endl;
+		//}
 
-    //GLint uvAttrib = glGetAttribLocation(mr->material.shaderProgram, "inTexcoord");
-    //glEnableVertexAttribArray(uvAttrib);
-    //glVertexAttribPointer(uvAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+		//GLint uvAttrib = glGetAttribLocation(mr->material.shaderProgram, "inTexcoord");
+		//glEnableVertexAttribArray(uvAttrib);
+		//glVertexAttribPointer(uvAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
-    // Indices
-    glGenBuffers(1, &(mr->vbo[3]));
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mr->vbo[3]);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, mr->mesh->NumIndices() * sizeof(GL_UNSIGNED_INT), &(mr->mesh->indices[0]), GL_STATIC_DRAW);
+		// Indices
+		glGenBuffers(1, &(mr->vbos[i][3]));
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mr->vbos[i][3]);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, mr->model->meshes[i]->NumIndices() * sizeof(GL_UNSIGNED_INT), &(mr->model->meshes[i]->indices[0]), GL_STATIC_DRAW);
 
+	}
     glBindVertexArray(0);
 }
 
-void MeshRendererSystem::Render() {
+void ModelRendererSystem::Render() {
 	totalTriangles = 0;
 
     // Bind our deferred texture buffer
@@ -233,33 +240,36 @@ void MeshRendererSystem::Render() {
     glm::mat4 proj = mainCamera->proj;
 
     // Get all of our meshRenderers to draw to textures
-    for (int i = 0; i < meshRenderers.size(); i++) {
+    for (int i = 0; i < modelRenderers.size(); i++) {
 
-		glm::mat4 model = meshRenderers[i]->gameObject->transform->model;
+		glm::mat4 model = modelRenderers[i]->gameObject->transform->model;
 
-		// Pre-emptively frustum cull unnecessary meshes
-		if (FrustumCull(meshRenderers[i]->mesh, model, proj * view)) { continue; }
+		for (int j = 0; j < modelRenderers[i]->numMeshes; j++) {
+
+			// Pre-emptively frustum cull unnecessary meshes
+			if (FrustumCull(modelRenderers[i]->model->meshes[j], model, proj * view)) { continue; }
 
 
-        glUseProgram(meshRenderers[i]->material->shaderProgram);
-        glBindVertexArray(meshRenderers[i]->vao);
+			glUseProgram(modelRenderers[i]->model->materials[j]->shaderProgram);
+			glBindVertexArray(modelRenderers[i]->vaos[j]);
 
-        GLint uniColor = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "inColor");
-        glUniform3f(uniColor, meshRenderers[i]->material->color.x, meshRenderers[i]->material->color.y, meshRenderers[i]->material->color.z);
-        GLint uniModel = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "model");
-        glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
-        GLint uniView = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "view");
-        glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
-        GLint uniProj = glGetUniformLocation(meshRenderers[i]->material->shaderProgram, "proj");
-        glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
+			GLint uniColor = glGetUniformLocation(modelRenderers[i]->model->materials[j]->shaderProgram, "inColor");
+			glUniform3f(uniColor, modelRenderers[i]->model->materials[j]->color.x, modelRenderers[i]->model->materials[j]->color.y, modelRenderers[i]->model->materials[j]->color.z);
+			GLint uniModel = glGetUniformLocation(modelRenderers[i]->model->materials[j]->shaderProgram, "model");
+			glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
+			GLint uniView = glGetUniformLocation(modelRenderers[i]->model->materials[j]->shaderProgram, "view");
+			glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
+			GLint uniProj = glGetUniformLocation(modelRenderers[i]->model->materials[j]->shaderProgram, "proj");
+			glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
 
-        // Indices
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshRenderers[i]->vbo[3]);
+			// Indices
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, modelRenderers[i]->vbos[j][3]);
 
-		totalTriangles += meshRenderers[i]->mesh->NumIndices() / 3;
+			totalTriangles += modelRenderers[i]->model->meshes[j]->NumIndices() / 3;
 
-        // Use our shader and draw our program
-        glDrawElements(GL_TRIANGLES, meshRenderers[i]->mesh->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
+			// Use our shader and draw our program
+			glDrawElements(GL_TRIANGLES, modelRenderers[i]->model->meshes[j]->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
+		}
     }
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -349,7 +359,7 @@ void MeshRendererSystem::Render() {
     glDepthMask(GL_TRUE);
 }
 
-bool MeshRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
+bool ModelRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
 	
 	Bounds b = *(mesh->bounds);
 	glm::vec3 maxPoint = b.Max(model);

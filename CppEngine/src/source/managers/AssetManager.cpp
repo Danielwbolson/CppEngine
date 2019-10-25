@@ -8,21 +8,15 @@
 #include <stdlib.h>
 
 #include "Component.h"
-#include "MeshRenderer.h"
+#include "ModelRenderer.h"
 #include "Collider.h"
 #include "BoxCollider.h"
 #include "SphereCollider.h"
 #include "Transform.h"
 
-#include "PlayerMovement.h"
-#include "Key.h"
-#include "Door.h"
-#include "InteractableObject.h"
-#include "Grab.h"
-
+#include "Model.h"
 #include "Mesh.h"
 #include "Bounds.h"
-#include "GameObject.h"
 #include "Material.h"
 
 #include "Light.h"
@@ -36,17 +30,19 @@
 #include "Globals.h"
 #include "Camera.h"
 #include "Scene.h"
+#include "GameObject.h"
 
-std::vector<Mesh*> AssetManager::meshes = std::vector<Mesh*>();
+
+std::vector<Model*> AssetManager::models = std::vector<Model*>();
 std::vector<Material*> AssetManager::materials = std::vector<Material*>();
 
 AssetManager::AssetManager() {}
 
 AssetManager::~AssetManager() {
-	for (int i = 0; i < meshes.size(); i++) {
-		delete meshes[i];
+	for (int i = 0; i < models.size(); i++) {
+		delete models[i];
 	}
-	meshes.clear();
+	models.clear();
 
 	for (int i = 0; i < materials.size(); i++) {
 		delete materials[i];
@@ -54,7 +50,7 @@ AssetManager::~AssetManager() {
 	materials.clear();
 }
 
-Mesh* AssetManager::LoadObj(const std::string fileName) {
+Model* AssetManager::LoadObj(const std::string fileName) {
 	FILE *fp;
 	char line[1024]; //Assumes no line is longer than 1024 characters!
 
@@ -103,7 +99,8 @@ Mesh* AssetManager::LoadObj(const std::string fileName) {
 	std::vector<vertData> vertMap;
 
 
-	Mesh* mesh = new Mesh();
+	Model* model = nullptr;
+	Mesh* mesh = nullptr;
 	int nextIndex = 0;
 	//Loop through reading each line
 	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
@@ -188,6 +185,41 @@ Mesh* AssetManager::LoadObj(const std::string fileName) {
 					normals.push_back(rawNormals[temp_vert.n - 1]);
 				}
 			}
+		// We have reached a new obj here, time to store our data and start again
+		} else if (strcmp(command, "o") == 0) {
+
+			// Init our model and mesh for our first obj
+			if (model == nullptr) {
+				model = new Model();
+				mesh = new Mesh();
+				continue;
+			}
+
+			// This is not our first obj, thus we must save data
+			mesh->SetPositions(verts);
+			mesh->SetNormals(normals);
+			mesh->SetUvs(uvs);
+			mesh->SetIndices(indices);
+
+			rawVerts.clear();
+			rawNormals.clear();
+			rawUvs.clear();
+
+			verts.clear();
+			normals.clear();
+			uvs.clear();
+			indices.clear();
+
+			mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
+			minx = INFINITY;
+			miny = INFINITY;
+			minz = INFINITY;
+			maxx = -INFINITY;
+			maxy = -INFINITY;
+			maxz = -INFINITY;
+
+			model->meshes.push_back(mesh);
+			mesh = new Mesh();
 		} else { continue; }
 	}
 
@@ -207,8 +239,9 @@ Mesh* AssetManager::LoadObj(const std::string fileName) {
 
 	mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
 
-	AssetManager::meshes.push_back(mesh);
-	return mesh;
+	model->meshes.push_back(mesh);
+	AssetManager::models.push_back(model);
+	return model;
 }
 
 Material* AssetManager::LoadMaterial(const glm::vec3& c, const glm::vec3& a, const glm::vec3& d, const glm::vec3& s,
@@ -348,7 +381,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 	}
 
 	GameObject* currGameObject = nullptr;
-	Mesh* currMesh = nullptr;
+	Model* currModel = nullptr;
 	Material* currMaterial = nullptr;
 
 	//Loop through reading each line
@@ -399,44 +432,20 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 
 				if (currGameObject)
 					currGameObject->AddComponent(new SphereCollider(pos, radius, dynamic));
-			} else if (strcmp(type, "meshRenderer") == 0) {
+			} else if (strcmp(type, "modelRenderer") == 0) {
 				if (currGameObject)
-					currGameObject->AddComponent(new MeshRenderer(currMesh, currMaterial));
-			} else if (strcmp(type, "playerMovement") == 0) {
-				float speed;
-
-				sscanf(line, "component playerMovement %f", &speed);
-
-				if (currGameObject)
-					currGameObject->AddComponent(new PlayerMovement(speed));
-			} else if (strcmp(type, "key") == 0) {
-				char p[1024];
-
-				sscanf(line, "component key %s", p);
-
-				if (currGameObject)
-					currGameObject->AddComponent(new Key(p));
-			} else if (strcmp(type, "door") == 0) {
-				char p[1024];
-
-				sscanf(line, "component door %s", p);
-
-				if (currGameObject)
-					currGameObject->AddComponent(new Door(p));
-			} else if (strcmp(type, "interactableObject") == 0) {
-				if (currGameObject)
-					currGameObject->AddComponent(new InteractableObject());
-			} else if (strcmp(type, "grab") == 0) {
-				if (currGameObject)
-					currGameObject->AddComponent(new Grab());
+					currGameObject->AddComponent(new ModelRenderer(currModel));
 			} else { continue; }
-		} else if (strcmp(command, "mesh") == 0) {
+		} else if (strcmp(command, "model") == 0) {
 			char filename[1024];
 
-			sscanf(line, "mesh %s", &filename);
+			sscanf(line, "model %s", &filename);
 
-			currMesh = LoadObj(filename);
-			currMesh->name = currGameObject->name;
+			currModel = LoadObj(filename);
+			currModel->name = currGameObject->name;
+
+			// TODO: Hack for now, but eventually need to support materials in obj
+			currModel->materials.push_back(currMaterial);
 		} else if (strcmp(command, "material") == 0) { // If the command is a material
 			float cr, cg, cb; // color
 			float ar, ag, ab; // ambient coefficients
@@ -461,7 +470,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 	}
 
 	currMaterial = nullptr;
-	currMesh = nullptr;
+	currModel = nullptr;
 	currGameObject = nullptr;
 
 }

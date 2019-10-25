@@ -10,14 +10,17 @@ Scene::~Scene() {
 	for (int i = 0; i < gameObjects.size(); i++) {
 		delete gameObjects[i];
 	}
+	gameObjects.clear();
 
 	for (int i = 0; i < instances.size(); i++) {
 		delete instances[i];
 	}
+	instances.clear();
 
 	for (int i = 0; i < lights.size(); i++) {
 		delete lights[i];
 	}
+	lights.clear();
 }
 
 GameObject* Scene::FindGameObject(const std::string& name) {

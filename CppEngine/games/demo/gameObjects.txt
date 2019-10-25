@@ -1,11 +1,11 @@
 # Floor
 gameObject floor
 material 1 1 1 1 1 1 1 1 1 0 0 0 deferredToTexture.vert deferredToTexture.frag
-mesh floor.obj
-component meshRenderer
+model floor.obj
+component modelRenderer
 
 # suzzane
 gameObject suzanne
 material .5 .5 .5 1 1 1 1 1 1 0 0 0 deferredToTexture.vert deferredToTexture.frag
-mesh suzanne.obj
-component meshRenderer
+model suzanne.obj
+component modelRenderer
