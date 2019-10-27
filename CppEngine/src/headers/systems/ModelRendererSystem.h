@@ -64,7 +64,6 @@ public:
     void Update(const float&) {}
     void Render();
 
-	void GenTexture(GLuint* id, const int& texIndex, Texture* tex);
 	bool FrustumCull(const Mesh*, const glm::mat4&, const glm::mat4&) const;
 };
 

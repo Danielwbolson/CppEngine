@@ -11,6 +11,8 @@ public:
 	int height;
 	int numChannels;
 
+	bool loadedToGPU = false;
+
 	Texture() {}
 	~Texture();
 

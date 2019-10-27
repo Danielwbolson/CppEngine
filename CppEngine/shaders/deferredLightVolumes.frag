@@ -23,8 +23,9 @@ void main() {
     vec4 specExp      = texture(gSpecularExp, UV);
     
     // eye
-    vec3 eye = normalize(-fragPos);
-    vec3 outColor = vec3(0, 0, 0);
+	vec3 camPos = vec3(view[0][3], view[1][3], view[2][3]);
+    vec3 eye = normalize(camPos-fragPos);
+    vec3 outColor = diffuseColor * 0.001f; //vec3(0, 0, 0);
 
     // light info in view space
     vec3 viewLightPos = (view * lightPos).xyz;

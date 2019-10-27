@@ -10,7 +10,7 @@
 
 #include "Material.h"
 
-#include <algorithm>
+#include <cmath>
 
 #include "glm/gtc/type_ptr.hpp"
 
@@ -111,32 +111,32 @@ void ModelRendererSystem::Setup() {
     glGenTextures(1, &(gBuffer.positions));
     glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.positions, 0);
 
     // - normal color buffer
     glGenTextures(1, &(gBuffer.normals));
     glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.normals, 0);
 
     // diffuse color
     glGenTextures(1, &(gBuffer.diffuse));
     glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBuffer.diffuse, 0);
 
     // specular color
     glGenTextures(1, &(gBuffer.specular));
     glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gBuffer.specular, 0);
 
     // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
@@ -220,30 +220,27 @@ void ModelRendererSystem::Register(const Component* c) {
 
 
 		// Textures
+		// Load up either a null texture or the wanted one
 		glUseProgram(mr->model->materials[i]->shaderProgram);
 		Material* mat = mr->model->materials[i];
 
-		if (mat->ambientTexture != nullptr) { 
-			GenTexture(&mr->alphaTextures[i], 0, mat->alphaTexture); 
+		if (mat->ambientTexture != nullptr && !mat->ambientTexture->loadedToGPU) {
+			assetManager->LoadTextureToGPU("ambient", mat->ambientIndex, 0, mat->ambientTexture);
+		} else if (mat->diffuseTexture != nullptr && !mat->diffuseTexture->loadedToGPU) {
+			assetManager->LoadTextureToGPU("diffuse", mat->diffuseIndex, 0, mat->diffuseTexture);
+		} else if (mat->specularTexture != nullptr && !mat->specularTexture->loadedToGPU) {
+			assetManager->LoadTextureToGPU("specular", mat->specularIndex, 0, mat->specularTexture);
+		} else if (mat->specularHighLightTexture != nullptr && !mat->specularHighLightTexture->loadedToGPU) {
+			assetManager->LoadTextureToGPU("specularHighlight", mat->specularHighLightIndex, 0, mat->specularHighLightTexture);
+		} else if (mat->bumpTexture != nullptr && !mat->bumpTexture->loadedToGPU) {
+			assetManager->LoadTextureToGPU("bump", mat->bumpIndex, 0, mat->bumpTexture);
+		} else if (mat->displacementTexture != nullptr && !mat->displacementTexture->loadedToGPU) {
+			assetManager->LoadTextureToGPU("displacement", mat->displacementIndex, 0, mat->displacementTexture);
+		} else if (mat->alphaTexture != nullptr && !mat->alphaTexture->loadedToGPU) {
+			assetManager->LoadTextureToGPU("alpha", mat->alphaIndex, 0, mat->alphaTexture);
 		}
-		if (mat->diffuseTexture != nullptr) { 
-			GenTexture(&mr->diffuseTextures[i], 1, mat->diffuseTexture); 
-		}
-		if (mat->specularTexture != nullptr) { 
-			GenTexture(&mr->specularTextures[i], 2, mat->specularTexture); 
-		}
-		if (mat->specularHighLightTexture != nullptr) { 
-			GenTexture(&mr->specularHighLightTextures[i], 3, mat->specularHighLightTexture); 
-		}
-		if (mat->bumpTexture != nullptr){
-			GenTexture(&mr->bumpTextures[i], 4, mat->bumpTexture); 
-		}
-		if (mat->displacementTexture != nullptr) { 
-			GenTexture(&mr->displacementTextures[i], 5, mat->displacementTexture); 
-		}
-		if (mat->alphaTexture != nullptr) { 
-			GenTexture(&mr->alphaTextures[i], 6, mat->alphaTexture); 
-		}
+
+		glUseProgram(0);
 
 		checkGLError("After register");
 
@@ -262,6 +259,7 @@ void ModelRendererSystem::Render() {
     // Clear the screen to default color
     glClearColor(0, 0, 0, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_CULL_FACE);
 
     glm::mat4 view = mainCamera->view;
     glm::mat4 proj = mainCamera->proj;
@@ -294,80 +292,79 @@ void ModelRendererSystem::Render() {
 			// Material variables
 			GLint uniAmbient = glGetUniformLocation(m->shaderProgram, "ambient");
 			glUniform3f(uniAmbient, m->ambient.r, m->ambient.g, m->ambient.b);
-
 			GLint uniDiffuse = glGetUniformLocation(m->shaderProgram, "diffuse");
 			glUniform3f(uniDiffuse, m->diffuse.r, m->diffuse.g, m->diffuse.b);
-
 			GLint uniSpecular = glGetUniformLocation(m->shaderProgram, "specular");
 			glUniform3f(uniSpecular, m->specular.r, m->specular.g, m->specular.b);
-
 			GLint uniSpecularExp = glGetUniformLocation(m->shaderProgram, "specularExp");
 			glUniform1f(uniSpecularExp, m->specularExponent);
-
 			GLint uniOpacity = glGetUniformLocation(m->shaderProgram, "opacity");
 			glUniform1f(uniOpacity, m->opacity);
 
 			checkGLError("Before texture bind");
 
+
 			// Textures and booleans
-			bool usingTex = (m->ambientTexture != nullptr);
-			glUniform1f(glGetUniformLocation(m->shaderProgram, "usingAmbientTex"), usingTex);
-			if (usingTex) {
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, modelRenderers[i]->ambientTextures[j]);
-				glUniform1i(glGetUniformLocation(m->shaderProgram, "ambientTex"), 0);
+			glActiveTexture(GL_TEXTURE0);
+			if (m->ambientTexture != nullptr) { 
+				glBindTexture(GL_TEXTURE_2D, assetManager->ambientTextures[m->ambientIndex]); 
+			} else { 
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture); 
 			}
+			glUniform1i(glGetUniformLocation(m->shaderProgram, "ambientTex"), 0);
 
-			usingTex = (m->diffuseTexture != nullptr);
-			glUniform1f(glGetUniformLocation(m->shaderProgram, "usingDiffuseTex"), usingTex);
-			if (usingTex) {
-				glActiveTexture(GL_TEXTURE0 + 1);
-				glBindTexture(GL_TEXTURE_2D, modelRenderers[i]->diffuseTextures[j]);
-				glUniform1i(glGetUniformLocation(m->shaderProgram, "diffuseTex"), 1);
+			glActiveTexture(GL_TEXTURE0 + 1);
+			if (m->diffuseTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
+			} else { 
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture); 
 			}
+			glUniform1i(glGetUniformLocation(m->shaderProgram, "diffuseTex"), 1);
 
-			usingTex = (m->specularTexture != nullptr);
-			glUniform1f(glGetUniformLocation(m->shaderProgram, "usingSpecularTex"), usingTex);
-			if (usingTex) {
-				glActiveTexture(GL_TEXTURE0 + 2);
-				glBindTexture(GL_TEXTURE_2D, modelRenderers[i]->specularTextures[j]);
-				glUniform1i(glGetUniformLocation(m->shaderProgram, "specularTex"), 2);
+			glActiveTexture(GL_TEXTURE0 + 2);
+			if (m->specularTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
+			glUniform1i(glGetUniformLocation(m->shaderProgram, "specularTex"), 2);
 
-			usingTex = (m->specularHighLightTexture != nullptr);
-			glUniform1f(glGetUniformLocation(m->shaderProgram, "usingSpecularHighLightTex"), usingTex);
-			if (usingTex) {
-				glActiveTexture(GL_TEXTURE0 + 3);
-				glBindTexture(GL_TEXTURE_2D, modelRenderers[i]->specularHighLightTextures[j]);
-				glUniform1i(glGetUniformLocation(m->shaderProgram, "specularHighLightTex"), 3);
+			glActiveTexture(GL_TEXTURE0 + 3);
+			if (m->specularHighLightTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
+			glUniform1i(glGetUniformLocation(m->shaderProgram, "specularHighLightTex"), 3);
 
-			usingTex = (m->bumpTexture != nullptr);
-			glUniform1f(glGetUniformLocation(m->shaderProgram, "usingBumpTex"), usingTex);
-			if (usingTex) {
-				glActiveTexture(GL_TEXTURE0 + 4);
-				glBindTexture(GL_TEXTURE_2D, modelRenderers[i]->bumpTextures[j]);
-				glUniform1i(glGetUniformLocation(m->shaderProgram, "bumpTex"), 4);
-			}
 
-			usingTex = (m->displacementTexture != nullptr);
-			glUniform1f(glGetUniformLocation(m->shaderProgram, "usingDismTex"), usingTex);
-			if (usingTex) {
-				glActiveTexture(GL_TEXTURE0 + 5);
-				glBindTexture(GL_TEXTURE_2D, modelRenderers[i]->displacementTextures[j]);
-				glUniform1i(glGetUniformLocation(m->shaderProgram, "dispTex"), 5);
+			glActiveTexture(GL_TEXTURE0 + 4);
+			if (m->bumpTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
+			glUniform1i(glGetUniformLocation(m->shaderProgram, "bumpTex"), 4);
 
-			usingTex = (m->alphaTexture != nullptr);
-			glUniform1f(glGetUniformLocation(m->shaderProgram, "usingAlphaTex"), usingTex);
-			if (usingTex) {
-				glActiveTexture(GL_TEXTURE0 + 6);
-				glBindTexture(GL_TEXTURE_2D, modelRenderers[i]->alphaTextures[j]);
-				glUniform1i(glGetUniformLocation(m->shaderProgram, "alphaTex"), 6);
+
+			glActiveTexture(GL_TEXTURE0 + 5);
+			if (m->displacementTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
+			glUniform1i(glGetUniformLocation(m->shaderProgram, "dispTex"), 5);
+
+
+			glActiveTexture(GL_TEXTURE0 + 6);
+			if (m->alphaTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->alphaTextures[m->alphaIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(glGetUniformLocation(m->shaderProgram, "alphaTex"), 6);
 
 			checkGLError("After texture bind");
-
 
 			// Indices
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, modelRenderers[i]->vbos[j][3]);
@@ -376,6 +373,8 @@ void ModelRendererSystem::Render() {
 
 			// Use our shader and draw our program
 			glDrawElements(GL_TRIANGLES, modelRenderers[i]->model->meshes[j]->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
+
+			glUseProgram(0);
 		}
     }
 
@@ -413,7 +412,6 @@ void ModelRendererSystem::Render() {
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
 
-    glEnable(GL_CULL_FACE);
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE);
 
@@ -428,10 +426,10 @@ void ModelRendererSystem::Render() {
         glm::vec4 color = pointLights[i].color;
 
         float lum = .6f * color.g + .3f * color.r + .1f * color.b;
-        float radScal = sqrt(lum * 10);
+        float radScal = sqrt(lum * 10000);
 		float radius = lum * radScal;
 
-        glm::mat4 model;
+        glm::mat4 model = glm::mat4(1);
         model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
         model = glm::scale(model, lum * glm::vec3(radScal, radScal, radScal));
 
@@ -462,30 +460,14 @@ void ModelRendererSystem::Render() {
         glDrawElements(GL_TRIANGLES, lightSphere->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
     }
 
+	glUseProgram(0);
+
 	checkGLError("After render");
 
 	glCullFace(GL_BACK);
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE);
-}
-
-void ModelRendererSystem::GenTexture(GLuint* id, const int& texIndex, Texture* tex) {
-	glGenTextures(1, id);
-	glActiveTexture(GL_TEXTURE0 + texIndex);
-	glBindTexture(GL_TEXTURE_2D, *id);
-
-	if (tex->numChannels == 1) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
-	} else if (tex->numChannels == 2) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, tex->width, tex->height, 0, GL_RG, GL_UNSIGNED_BYTE, tex->pixels);
-	} else if (tex->numChannels == 3) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
-	} else if (tex->numChannels == 4) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
-	}
-
-	checkGLError("After generation of texture");
 }
 
 bool ModelRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
@@ -509,9 +491,9 @@ bool ModelRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, 
 
 	int success = 0;
 	for (int j = 0; j < 6; j++) {
-		float val = std::max(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)
-			+ std::max(minPoint.y * planes[j].y, maxPoint.y * planes[j].y)
-			+ std::max(minPoint.z * planes[j].z, maxPoint.z * planes[j].z)
+		float val = fmax(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)
+			+ fmax(minPoint.y * planes[j].y, maxPoint.y * planes[j].y)
+			+ fmax(minPoint.z * planes[j].z, maxPoint.z * planes[j].z)
 			+ planes[j].w;
 		success += (val > 0);
 	}

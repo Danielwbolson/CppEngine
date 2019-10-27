@@ -6,6 +6,10 @@
 #include <fstream>
 #include <string>
 #include <stdlib.h>
+#include <unordered_map>
+
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "tiny_obj_loader.h"
@@ -44,7 +48,25 @@ std::vector<Model*> AssetManager::models = std::vector<Model*>();
 std::vector<Material*> AssetManager::materials = std::vector<Material*>();
 std::vector<Texture*> AssetManager::textures = std::vector<Texture*>();
 
-AssetManager::AssetManager() {}
+std::vector<GLuint> AssetManager::ambientTextures = std::vector<GLuint>();
+std::vector<GLuint> AssetManager::diffuseTextures = std::vector<GLuint>();
+std::vector<GLuint> AssetManager::specularTextures = std::vector<GLuint>();
+std::vector<GLuint> AssetManager::specularHighLightTextures = std::vector<GLuint>();
+std::vector<GLuint> AssetManager::bumpTextures = std::vector<GLuint>();
+std::vector<GLuint> AssetManager::displacementTextures = std::vector<GLuint>();
+std::vector<GLuint> AssetManager::alphaTextures = std::vector<GLuint>();
+
+GLuint AssetManager::nullTexture;
+GLubyte AssetManager::nullData[4] = { 255, 255, 255, 255 };
+
+AssetManager::AssetManager() {
+
+	// Set up our null texture
+	glGenTextures(1, &nullTexture);
+	glBindTexture(GL_TEXTURE_2D, nullTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullData);
+
+}
 
 AssetManager::~AssetManager() {
 	for (int i = 0; i < models.size(); i++) {
@@ -63,13 +85,25 @@ AssetManager::~AssetManager() {
 	textures.clear();
 }
 
+
+
 struct vertex {
 	glm::vec3 pos;
 	glm::vec3 normal;
 	glm::vec2 uv;
 
-	bool operator==(const vertex& rhs) {
+	bool operator==(const vertex& rhs) const {
 		return pos == rhs.pos && normal == rhs.normal && uv == rhs.uv;
+	}
+};
+
+
+
+template<> struct std::hash<vertex> {
+	size_t operator()(vertex const& v) const {
+		return ((std::hash<glm::vec3>()(v.pos) ^
+			(std::hash<glm::vec3>()(v.normal) << 1)) >> 1) ^
+			(std::hash<glm::vec2>()(v.uv) << 1);
 	}
 };
 
@@ -103,8 +137,7 @@ Model* AssetManager::tinyLoadObj(const std::string fileName) {
 		std::vector<glm::vec2> uvs;
 		std::vector<unsigned int> indices;
 
-		std::vector<vertex> vertices;
-		std::vector<vertex> rawVertices;
+		std::unordered_map<vertex, unsigned int> vertices = {};
 
 		Mesh* mesh = new Mesh();
 		for (const auto& index : shape.mesh.indices) {
@@ -129,25 +162,19 @@ Model* AssetManager::tinyLoadObj(const std::string fileName) {
 			v.normal = glm::vec3(nx, ny, nz);
 
 			float uvx = attrib.texcoords[2 * index.texcoord_index + 0];
-			float uvy = 1.0f - attrib.texcoords[2 * index.texcoord_index + 1];
+			float uvy = attrib.texcoords[2 * index.texcoord_index + 1];
 			v.uv = glm::vec2(uvx, uvy);
 
 			// Find if this vert already exists
-			bool exists = false;
-			for (int i = static_cast<int>(vertices.size()) - 1; i >= 0; i--) {
-				if (v == vertices[i]) {
-					exists = true;
-					indices.push_back(i);
-					break;
-				}
-			}
-			if (!exists) {
-				indices.push_back(static_cast<unsigned int>(vertices.size()));
-				vertices.push_back(v);
+			if (vertices.count(v) == 0) {
+				vertices[v] = static_cast<unsigned int>(vertices.size());
 				positions.push_back(v.pos);
 				normals.push_back(v.normal);
 				uvs.push_back(v.uv);
 			}
+
+			indices.push_back(vertices[v]);
+
 		}
 
 		mesh->SetIndices(indices);
@@ -158,7 +185,6 @@ Model* AssetManager::tinyLoadObj(const std::string fileName) {
 		model->meshes.push_back(mesh);
 
 		vertices.clear();
-		rawVertices.clear();
 
 		positions.clear();
 		normals.clear();
@@ -391,6 +417,8 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 		exit(1);
 	}
 
+	stbi_set_flip_vertically_on_load(false);
+
 	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
 		if (line[0] == '#') {
 			//fprintf(stderr, "Skipping comment: %s", line);
@@ -467,8 +495,11 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
-			m->ambientTexture = t;
 			textures.push_back(t);
+			ambientTextures.resize(ambientTextures.size() + 1);
+
+			m->ambientTexture = t;
+			m->ambientIndex = static_cast<int>(ambientTextures.size() - 1);
 		} else if (strcmp(command, "map_Kd") == 0) {
 			char filename[1024];
 
@@ -482,8 +513,11 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
-			m->diffuseTexture = t;
 			textures.push_back(t);
+			diffuseTextures.resize(diffuseTextures.size() + 1);
+
+			m->diffuseTexture = t;
+			m->diffuseIndex = static_cast<int>(diffuseTextures.size() - 1);
 		} else if (strcmp(command, "map_Ks") == 0) {
 			char filename[1024];
 
@@ -497,8 +531,11 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
-			m->specularTexture = t;
 			textures.push_back(t);
+			specularTextures.resize(specularTextures.size() + 1);
+
+			m->specularTexture = t;
+			m->specularIndex = static_cast<int>(specularTextures.size() - 1);
 		} else if (strcmp(command, "map_Ns") == 0) {
 			char filename[1024];
 
@@ -512,8 +549,11 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
-			m->specularHighLightTexture = t;
 			textures.push_back(t);
+			specularHighLightTextures.resize(specularHighLightTextures.size() + 1);
+
+			m->specularHighLightTexture = t;
+			m->specularHighLightIndex = static_cast<int>(specularHighLightTextures.size() - 1);
 		} else if (strcmp(command, "map_d") == 0) {
 			char filename[1024];
 
@@ -527,8 +567,11 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
-			m->alphaTexture = t;
 			textures.push_back(t);
+			alphaTextures.resize(alphaTextures.size() + 1);
+
+			m->alphaTexture = t;
+			m->alphaIndex = static_cast<int>(alphaTextures.size() - 1);
 		} else if (strcmp(command, "map_bump") == 0) {
 			char filename[1024];
 
@@ -542,8 +585,11 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
-			m->bumpTexture = t;
 			textures.push_back(t);
+			bumpTextures.resize(bumpTextures.size() + 1);
+
+			m->bumpTexture = t;
+			m->bumpIndex = static_cast<int>(bumpTextures.size() - 1);
 		} else if (strcmp(command, "bump") == 0) {
 			char filename[1024];
 
@@ -557,8 +603,11 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
-			m->bumpTexture = t;
 			textures.push_back(t);
+			bumpTextures.resize(bumpTextures.size() + 1);
+
+			m->bumpTexture = t;
+			m->bumpIndex = static_cast<int>(bumpTextures.size() - 1);
 		} else if (strcmp(command, "disp") == 0) {
 			char filename[1024];
 
@@ -572,14 +621,18 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
-			m->displacementTexture = t;
 			textures.push_back(t);
+			displacementTextures.resize(displacementTextures.size() + 1);
+
+			m->displacementTexture = t;
+			m->displacementIndex = static_cast<int>(displacementTextures.size() - 1);
 		} else {
 			continue;
 		}
 	}
 
 	materials.push_back(m);
+
 	return m;
 }
 
@@ -792,4 +845,60 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 	currModel = nullptr;
 	currGameObject = nullptr;
 
+}
+
+
+
+void AssetManager::LoadTextureToGPU(const std::string texType, const int vecIndex, const int texIndex, Texture* tex) {
+	
+	if (texType == "ambient") {
+		glGenTextures(1, &ambientTextures[vecIndex]);
+		glActiveTexture(GL_TEXTURE0 + texIndex);
+		glBindTexture(GL_TEXTURE_2D, ambientTextures[vecIndex]);
+	} else if (texType == "diffuse") {
+		glGenTextures(1, &diffuseTextures[vecIndex]);
+		glActiveTexture(GL_TEXTURE0 + texIndex);
+		glBindTexture(GL_TEXTURE_2D, diffuseTextures[vecIndex]);
+	} else if (texType == "specular") {
+		glGenTextures(1, &specularTextures[vecIndex]);
+		glActiveTexture(GL_TEXTURE0 + texIndex);
+		glBindTexture(GL_TEXTURE_2D, specularTextures[vecIndex]);
+	} else if (texType == "specularHighlight") {
+		glGenTextures(1, &specularHighLightTextures[vecIndex]);
+		glActiveTexture(GL_TEXTURE0 + texIndex);
+		glBindTexture(GL_TEXTURE_2D, specularHighLightTextures[vecIndex]);
+	} else if (texType == "bump") {
+		glGenTextures(1, &bumpTextures[vecIndex]);
+		glActiveTexture(GL_TEXTURE0 + texIndex);
+		glBindTexture(GL_TEXTURE_2D, bumpTextures[vecIndex]);
+	} else if (texType == "displacement") {
+		glGenTextures(1, &displacementTextures[vecIndex]);
+		glActiveTexture(GL_TEXTURE0 + texIndex);
+		glBindTexture(GL_TEXTURE_2D, displacementTextures[vecIndex]);
+	} else if (texType == "alpha") {
+		glGenTextures(1, &alphaTextures[vecIndex]);
+		glActiveTexture(GL_TEXTURE0 + texIndex);
+		glBindTexture(GL_TEXTURE_2D, alphaTextures[vecIndex]);
+	}
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+	if (tex->numChannels == 1) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
+	} else if (tex->numChannels == 2) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, tex->width, tex->height, 0, GL_RG, GL_UNSIGNED_BYTE, tex->pixels);
+	} else if (tex->numChannels == 3) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
+	} else if (tex->numChannels == 4) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
+	}
+
+	glGenerateMipmap(GL_TEXTURE_2D);
+
+	tex->loadedToGPU = true;
+
+	stbi_image_free(tex->pixels);
 }

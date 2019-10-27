@@ -10,9 +10,6 @@
 
 class Transform : public Component {
 
-private:
-	float pitch;
-
 public:
     Transform();
 	Transform(const glm::vec3&, const glm::vec3&, const glm::vec3&);

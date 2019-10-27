@@ -9,21 +9,23 @@
 
 Transform::Transform() {
     componentType = "transform";
-
     position = glm::vec3(0, 0, 0);
+	velocity = glm::vec3(0, 0, 0);
+	scale = glm::vec3(1, 1, 1);
+
+    rotation = glm::vec3(3.14159, 0, 0);
+
+	model = glm::mat4(1.0);
+
 	forward = glm::vec3(0, 0, -1);
 	up = glm::vec3(0, 1, 0);
 	right = glm::vec3(1, 0, 0);
-
-    rotation = glm::vec3(3.14159, 0, 0);
-    scale = glm::vec3(1, 1, 1);
-
-	model = glm::mat4(1.0);
 }
 
 Transform::Transform(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& u) {
 	componentType = "transform";
 	position = pos;
+	velocity = glm::vec3(0, 0, 0);
 	scale = glm::vec3(1, 1, 1);
 
 	// Need to match with given directions
@@ -50,16 +52,19 @@ Transform* Transform::clone() const {
 }
 
 Transform::Transform(const Transform& t) {
+
     this->componentType = t.componentType;
     this->position = t.position;
-    this->rotation = t.rotation;
+	this->velocity = t.velocity;
     this->scale = t.scale;
+
+	this->rotation = t.rotation;
     
+	model = t.model;
+
     this->forward = t.forward;
     this->right = t.right;
     this->up = t.up;
-
-    model = t.model;
 
     gameObject = t.gameObject;
 }
@@ -67,15 +72,18 @@ Transform::Transform(const Transform& t) {
 Transform& Transform::operator=(const Transform& t) {
     if (this == &t) return *this;
 
+	this->componentType = t.componentType;
     this->position = t.position;
+	this->velocity = t.velocity;
+	this->scale = t.scale;
+
     this->rotation = t.rotation;
-    this->scale = t.scale;
+
+	model = t.model;
 
     this->forward = t.forward;
     this->right = t.right;
     this->up = t.up;
-
-    model = t.model;
 
     gameObject = t.gameObject;
     return *this;
@@ -106,7 +114,6 @@ void Transform::Update(const float& dt) {
 	Rotate(-rotation.x, glm::vec3(0, 1, 0));
 	Rotate(-rotation.y, glm::vec3(1, 0, 0));
 	
-
     forward = -glm::vec3(model[2]);
     up = glm::vec3(model[1]);
     right = glm::vec3(model[0]);

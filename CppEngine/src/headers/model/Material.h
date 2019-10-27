@@ -34,6 +34,14 @@ public:
 	Texture* displacementTexture		= nullptr; // disp
 	Texture* alphaTexture				= nullptr; // map_d
 
+	int ambientIndex			= -1;
+	int diffuseIndex			= -1;
+	int specularIndex			= -1;
+	int specularHighLightIndex	= -1;
+	int bumpIndex				= -1;
+	int displacementIndex		= -1;
+	int alphaIndex				= -1;
+
 	GLuint shaderProgram;
 
 
