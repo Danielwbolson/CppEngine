@@ -170,7 +170,10 @@ void ModelRendererSystem::Setup() {
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	checkGLError("before glenabletexture");
     glEnable(GL_DEPTH_TEST);
+
+	checkGLError("End of setup");
 }
 
 void ModelRendererSystem::Register(const Component* c) {
@@ -250,6 +253,7 @@ void ModelRendererSystem::Register(const Component* c) {
 }
 
 void ModelRendererSystem::Render() {
+	checkGLError("Top of render");
 	totalTriangles = 0;
 
     // Bind our deferred texture buffer
@@ -261,6 +265,8 @@ void ModelRendererSystem::Render() {
 
     glm::mat4 view = mainCamera->view;
     glm::mat4 proj = mainCamera->proj;
+
+	checkGLError("Before render");
 
     // Get all of our meshRenderers to draw to textures
     for (int i = 0; i < modelRenderers.size(); i++) {
@@ -301,6 +307,7 @@ void ModelRendererSystem::Render() {
 			GLint uniOpacity = glGetUniformLocation(m->shaderProgram, "opacity");
 			glUniform1f(uniOpacity, m->opacity);
 
+			checkGLError("Before texture bind");
 
 			// Textures and booleans
 			bool usingTex = (m->ambientTexture != nullptr);
@@ -466,17 +473,19 @@ void ModelRendererSystem::Render() {
 void ModelRendererSystem::GenTexture(GLuint* id, const int& texIndex, Texture* tex) {
 	glGenTextures(1, id);
 	glActiveTexture(GL_TEXTURE0 + texIndex);
+	glBindTexture(GL_TEXTURE_2D, *id);
 
 	if (tex->numChannels == 1) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (tex->numChannels == 2) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RG, GL_UNSIGNED_BYTE, tex->pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, tex->width, tex->height, 0, GL_RG, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (tex->numChannels == 3) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (tex->numChannels == 4) {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
 	}
 
+	checkGLError("After generation of texture");
 }
 
 bool ModelRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
