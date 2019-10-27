@@ -17,7 +17,6 @@ public:
 	~PhysicsSystem();
 
     void Setup();
-    void ComponentType(const std::string&) const;
     void Register(const Component*);
 
     void Update(const float&);

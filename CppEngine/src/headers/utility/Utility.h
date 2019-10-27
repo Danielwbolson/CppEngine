@@ -14,6 +14,13 @@
 
 namespace util {
 
+	static void checkGLError(const std::string& s) {
+		GLenum err;
+		if ((err = glGetError()) != 0) {
+			std::cout << s + " :" << err << std::endl;
+		}
+	}
+
     static void loadShader(GLuint shaderID, const GLchar* shaderSource) {
         glShaderSource(shaderID, 1, &shaderSource, NULL);
         glCompileShader(shaderID);
@@ -21,6 +28,7 @@ namespace util {
         //Let's double check the shader compiled 
         GLint status;
         glGetShaderiv(shaderID, GL_COMPILE_STATUS, &status); //Check for errors
+		checkGLError("After shaderiv");
         if (!status) {
             char buffer[1024]; glGetShaderInfoLog(shaderID, 1024, NULL, buffer);
             printf("Shader Compile Failed. Info:\n\n%s\n", buffer);
@@ -58,6 +66,7 @@ namespace util {
 
         //Join the vertex and fragment shaders together into one program
         GLuint shaderProgram = glCreateProgram();
+		checkGLError("After shader program");
         glAttachShader(shaderProgram, vertexShader);
         glAttachShader(shaderProgram, fragmentShader);
         //glBindFragDataLocation(shaderProgram, 0, "outColor"); // set output

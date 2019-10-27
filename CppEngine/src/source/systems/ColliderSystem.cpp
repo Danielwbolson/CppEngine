@@ -15,10 +15,6 @@ void ColliderSystem::Setup() {
 
 }
 
-void ColliderSystem::ComponentType(const std::string&) const {
-
-}
-
 void ColliderSystem::Register(const Component* c) {
 
 }

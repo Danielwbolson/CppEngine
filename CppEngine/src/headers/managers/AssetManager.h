@@ -12,6 +12,7 @@
 class Model;
 class Material;
 class Scene;
+class Texture;
 
 class AssetManager {
 public:
@@ -21,14 +22,13 @@ public:
 
 	static std::vector<Model*> models;
 	static std::vector<Material*> materials;
-	//std::vector<Texture*> textures;
+	static std::vector<Texture*> textures;
 
 	static Model* tinyLoadObj(const std::string fileName);
 	static Model* LoadObj(const std::string fileName);
 	static Scene* LoadScene(const std::string fileName);
 	static void LoadGameObjects(const std::string fileName, Scene* scene);
-	static Material* LoadMaterial(const glm::vec3&, const glm::vec3&, const glm::vec3&, const glm::vec3&,
-		const std::string&, const std::string&);
+	static Material* LoadMaterial(const std::string& fileName, const std::string&, const std::string&);
 };
 
 #endif // ASSET_MANAGER_H_

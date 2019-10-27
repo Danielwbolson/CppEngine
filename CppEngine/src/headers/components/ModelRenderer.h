@@ -18,6 +18,14 @@ public:
 	std::vector<std::array<GLuint, 4> > vbos;
     std::vector<GLuint> vaos;
 
+	std::vector<GLuint> ambientTextures;
+	std::vector<GLuint> diffuseTextures;
+	std::vector<GLuint> specularTextures;
+	std::vector<GLuint> specularHighLightTextures;
+	std::vector<GLuint> bumpTextures;
+	std::vector<GLuint> displacementTextures;
+	std::vector<GLuint> alphaTextures;
+
 	int numMeshes;
 
     Model* model;

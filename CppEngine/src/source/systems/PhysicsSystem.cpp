@@ -12,10 +12,6 @@ void PhysicsSystem::Setup() {
 
 }
 
-void PhysicsSystem::ComponentType(const std::string&) const {
-
-}
-
 void PhysicsSystem::Register(const Component* c) {
 
 }

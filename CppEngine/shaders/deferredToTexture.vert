@@ -1,24 +1,21 @@
 #version 150 core
 
-in vec3 inPosition;
-in vec3 inNormal;
-in vec2 inTexcoord;
+in vec3 inPos;
+in vec3 inNorm;
+in vec2 inUV;
 
-out vec3 Color;
-out vec3 vertNormal;
-out vec3 pos;
-out vec2 texcoord;
+out vec3 fragNorm;
+out vec3 fragPos;
+out vec2 fragUV;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
-uniform vec3 inColor;
 
 void main() {
-   Color = inColor;
-   gl_Position = proj * view * model * vec4(inPosition,1.0);
-   pos = (view * model * vec4(inPosition,1.0)).xyz;
-   vec4 norm4 = transpose(inverse(view*model)) * vec4(inNormal,0.0);
-   vertNormal = normalize(norm4.xyz);
-   texcoord = inTexcoord;
+   gl_Position = proj * view * model * vec4(inPos,1.0);
+   fragPos = (view * model * vec4(inPos,1.0)).xyz;
+   vec4 norm4 = transpose(inverse(view*model)) * vec4(inNorm,0.0);
+   fragNorm = normalize(norm4.xyz);
+   fragUV = inUV;
 }

@@ -13,6 +13,7 @@
 #include "PointLight.h"
 #include "Model.h"
 #include "Mesh.h"
+#include "Texture.h"
 
 #include <vector>
 
@@ -41,12 +42,13 @@ private:
     std::vector<PointLight> pointLights;
     std::vector<glm::vec4> lightPositions;
 
+	GLubyte dummyData[4] = { 255, 255, 255, 255 };
+
     int screenWidth; int screenHeight;
     GBuffer gBuffer;
     GLuint lightVolume_Vao; GLuint lightVolume_Vbo; GLuint lightVolume_Ibo;
     GLuint quadVao; GLuint quadVbo;
     GLuint combinedShader;
-    //GLuint lightUBO;
 
     Mesh* lightSphere;
 
@@ -57,12 +59,13 @@ public:
     ~ModelRendererSystem();
 
     void Setup();
-    void ComponentType(const std::string&) const;
     void Register(const Component*);
 
     void Update(const float&) {}
     void Render();
 
+	void GenTexture(GLuint* id, const int& texIndex, Texture* tex);
+	void GenNullTexture(GLuint* id, const int& texIndex);
 	bool FrustumCull(const Mesh*, const glm::mat4&, const glm::mat4&) const;
 };
 

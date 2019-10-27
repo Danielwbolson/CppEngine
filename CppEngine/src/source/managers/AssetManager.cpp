@@ -1,15 +1,17 @@
 
 #include "AssetManager.h"
 
-#define TINYOBJLOADER_IMPLEMENTATION
-#include "tiny_obj_loader.h"
-
 #include <cstdio>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <stdlib.h>
-#include <unordered_map>
+
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "tiny_obj_loader.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb/stb_image.h"
 
 #include "Component.h"
 #include "ModelRenderer.h"
@@ -22,6 +24,7 @@
 #include "Mesh.h"
 #include "Bounds.h"
 #include "Material.h"
+#include "Texture.h"
 
 #include "Light.h"
 #include "DirectionalLight.h"
@@ -39,6 +42,7 @@
 
 std::vector<Model*> AssetManager::models = std::vector<Model*>();
 std::vector<Material*> AssetManager::materials = std::vector<Material*>();
+std::vector<Texture*> AssetManager::textures = std::vector<Texture*>();
 
 AssetManager::AssetManager() {}
 
@@ -52,6 +56,11 @@ AssetManager::~AssetManager() {
 		delete materials[i];
 	}
 	materials.clear();
+
+	for (int i = 0; i < textures.size(); i++) {
+		delete textures[i];
+	}
+	textures.clear();
 }
 
 struct vertex {
@@ -354,15 +363,219 @@ Model* AssetManager::LoadObj(const std::string fileName) {
 	return model;
 }
 
-Material* AssetManager::LoadMaterial(const glm::vec3& c, const glm::vec3& a, const glm::vec3& d, const glm::vec3& s,
-	const std::string& vert, const std::string& frag) {
+Material* AssetManager::LoadMaterial(const std::string& fileName, const std::string& vert, const std::string& frag) {
 
-	Material* m = new Material(c, a, d, s, vert, frag);
+	//TODO: Only works for 1 material per .mtl file
 
+
+	// Check for existing material
 	for (int i = 0; i < materials.size(); i++) {
-		if (*(materials[i]) == *m) {
-			delete m;
+		if (materials[i]->filename == fileName && materials[i]->vertFile == vert && materials[i]->fragFile == frag) {
 			return materials[i];
+		}
+	}
+
+	Material* m = new Material(fileName, vert, frag);
+
+	FILE *fp;
+	char line[1024]; //Assumes no line is longer than 1024 characters!
+
+	std::string fullFile = VK_ROOT_DIR"materials/" + fileName;
+
+	// open the file containing the scene description
+	fp = fopen(fullFile.c_str(), "r");
+
+	// check for errors in opening the file
+	if (fp == NULL) {
+		fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
+		exit(1);
+	}
+
+	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
+		if (line[0] == '#') {
+			//fprintf(stderr, "Skipping comment: %s", line);
+			continue;
+		}
+
+		char command[1024];
+		int fieldsRead = sscanf(line, "%s ", command); //Read first word in the line (i.e., the command type)
+
+		if (fieldsRead < 1) { //No command read
+			//Blank line
+			continue;
+		}
+
+		if (strcmp(command, "Ka") == 0) {
+			float r, g, b;
+
+			sscanf(line, "Ka %f %f %f",
+				&r, &g, &b);
+
+			m->ambient = glm::vec3(r, g, b);
+		} else if (strcmp(command, "Kd") == 0) {
+			float r, g, b;
+
+			sscanf(line, "Kd %f %f %f",
+				&r, &g, &b);
+
+			m->diffuse = glm::vec3(r, g, b);
+		} else if (strcmp(command, "Ks") == 0) {
+			float r, g, b;
+
+			sscanf(line, "Ks %f %f %f",
+				&r, &g, &b);
+
+			m->specular = glm::vec3(r, g, b);
+		} else if (strcmp(command, "Ns") == 0) {
+			float spec;
+
+			sscanf(line, "Ns %f",
+				&spec);
+
+			m->specularExponent = spec;
+		} else if (strcmp(command, "Tr") == 0) {
+			float tr;
+
+			sscanf(line, "Tr %f",
+				&tr);
+
+			m->opacity = 1.0f - tr;
+		} else if (strcmp(command, "d") == 0) {
+			float d;
+
+			sscanf(line, "d %f",
+				&d);
+
+			m->opacity = d;
+		} else if (strcmp(command, "illum") == 0) {
+			int illum;
+
+			sscanf(line, "illum %d",
+				&illum);
+
+			m->illum = illum;
+		} else if (strcmp(command, "map_Ka") == 0) {
+			char filename[1024];
+
+			sscanf(line, "map_Ka %s",
+				&filename);
+
+			int w;
+			int h;
+			int numChannels;
+			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+
+			Texture* t = new Texture(w, h, numChannels, pixels);
+
+			m->ambientTexture = t;
+			textures.push_back(t);
+		} else if (strcmp(command, "map_Kd") == 0) {
+			char filename[1024];
+
+			sscanf(line, "map_Kd %s",
+				&filename);
+
+			int w;
+			int h;
+			int numChannels;
+			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+
+			Texture* t = new Texture(w, h, numChannels, pixels);
+
+			m->diffuseTexture = t;
+			textures.push_back(t);
+		} else if (strcmp(command, "map_Ks") == 0) {
+			char filename[1024];
+
+			sscanf(line, "map_Ks %s",
+				&filename);
+
+			int w;
+			int h;
+			int numChannels;
+			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+
+			Texture* t = new Texture(w, h, numChannels, pixels);
+
+			m->specularTexture = t;
+			textures.push_back(t);
+		} else if (strcmp(command, "map_Ns") == 0) {
+			char filename[1024];
+
+			sscanf(line, "map_Ns %s",
+				&filename);
+
+			int w;
+			int h;
+			int numChannels;
+			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+
+			Texture* t = new Texture(w, h, numChannels, pixels);
+
+			m->specularHighLightTexture = t;
+			textures.push_back(t);
+		} else if (strcmp(command, "map_d") == 0) {
+			char filename[1024];
+
+			sscanf(line, "map_d %s",
+				&filename);
+
+			int w;
+			int h;
+			int numChannels;
+			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+
+			Texture* t = new Texture(w, h, numChannels, pixels);
+
+			m->alphaTexture = t;
+			textures.push_back(t);
+		} else if (strcmp(command, "map_bump") == 0) {
+			char filename[1024];
+
+			sscanf(line, "map_bump %s",
+				&filename);
+
+			int w;
+			int h;
+			int numChannels;
+			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+
+			Texture* t = new Texture(w, h, numChannels, pixels);
+
+			m->bumpTexture = t;
+			textures.push_back(t);
+		} else if (strcmp(command, "bump") == 0) {
+			char filename[1024];
+
+			sscanf(line, "bump %s",
+				&filename);
+
+			int w;
+			int h;
+			int numChannels;
+			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+
+			Texture* t = new Texture(w, h, numChannels, pixels);
+
+			m->bumpTexture = t;
+			textures.push_back(t);
+		} else if (strcmp(command, "disp") == 0) {
+			char filename[1024];
+
+			sscanf(line, "disp %s",
+				&filename);
+
+			int w;
+			int h;
+			int numChannels;
+			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+
+			Texture* t = new Texture(w, h, numChannels, pixels);
+
+			m->displacementTexture = t;
+			textures.push_back(t);
+		} else {
+			continue;
 		}
 	}
 
@@ -557,18 +770,14 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 			// TODO: Hack for now, but eventually need to support materials in obj
 			currModel->materials.push_back(currMaterial);
 		} else if (strcmp(command, "material") == 0) { // If the command is a material
-			float cr, cg, cb; // color
-			float ar, ag, ab; // ambient coefficients
-			float dr, dg, db; // diffuse coefficients
-			float sr, sg, sb; // specular coefficients
-			char vert[32];
-			char frag[32];
+			char filename[1024];
+			char vert[1024];
+			char frag[1024];
 
-			sscanf(line, "material %f %f %f %f %f %f %f %f %f %f %f %f %s %s",
-				&cr, &cg, &cb, &ar, &ag, &ab, &dr, &dg, &db, &sr, &sg, &sb, &vert, &frag);
+			sscanf(line, "material %s %s %s",
+				&filename, &vert, &frag);
 
-			currMaterial = LoadMaterial(glm::vec3(cr, cg, cb), glm::vec3(ar, ag, ab), glm::vec3(dr, dg, db), glm::vec3(sr, sg, sb),
-				vert, frag);
+			currMaterial = LoadMaterial(filename, vert, frag);
 		} else {
 			fprintf(stderr, "WARNING. Do not know command: %s\n", command);
 		}

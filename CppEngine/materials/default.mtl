@@ -1,0 +1,10 @@
+# Material Count: 1
+
+newmtl Material
+Ns 10
+Ka 1.000000 1.000000 1.000000
+Kd 0.5 0.5 0.5
+Ks 0.1 0.1 0.1
+Ni 1.000000
+d 1.000000
+illum 2

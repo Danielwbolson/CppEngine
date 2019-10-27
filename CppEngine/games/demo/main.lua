@@ -37,3 +37,6 @@ end
 
 id = addInstance("floor")
 placeInstance(id, 0, -1, 0)
+
+id = addInstance("chalet")
+placeInstance(id, 20, 0, -20)

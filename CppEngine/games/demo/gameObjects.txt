@@ -1,11 +1,17 @@
 # Floor
 gameObject floor
-material 1 1 1 1 1 1 1 1 1 0 0 0 deferredToTexture.vert deferredToTexture.frag
+material default.mtl deferredToTexture.vert deferredToTexture.frag
 model floor.obj
 component modelRenderer
 
 # suzzane
 gameObject suzanne
-material .5 .5 .5 1 1 1 1 1 1 0 0 0 deferredToTexture.vert deferredToTexture.frag
+material default.mtl deferredToTexture.vert deferredToTexture.frag
 model suzanne.obj
+component modelRenderer
+
+# chalet
+gameObject chalet
+material chalet.mtl deferredToTexture.vert deferredToTexture.frag
+model chalet_low.obj
 component modelRenderer

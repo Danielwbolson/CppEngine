@@ -118,12 +118,14 @@ set(MODEL_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Model.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Mesh.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Bounds.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/model/Texture.h
 )
 set(MODEL_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Material.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Model.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Mesh.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Bounds.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/model/Texture.cpp
 )
 
 set(SYSTEMS_H

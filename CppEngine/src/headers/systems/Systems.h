@@ -17,7 +17,6 @@ public:
 	virtual ~Systems() {}
 
     virtual void Setup() = 0;
-    virtual void ComponentType(const std::string&) const = 0;
     virtual void Register(const Component*) = 0;
 
     virtual void Update(const float&) = 0;
