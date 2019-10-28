@@ -2,7 +2,7 @@
 
 layout (location = 0) out vec3 gPosition;
 layout (location = 1) out vec3 gNormal;
-layout (location = 2) out vec4 gDiffuse;
+layout (location = 2) out vec3 gDiffuse;
 layout (location = 3) out vec4 gSpecularExp;
 
 uniform sampler2D ambientTex;
@@ -32,11 +32,10 @@ void main() {
 	vec4 d = vec4(diffuse, 1) * texture(diffuseTex, fragUV);
 	float o = opacity * texture(alphaTex, fragUV).r;
 
-	gDiffuse = vec4(a.xyz + d.xyz, o);
+	gDiffuse = vec3(a.xyz + d.xyz);
 
 	vec4 s = vec4(specular, 1) * texture(specularTex, fragUV);
 	float sE = specularExp * texture(specularHighLightTex, fragUV).r;
 
-    gSpecularExp = vec4(s.xyz, sE);
-
+	gSpecularExp = vec4(s.xyz, sE);
 }

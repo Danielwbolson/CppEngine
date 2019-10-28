@@ -110,7 +110,7 @@ void ModelRendererSystem::Setup() {
     // - position color buffer
     glGenTextures(1, &(gBuffer.positions));
     glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.positions, 0);
@@ -118,7 +118,7 @@ void ModelRendererSystem::Setup() {
     // - normal color buffer
     glGenTextures(1, &(gBuffer.normals));
     glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.normals, 0);
@@ -126,7 +126,7 @@ void ModelRendererSystem::Setup() {
     // diffuse color
     glGenTextures(1, &(gBuffer.diffuse));
     glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBuffer.diffuse, 0);
@@ -134,7 +134,7 @@ void ModelRendererSystem::Setup() {
     // specular color
     glGenTextures(1, &(gBuffer.specular));
     glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16F, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gBuffer.specular, 0);
@@ -227,17 +227,17 @@ void ModelRendererSystem::Register(const Component* c) {
 		if (mat->ambientTexture != nullptr && !mat->ambientTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("ambient", mat->ambientIndex, 0, mat->ambientTexture);
 		} else if (mat->diffuseTexture != nullptr && !mat->diffuseTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("diffuse", mat->diffuseIndex, 0, mat->diffuseTexture);
+			assetManager->LoadTextureToGPU("diffuse", mat->diffuseIndex, 1, mat->diffuseTexture);
 		} else if (mat->specularTexture != nullptr && !mat->specularTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("specular", mat->specularIndex, 0, mat->specularTexture);
+			assetManager->LoadTextureToGPU("specular", mat->specularIndex, 2, mat->specularTexture);
 		} else if (mat->specularHighLightTexture != nullptr && !mat->specularHighLightTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("specularHighlight", mat->specularHighLightIndex, 0, mat->specularHighLightTexture);
+			assetManager->LoadTextureToGPU("specularHighlight", mat->specularHighLightIndex, 3, mat->specularHighLightTexture);
 		} else if (mat->bumpTexture != nullptr && !mat->bumpTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("bump", mat->bumpIndex, 0, mat->bumpTexture);
+			assetManager->LoadTextureToGPU("bump", mat->bumpIndex, 4, mat->bumpTexture);
 		} else if (mat->displacementTexture != nullptr && !mat->displacementTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("displacement", mat->displacementIndex, 0, mat->displacementTexture);
+			assetManager->LoadTextureToGPU("displacement", mat->displacementIndex, 5, mat->displacementTexture);
 		} else if (mat->alphaTexture != nullptr && !mat->alphaTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("alpha", mat->alphaIndex, 0, mat->alphaTexture);
+			assetManager->LoadTextureToGPU("alpha", mat->alphaIndex, 6, mat->alphaTexture);
 		}
 
 		glUseProgram(0);
@@ -306,18 +306,18 @@ void ModelRendererSystem::Render() {
 
 			// Textures and booleans
 			glActiveTexture(GL_TEXTURE0);
-			if (m->ambientTexture != nullptr) { 
-				glBindTexture(GL_TEXTURE_2D, assetManager->ambientTextures[m->ambientIndex]); 
-			} else { 
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture); 
+			if (m->ambientTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->ambientTextures[m->ambientIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
 			glUniform1i(glGetUniformLocation(m->shaderProgram, "ambientTex"), 0);
 
 			glActiveTexture(GL_TEXTURE0 + 1);
 			if (m->diffuseTexture != nullptr) {
 				glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
-			} else { 
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture); 
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
 			glUniform1i(glGetUniformLocation(m->shaderProgram, "diffuseTex"), 1);
 
@@ -383,7 +383,7 @@ void ModelRendererSystem::Render() {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, screenWidth, screenHeight);
 
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT);
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -412,8 +412,9 @@ void ModelRendererSystem::Render() {
 	glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE);
+	glEnable(GL_BLEND);
+	glBlendEquation(GL_FUNC_ADD);
+	glBlendFunc(GL_ONE, GL_ONE);
 
     // Indices
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
@@ -426,12 +427,12 @@ void ModelRendererSystem::Render() {
         glm::vec4 color = pointLights[i].color;
 
         float lum = .6f * color.g + .3f * color.r + .1f * color.b;
-        float radScal = sqrt(lum * 10000);
+		float radScal = 44.7f * 10; // falloff where edge of radius is 1/10000th the color
 		float radius = lum * radScal;
 
         glm::mat4 model = glm::mat4(1);
         model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
-        model = glm::scale(model, lum * glm::vec3(radScal, radScal, radScal));
+        model = glm::scale(model, lum * glm::vec3(radius, radius, radius));
 
 
 		// Pre-emptively frustum cull unnecessary meshes
@@ -440,7 +441,7 @@ void ModelRendererSystem::Render() {
 
 		glm::mat4 pvmMatrix = proj * view * model;
 
-		// Swith culling if inside light volume
+		// Switch culling if inside light volume
 		if (glm::length(camPos - glm::vec3(pos.x, pos.y, pos.z)) < radius) {
 			glCullFace(GL_FRONT);
 		} else {
@@ -453,6 +454,8 @@ void ModelRendererSystem::Render() {
         glUniform4f(lightPos, pos.x, pos.y, pos.z, pos.w);
         GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
         glUniform4f(lightCol, color.r, color.g, color.b, color.a);
+		GLint uniCam = glGetUniformLocation(combinedShader, "camPos");
+		glUniform3f(uniCam, camPos.x, camPos.y, camPos.z);
 
 		totalTriangles += lightSphere->NumIndices() / 3;
 

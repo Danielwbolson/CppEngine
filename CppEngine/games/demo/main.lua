@@ -7,13 +7,13 @@ end
 
 pointLightArray = {}
 idx = 1
-for i = 0,50 do
-	local r = 1
-	local g = 1
-	local b = 1
+for i = 0,200 do
+	local r = math.random() * 10
+	local g = math.random() * 10
+	local b = math.random() * 10
 	local a = 1
 	
-	local x = 10 + math.random() * 20
+	local x = 15 + math.random() * 10
 	local y = 0.5
 	local z = -5 + math.random() * 10
 	local w = 1

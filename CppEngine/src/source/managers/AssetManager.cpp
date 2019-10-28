@@ -43,6 +43,8 @@
 #include "Scene.h"
 #include "GameObject.h"
 
+#include "Utility.h"
+
 
 std::vector<Model*> AssetManager::models = std::vector<Model*>();
 std::vector<Material*> AssetManager::materials = std::vector<Material*>();
@@ -64,7 +66,7 @@ AssetManager::AssetManager() {
 	// Set up our null texture
 	glGenTextures(1, &nullTexture);
 	glBindTexture(GL_TEXTURE_2D, nullTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullData);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullData);
 
 }
 
@@ -417,7 +419,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 		exit(1);
 	}
 
-	stbi_set_flip_vertically_on_load(false);
+	stbi_set_flip_vertically_on_load(true);
 
 	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
 		if (line[0] == '#') {
@@ -491,7 +493,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 			int w;
 			int h;
 			int numChannels;
-			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
@@ -509,7 +511,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 			int w;
 			int h;
 			int numChannels;
-			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
@@ -527,7 +529,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 			int w;
 			int h;
 			int numChannels;
-			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
@@ -545,7 +547,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 			int w;
 			int h;
 			int numChannels;
-			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
@@ -563,7 +565,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 			int w;
 			int h;
 			int numChannels;
-			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
@@ -581,7 +583,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 			int w;
 			int h;
 			int numChannels;
-			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
@@ -599,7 +601,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 			int w;
 			int h;
 			int numChannels;
-			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
@@ -617,7 +619,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName, const std::str
 			int w;
 			int h;
 			int numChannels;
-			GLubyte* pixels = stbi_load(filename, &w, &h, &numChannels, STBI_rgb_alpha);
+			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
 			Texture* t = new Texture(w, h, numChannels, pixels);
 
@@ -847,10 +849,8 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 
 }
 
-
-
 void AssetManager::LoadTextureToGPU(const std::string texType, const int vecIndex, const int texIndex, Texture* tex) {
-	
+
 	if (texType == "ambient") {
 		glGenTextures(1, &ambientTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
@@ -881,22 +881,14 @@ void AssetManager::LoadTextureToGPU(const std::string texType, const int vecInde
 		glBindTexture(GL_TEXTURE_2D, alphaTextures[vecIndex]);
 	}
 
+	glGenerateMipmap(GL_TEXTURE_2D);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
-	if (tex->numChannels == 1) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
-	} else if (tex->numChannels == 2) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RG, tex->width, tex->height, 0, GL_RG, GL_UNSIGNED_BYTE, tex->pixels);
-	} else if (tex->numChannels == 3) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
-	} else if (tex->numChannels == 4) {
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
-	}
-
-	glGenerateMipmap(GL_TEXTURE_2D);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
 
 	tex->loadedToGPU = true;
 
