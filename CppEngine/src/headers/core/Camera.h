@@ -15,7 +15,7 @@ public:
 	~Camera();
 
     Camera(const glm::vec3&, const glm::vec3&, const glm::vec3&, 
-        const int&, const int&, const float&, const float&, const float&);
+		const float&, const float&, const float&);
 
     void Update(const float&);
 	void UpdateFrustumPlanes();

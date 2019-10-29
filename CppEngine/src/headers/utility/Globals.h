@@ -13,4 +13,7 @@ extern Scene* mainScene;
 extern AssetManager* assetManager;
 extern MemoryManager* memoryManager;
 
+extern int windowWidth;
+extern int windowHeight;
+
 #endif // GLOBALS_H_

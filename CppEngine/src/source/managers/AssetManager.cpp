@@ -85,6 +85,41 @@ AssetManager::~AssetManager() {
 		delete textures[i];
 	}
 	textures.clear();
+
+	for (int i = 0; i < ambientTextures.size(); i++) {
+		glDeleteTextures(1, &ambientTextures[i]);
+	}
+	ambientTextures.clear();
+
+	for (int i = 0; i < diffuseTextures.size(); i++) {
+		glDeleteTextures(1, &diffuseTextures[i]);
+	}
+	diffuseTextures.clear();
+
+	for (int i = 0; i < specularTextures.size(); i++) {
+		glDeleteTextures(1, &specularTextures[i]);
+	}
+	specularTextures.clear();
+
+	for (int i = 0; i < specularHighLightTextures.size(); i++) {
+		glDeleteTextures(1, &specularHighLightTextures[i]);
+	}
+	specularHighLightTextures.clear();
+
+	for (int i = 0; i < bumpTextures.size(); i++) {
+		glDeleteTextures(1, &bumpTextures[i]);
+	}
+	bumpTextures.clear();
+
+	for (int i = 0; i < displacementTextures.size(); i++) {
+		glDeleteTextures(1, &displacementTextures[i]);
+	}
+	displacementTextures.clear();
+
+	for (int i = 0; i < alphaTextures.size(); i++) {
+		glDeleteTextures(1, &alphaTextures[i]);
+	}
+	alphaTextures.clear();
 }
 
 
@@ -98,8 +133,6 @@ struct vertex {
 		return pos == rhs.pos && normal == rhs.normal && uv == rhs.uv;
 	}
 };
-
-
 
 template<> struct std::hash<vertex> {
 	size_t operator()(vertex const& v) const {
@@ -194,200 +227,6 @@ Model* AssetManager::tinyLoadObj(const std::string fileName) {
 		indices.clear();
 	}
 
-	return model;
-}
-
-Model* AssetManager::LoadObj(const std::string fileName) {
-	FILE *fp;
-	char line[1024]; //Assumes no line is longer than 1024 characters!
-
-	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
-
-	// open the file containing the scene description
-	fp = fopen(fullFile.c_str(), "r");
-
-	// check for errors in opening the file
-	if (fp == NULL) {
-		fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
-		exit(1);
-	}
-
-	// For calculating bounds
-	float minx = INFINITY;
-	float miny = INFINITY;
-	float minz = INFINITY;
-	float maxx = -INFINITY;
-	float maxy = -INFINITY;
-	float maxz = -INFINITY;
-
-	std::vector<glm::vec3> rawVerts;
-	std::vector<glm::vec3> rawNormals;
-	std::vector<glm::vec2> rawUvs;
-
-	std::vector<glm::vec3> verts;
-	std::vector<glm::vec3> normals;
-	std::vector<glm::vec2> uvs;
-	std::vector<unsigned int> indices;
-
-
-	struct vertData {
-		int v;
-		int uv;
-		int n;
-
-		bool operator==(const vertData& rhs) {
-			if (v != rhs.v) { return false; }
-			if (uv != rhs.uv) { return false; }
-			if (n != rhs.n) { return false; }
-
-			return true;
-		}
-	};
-	std::vector<vertData> vertMap;
-
-
-	Model* model = nullptr;
-	Mesh* mesh = nullptr;
-	int nextIndex = 0;
-	//Loop through reading each line
-	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
-		if (line[0] == '#') {
-			//fprintf(stderr, "Skipping comment: %s", line);
-			continue;
-		}
-
-		char command[1024];
-		int fieldsRead = sscanf(line, "%s ", command); //Read first word in the line (i.e., the command type)
-
-		if (fieldsRead < 1) { //No command read
-			//Blank line
-			continue;
-		}
-
-		if (line[0] == '#') {
-			//fprintf(stderr, "Skipping comment: %s", line);
-			continue;
-		}
-
-		// vertex
-		if (strcmp(command, "v") == 0) {
-			glm::vec3 v;
-
-			sscanf(line, "v %f %f %f", &v.x, &v.y, &v.z);
-			rawVerts.push_back(v);
-
-			if (v.x > maxx) { maxx = v.x; }
-			if (v.y > maxy) { maxy = v.y; }
-			if (v.z > maxz) { maxz = v.z; }
-			if (v.x < minx) { minx = v.x; }
-			if (v.y < miny) { miny = v.y; }
-			if (v.z < minz) { minz = v.z; }
-		}
-		// uvs
-		else if (strcmp(command, "vt") == 0) {
-			glm::vec2 uv;
-
-			sscanf(line, "vt %f %f", &uv.x, &uv.y);
-			rawUvs.push_back(uv);
-		}
-		// normals
-		else if (strcmp(command, "vn") == 0) {
-			glm::vec3 n;
-
-			sscanf(line, "vn %f %f %f", &n.x, &n.y, &n.z);
-			rawNormals.push_back(glm::normalize(n));
-		}
-		// face
-		else if (strcmp(command, "f") == 0) {
-			int vert_info[3][3];
-
-			sscanf(line, "f %d/%d/%d %d/%d/%d %d/%d/%d",
-				&vert_info[0][0], &vert_info[0][1], &vert_info[0][2],
-				&vert_info[1][0], &vert_info[1][1], &vert_info[1][2],
-				&vert_info[2][0], &vert_info[2][1], &vert_info[2][2]);
-			// https://stackoverflow.com/questions/23349080/opengl-index-buffers-difficulties/23356738#23356738
-
-			for (int i = 0; i < 3; i++) {
-				vertData temp_vert = vertData{
-					temp_vert.v = vert_info[i][0],
-					temp_vert.uv = vert_info[i][1],
-					temp_vert.n = vert_info[i][2]
-				};
-
-				bool exists = false;
-				for (int j = 0; j < vertMap.size(); j++) {
-					if (temp_vert == vertMap[j]) {
-						exists = true;
-						indices.push_back(j);
-						break;
-					}
-				}
-
-				if (!exists) {
-					indices.push_back(nextIndex);
-					vertMap.push_back(temp_vert);
-					nextIndex++;
-					verts.push_back(rawVerts[temp_vert.v - 1]);
-					uvs.push_back(rawUvs[temp_vert.uv - 1]);
-					normals.push_back(rawNormals[temp_vert.n - 1]);
-				}
-			}
-		// We have reached a new obj here, time to store our data and start again
-		} else if (strcmp(command, "o") == 0) {
-
-			// Init our model and mesh for our first obj
-			if (model == nullptr) {
-				model = new Model();
-				mesh = new Mesh();
-				continue;
-			}
-
-			// This is not our first obj, thus we must save data
-			mesh->SetPositions(verts);
-			mesh->SetNormals(normals);
-			mesh->SetUvs(uvs);
-			mesh->SetIndices(indices);
-
-			rawVerts.clear();
-			rawNormals.clear();
-			rawUvs.clear();
-
-			verts.clear();
-			normals.clear();
-			uvs.clear();
-			indices.clear();
-
-			mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
-			minx = INFINITY;
-			miny = INFINITY;
-			minz = INFINITY;
-			maxx = -INFINITY;
-			maxy = -INFINITY;
-			maxz = -INFINITY;
-
-			model->meshes.push_back(mesh);
-			mesh = new Mesh();
-		} else { continue; }
-	}
-
-	mesh->SetPositions(verts);
-	mesh->SetNormals(normals);
-	mesh->SetUvs(uvs);
-	mesh->SetIndices(indices);
-
-	rawVerts.clear();
-	rawNormals.clear();
-	rawUvs.clear();
-
-	verts.clear();
-	normals.clear();
-	uvs.clear();
-	indices.clear();
-
-	mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
-
-	model->meshes.push_back(mesh);
-	AssetManager::models.push_back(model);
 	return model;
 }
 
@@ -654,7 +493,6 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 	}
 
 	Scene* scene = new Scene();
-	int windowWidth, windowHeight;
 
 	//Loop through reading each line
 	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
@@ -684,8 +522,6 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 				glm::vec3(px, py, pz),
 				glm::vec3(fx, fy, fz),
 				glm::vec3(ux, uy, uz),
-				windowWidth,
-				windowHeight,
 				fov, np, fp);
 		} else if (strcmp(command, "directional_light") == 0) { // If the command is a directional light
 			float r, g, b, a, dx, dy, dz, dw;
@@ -893,4 +729,200 @@ void AssetManager::LoadTextureToGPU(const std::string texType, const int vecInde
 	tex->loadedToGPU = true;
 
 	stbi_image_free(tex->pixels);
+}
+
+
+// Unused
+Model* AssetManager::LoadObj(const std::string fileName) {
+	FILE *fp;
+	char line[1024]; //Assumes no line is longer than 1024 characters!
+
+	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
+
+	// open the file containing the scene description
+	fp = fopen(fullFile.c_str(), "r");
+
+	// check for errors in opening the file
+	if (fp == NULL) {
+		fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
+		exit(1);
+	}
+
+	// For calculating bounds
+	float minx = INFINITY;
+	float miny = INFINITY;
+	float minz = INFINITY;
+	float maxx = -INFINITY;
+	float maxy = -INFINITY;
+	float maxz = -INFINITY;
+
+	std::vector<glm::vec3> rawVerts;
+	std::vector<glm::vec3> rawNormals;
+	std::vector<glm::vec2> rawUvs;
+
+	std::vector<glm::vec3> verts;
+	std::vector<glm::vec3> normals;
+	std::vector<glm::vec2> uvs;
+	std::vector<unsigned int> indices;
+
+
+	struct vertData {
+		int v;
+		int uv;
+		int n;
+
+		bool operator==(const vertData& rhs) {
+			if (v != rhs.v) { return false; }
+			if (uv != rhs.uv) { return false; }
+			if (n != rhs.n) { return false; }
+
+			return true;
+		}
+	};
+	std::vector<vertData> vertMap;
+
+
+	Model* model = nullptr;
+	Mesh* mesh = nullptr;
+	int nextIndex = 0;
+	//Loop through reading each line
+	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
+		if (line[0] == '#') {
+			//fprintf(stderr, "Skipping comment: %s", line);
+			continue;
+		}
+
+		char command[1024];
+		int fieldsRead = sscanf(line, "%s ", command); //Read first word in the line (i.e., the command type)
+
+		if (fieldsRead < 1) { //No command read
+			//Blank line
+			continue;
+		}
+
+		if (line[0] == '#') {
+			//fprintf(stderr, "Skipping comment: %s", line);
+			continue;
+		}
+
+		// vertex
+		if (strcmp(command, "v") == 0) {
+			glm::vec3 v;
+
+			sscanf(line, "v %f %f %f", &v.x, &v.y, &v.z);
+			rawVerts.push_back(v);
+
+			if (v.x > maxx) { maxx = v.x; }
+			if (v.y > maxy) { maxy = v.y; }
+			if (v.z > maxz) { maxz = v.z; }
+			if (v.x < minx) { minx = v.x; }
+			if (v.y < miny) { miny = v.y; }
+			if (v.z < minz) { minz = v.z; }
+		}
+		// uvs
+		else if (strcmp(command, "vt") == 0) {
+			glm::vec2 uv;
+
+			sscanf(line, "vt %f %f", &uv.x, &uv.y);
+			rawUvs.push_back(uv);
+		}
+		// normals
+		else if (strcmp(command, "vn") == 0) {
+			glm::vec3 n;
+
+			sscanf(line, "vn %f %f %f", &n.x, &n.y, &n.z);
+			rawNormals.push_back(glm::normalize(n));
+		}
+		// face
+		else if (strcmp(command, "f") == 0) {
+			int vert_info[3][3];
+
+			sscanf(line, "f %d/%d/%d %d/%d/%d %d/%d/%d",
+				&vert_info[0][0], &vert_info[0][1], &vert_info[0][2],
+				&vert_info[1][0], &vert_info[1][1], &vert_info[1][2],
+				&vert_info[2][0], &vert_info[2][1], &vert_info[2][2]);
+			// https://stackoverflow.com/questions/23349080/opengl-index-buffers-difficulties/23356738#23356738
+
+			for (int i = 0; i < 3; i++) {
+				vertData temp_vert = vertData{
+					temp_vert.v = vert_info[i][0],
+					temp_vert.uv = vert_info[i][1],
+					temp_vert.n = vert_info[i][2]
+				};
+
+				bool exists = false;
+				for (int j = 0; j < vertMap.size(); j++) {
+					if (temp_vert == vertMap[j]) {
+						exists = true;
+						indices.push_back(j);
+						break;
+					}
+				}
+
+				if (!exists) {
+					indices.push_back(nextIndex);
+					vertMap.push_back(temp_vert);
+					nextIndex++;
+					verts.push_back(rawVerts[temp_vert.v - 1]);
+					uvs.push_back(rawUvs[temp_vert.uv - 1]);
+					normals.push_back(rawNormals[temp_vert.n - 1]);
+				}
+			}
+			// We have reached a new obj here, time to store our data and start again
+		} else if (strcmp(command, "o") == 0) {
+
+			// Init our model and mesh for our first obj
+			if (model == nullptr) {
+				model = new Model();
+				mesh = new Mesh();
+				continue;
+			}
+
+			// This is not our first obj, thus we must save data
+			mesh->SetPositions(verts);
+			mesh->SetNormals(normals);
+			mesh->SetUvs(uvs);
+			mesh->SetIndices(indices);
+
+			rawVerts.clear();
+			rawNormals.clear();
+			rawUvs.clear();
+
+			verts.clear();
+			normals.clear();
+			uvs.clear();
+			indices.clear();
+
+			mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
+			minx = INFINITY;
+			miny = INFINITY;
+			minz = INFINITY;
+			maxx = -INFINITY;
+			maxy = -INFINITY;
+			maxz = -INFINITY;
+
+			model->meshes.push_back(mesh);
+			mesh = new Mesh();
+		} else { continue; }
+	}
+
+	mesh->SetPositions(verts);
+	mesh->SetNormals(normals);
+	mesh->SetUvs(uvs);
+	mesh->SetIndices(indices);
+
+	rawVerts.clear();
+	rawNormals.clear();
+	rawUvs.clear();
+
+	verts.clear();
+	normals.clear();
+	uvs.clear();
+	indices.clear();
+
+	mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
+
+	model->meshes.push_back(mesh);
+	AssetManager::models.push_back(model);
+	return model;
 }

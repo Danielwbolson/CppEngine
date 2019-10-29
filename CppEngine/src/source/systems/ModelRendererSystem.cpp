@@ -236,13 +236,8 @@ void ModelRendererSystem::Register(const Component* c) {
 			assetManager->LoadTextureToGPU("alpha", mat->alphaIndex, 6, mat->alphaTexture);
 		}
 
-		glUseProgram(0);
-
-		checkGLError("After register");
-
 		mat = nullptr;
 	}
-    glBindVertexArray(0);
 }
 
 void ModelRendererSystem::Render() {
@@ -259,8 +254,6 @@ void ModelRendererSystem::Render() {
 
     glm::mat4 view = mainCamera->view;
     glm::mat4 proj = mainCamera->proj;
-
-	checkGLError("Before render");
 
     // Get all of our meshRenderers to draw to textures
     for (int i = 0; i < modelRenderers.size(); i++) {
@@ -296,9 +289,6 @@ void ModelRendererSystem::Render() {
 			glUniform1f(uniSpecularExp, m->specularExponent);
 			GLint uniOpacity = glGetUniformLocation(m->shaderProgram, "opacity");
 			glUniform1f(uniOpacity, m->opacity);
-
-			checkGLError("Before texture bind");
-
 
 			// Textures and booleans
 			glActiveTexture(GL_TEXTURE0);
@@ -369,8 +359,6 @@ void ModelRendererSystem::Render() {
 
 			// Use our shader and draw our program
 			glDrawElements(GL_TRIANGLES, modelRenderers[i]->model->meshes[j]->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
-
-			glUseProgram(0);
 		}
     }
 
@@ -448,8 +436,6 @@ void ModelRendererSystem::Render() {
         // User our shader and draw our program
         glDrawElements(GL_TRIANGLES, lightSphere->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
     }
-
-	glUseProgram(0);
 
 	glCullFace(GL_BACK);
     glDisable(GL_BLEND);

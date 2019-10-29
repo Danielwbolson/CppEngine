@@ -1,6 +1,7 @@
 
 #include "Camera.h"
 #include "SDL_Static_Helper.h"
+#include "Globals.h"
 
 Camera::Camera() {
     transform = new Transform();
@@ -12,14 +13,14 @@ Camera::~Camera() {
 }
 
 Camera::Camera(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& up, 
-    const int& w, const int& h, const float& f, const float& np, const float& fp) {
+	const float& f, const float& np, const float& fp) {
 
 	transform = new Transform(pos, glm::normalize(dir), glm::normalize(up));
 
     fov = f;
     near_plane = np;
     far_plane = fp;
-    aspect_ratio = w / (float)h;
+	aspect_ratio = windowWidth / static_cast<float>(windowHeight);
 
     proj = glm::perspective(fov, aspect_ratio, near_plane, far_plane);
 	view = glm::lookAt(transform->position, transform->position + transform->forward, transform->up);
