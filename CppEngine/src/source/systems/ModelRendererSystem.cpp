@@ -380,6 +380,9 @@ void ModelRendererSystem::Render() {
     glViewport(0, 0, screenWidth, screenHeight);
 
     glClear(GL_COLOR_BUFFER_BIT);
+	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_ONE, GL_ONE);
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -404,12 +407,6 @@ void ModelRendererSystem::Render() {
     glUniform1i(glGetUniformLocation(combinedShader, "gNormal"), 1);
     glUniform1i(glGetUniformLocation(combinedShader, "gDiffuse"), 2);
     glUniform1i(glGetUniformLocation(combinedShader, "gSpecularExp"), 3);
-
-	//glDepthMask(GL_FALSE);
-	glDisable(GL_DEPTH_TEST);
-
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE);
 
 	glm::vec3 camPos = mainCamera->transform->position;
 
@@ -454,12 +451,9 @@ void ModelRendererSystem::Render() {
 
 	glUseProgram(0);
 
-	checkGLError("After render");
-
 	glCullFace(GL_BACK);
     glDisable(GL_BLEND);
     glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_TRUE);
 }
 
 bool ModelRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
