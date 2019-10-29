@@ -8,7 +8,6 @@ uniform sampler2D gSpecularExp;
 uniform vec4 lightPos;
 uniform vec4 lightCol;
 
-uniform vec3 camPos;
 uniform mat4 view;
 
 in vec4 outPos;
@@ -24,9 +23,8 @@ void main() {
     vec4 specExp      = texture(gSpecularExp, UV);
     
     // eye
-	vec3 viewCamPos = (view * vec4(camPos, 1)).xyz;
-    vec3 eye = normalize(viewCamPos-fragPos);
-    vec3 outColor = diffuseColor * 0.1;
+    vec3 eye = normalize(-fragPos);
+    vec3 outColor = vec3(0, 0, 0);
 
     // light info in view space
     vec3 viewLightPos = (view * lightPos).xyz;

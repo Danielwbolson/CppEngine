@@ -8,9 +8,9 @@ end
 pointLightArray = {}
 idx = 1
 for i = 0,200 do
-	local r = math.random() * 10
-	local g = math.random() * 10
-	local b = math.random() * 10
+	local r = math.random()
+	local g = math.random()
+	local b = math.random()
 	local a = 1
 	
 	local x = 15 + math.random() * 10

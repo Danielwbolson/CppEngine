@@ -170,10 +170,6 @@ void ModelRendererSystem::Setup() {
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	checkGLError("before glenabletexture");
-    glEnable(GL_DEPTH_TEST);
-
-	checkGLError("End of setup");
 }
 
 void ModelRendererSystem::Register(const Component* c) {
@@ -409,17 +405,15 @@ void ModelRendererSystem::Render() {
     glUniform1i(glGetUniformLocation(combinedShader, "gDiffuse"), 2);
     glUniform1i(glGetUniformLocation(combinedShader, "gSpecularExp"), 3);
 
-	glDepthMask(GL_FALSE);
+	//glDepthMask(GL_FALSE);
 	glDisable(GL_DEPTH_TEST);
 
 	glEnable(GL_BLEND);
-	glBlendEquation(GL_FUNC_ADD);
 	glBlendFunc(GL_ONE, GL_ONE);
 
-    // Indices
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
-
 	glm::vec3 camPos = mainCamera->transform->position;
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
 
     // instead of drawing arrays, draw spheres at each light position
     for (int i = 0; i < pointLights.size(); i++) {
@@ -427,22 +421,19 @@ void ModelRendererSystem::Render() {
         glm::vec4 color = pointLights[i].color;
 
         float lum = .6f * color.g + .3f * color.r + .1f * color.b;
-		float radScal = 44.7f * 10; // falloff where edge of radius is 1/10000th the color
-		float radius = lum * radScal;
+		float radius = 14; // falloff where edge of radius is 1/10000th the color
 
         glm::mat4 model = glm::mat4(1);
         model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
         model = glm::scale(model, lum * glm::vec3(radius, radius, radius));
 
-
 		// Pre-emptively frustum cull unnecessary meshes
 		if (FrustumCull(lightSphere, model, proj * view)) { continue; }
-
 
 		glm::mat4 pvmMatrix = proj * view * model;
 
 		// Switch culling if inside light volume
-		if (glm::length(camPos - glm::vec3(pos.x, pos.y, pos.z)) < radius) {
+		if (glm::length(camPos - glm::vec3(pos.x, pos.y, pos.z)) < lum * radius) {
 			glCullFace(GL_FRONT);
 		} else {
 			glCullFace(GL_BACK);
@@ -454,8 +445,6 @@ void ModelRendererSystem::Render() {
         glUniform4f(lightPos, pos.x, pos.y, pos.z, pos.w);
         GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
         glUniform4f(lightCol, color.r, color.g, color.b, color.a);
-		GLint uniCam = glGetUniformLocation(combinedShader, "camPos");
-		glUniform3f(uniCam, camPos.x, camPos.y, camPos.z);
 
 		totalTriangles += lightSphere->NumIndices() / 3;
 
