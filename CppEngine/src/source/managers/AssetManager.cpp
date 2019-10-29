@@ -61,6 +61,8 @@ std::vector<GLuint> AssetManager::alphaTextures = std::vector<GLuint>();
 GLuint AssetManager::nullTexture;
 GLubyte AssetManager::nullData[4] = { 255, 255, 255, 255 };
 
+ofbx::IScene* AssetManager::iscene = nullptr;
+
 AssetManager::AssetManager() {
 
 	// Set up our null texture
@@ -124,6 +126,30 @@ AssetManager::~AssetManager() {
 
 
 
+void AssetManager::LoadFBX(const std::string fileName) {
+	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
+
+	// open the file containing the scene description
+	FILE *fp = fopen(fullFile.c_str(), "rb");
+
+	// check for errors in opening the file
+	if (fp == NULL) {
+		fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
+		exit(1);
+	}
+
+	fseek(fp, 0, SEEK_END);
+	long file_size = ftell(fp);
+	auto* content = new ofbx::u8[file_size];
+	fread(content, 1, file_size, fp);
+	iscene = ofbx::load((ofbx::u8*)content, file_size, (ofbx::u64)ofbx::LoadFlags::TRIANGULATE);
+
+	delete[] content;
+	fclose(fp);
+}
+
+
+
 struct vertex {
 	glm::vec3 pos;
 	glm::vec3 normal;
@@ -141,7 +167,6 @@ template<> struct std::hash<vertex> {
 			(std::hash<glm::vec2>()(v.uv) << 1);
 	}
 };
-
 Model* AssetManager::tinyLoadObj(const std::string fileName) {
 
 	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
@@ -660,6 +685,12 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 
 			// TODO: Hack for now, but eventually need to support materials in obj
 			currModel->materials.push_back(currMaterial);
+		} else if (strcmp(command, "fbx") == 0) {
+			char filename[1024];
+
+			sscanf(line, "fbx %s", &filename);
+
+			LoadFBX(filename);
 		} else if (strcmp(command, "material") == 0) { // If the command is a material
 			char filename[1024];
 			char vert[1024];

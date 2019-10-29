@@ -6,6 +6,9 @@
 #include <string>
 #include <vector>
 
+#include "ofbx.h"
+#include "miniz.h"
+
 #include "glad/glad.h"
 
 #define GLM_FORCE_RADIANS
@@ -37,13 +40,19 @@ public:
 	static GLuint nullTexture;
 	static GLubyte nullData[4];
 
+	static ofbx::IScene* iscene;
+
+	static void LoadFBX(const std::string fileName);
 	static Model* tinyLoadObj(const std::string fileName);
-	static Model* LoadObj(const std::string fileName);
 	static Scene* LoadScene(const std::string fileName);
 	static void LoadGameObjects(const std::string fileName, Scene* scene);
 	static Material* LoadMaterial(const std::string& fileName, const std::string&, const std::string&);
 
 	static void LoadTextureToGPU(const std::string texType, const int vecIndex, const int texIndex, Texture* tex);
+
+
+	// Unused
+	static Model* LoadObj(const std::string fileName);
 
 };
 

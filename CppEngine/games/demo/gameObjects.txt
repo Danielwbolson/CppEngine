@@ -15,3 +15,5 @@ gameObject chalet
 material chalet.mtl deferredToTexture.vert deferredToTexture.frag
 model chalet.obj
 component modelRenderer
+
+fbx sylvanas_fbx.fbx

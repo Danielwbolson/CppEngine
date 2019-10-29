@@ -66,6 +66,11 @@ add_library(glad ${glad_src})
 file(GLOB lua_src external/lua-5.3.5/src/*.c)
 add_library(lua ${lua_src})
 
+file(GLOB obfx_src 
+	external/OpenFBX/src/*.c
+	external/OpenFBX/src/*.cpp)
+add_library(obfx ${obfx_src})
+
 
 
 set(COMPONENT_H
@@ -196,6 +201,7 @@ set(ALL_FILES
 )
 
 set(INCLUDE_DIRS
+	${CMAKE_CURRENT_SOURCE_DIR}/external/OpenFBX/src
 	${CMAKE_CURRENT_SOURCE_DIR}/external
 	${CMAKE_CURRENT_SOURCE_DIR}/external/sol2/single/include
 	${CMAKE_CURRENT_SOURCE_DIR}/external/tinyobjloader
@@ -228,7 +234,7 @@ if (MSVC)
 	target_compile_options(CppEngine PRIVATE "/MP")
 endif()
 
-target_link_libraries(CppEngine ${LIBS} glad lua)
+target_link_libraries(CppEngine ${LIBS} glad lua obfx)
 
 # Put necessary lib files in our build directory
 add_custom_command(TARGET CppEngine POST_BUILD
