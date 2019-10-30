@@ -13,6 +13,7 @@ void luaSetup(sol::state& L) {
 	L.set_function("addInstance", &addInstance);
 	L.set_function("placeInstance", &placeInstance);
 	L.set_function("scaleInstance", &scaleInstance);
+	L.set_function("rotateInstance", &rotateInstance);
 
 }
 
@@ -47,5 +48,10 @@ int scaleInstance(const int& index, const float& x, const float& y, const float&
 
 int placeInstance(const int& index, const float& x, const float& y, const float& z) {
 	mainScene->instances[index]->transform->SetPosition(glm::vec3(x, y, z));
+	return 1;
+}
+
+int rotateInstance(const int& index, const float& xRot, const float& yRot) {
+	mainScene->instances[index]->transform->rotation = glm::vec3(xRot, yRot, 0);
 	return 1;
 }

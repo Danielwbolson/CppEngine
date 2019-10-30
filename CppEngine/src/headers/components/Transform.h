@@ -21,7 +21,7 @@ public:
     void UpdateVelocity(const float&, const float&);
 	void UpdateRotation(const glm::vec3&);
 
-	void Rotate(const float&, const glm::vec3&);
+	void Rotate(const float&, const glm::vec3& axis = glm::vec3(0, 1, 0));
 	void Translate(const glm::vec3&);
 	void Scale(const glm::vec3&);
 
