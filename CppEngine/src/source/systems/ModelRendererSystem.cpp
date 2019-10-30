@@ -9,6 +9,7 @@
 #include "Globals.h"
 
 #include "Material.h"
+#include "Shader.h"
 
 #include <cmath>
 
@@ -85,14 +86,14 @@ void ModelRendererSystem::Setup() {
 
     glGenBuffers(1, &lightVolume_Vbo);
     glBindBuffer(GL_ARRAY_BUFFER, lightVolume_Vbo);
-    glBufferData(GL_ARRAY_BUFFER, lightSphere->NumPositions() * 3 * sizeof(float), &(lightSphere->pos[0]), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, lightSphere->positions.size() * 3 * sizeof(float), &(lightSphere->positions[0]), GL_STATIC_DRAW);
     glEnableVertexAttribArray(glGetAttribLocation(combinedShader, "inPos"));
     glVertexAttribPointer(glGetAttribLocation(combinedShader, "inPos"), 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     // index buffer for sphere
     glGenBuffers(1, &lightVolume_Ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightSphere->NumIndices() * sizeof(GL_UNSIGNED_INT), &(lightSphere->indices[0]), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightSphere->indices.size() * sizeof(GL_UNSIGNED_INT), &(lightSphere->indices[0]), GL_STATIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     /*glGenVertexArrays(1, &quadVao);
@@ -184,9 +185,9 @@ void ModelRendererSystem::Register(const Component* c) {
 		// Position
 		glGenBuffers(1, &(mr->vbos[i][0]));
 		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][0]);
-		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->NumPositions() * sizeof(float), &(mr->model->meshes[i]->pos[0]), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->positions.size() * sizeof(float), &(mr->model->meshes[i]->positions[0]), GL_STATIC_DRAW);
 
-		GLint posAttrib = glGetAttribLocation(mr->model->materials[i]->shaderProgram, "inPos");
+		GLint posAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inPos");
 		glEnableVertexAttribArray(posAttrib);
 		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 		//Attribute, vals/attrib., type, isNormalized, stride, offset
@@ -194,30 +195,30 @@ void ModelRendererSystem::Register(const Component* c) {
 		// Normals
 		glGenBuffers(1, &(mr->vbos[i][1]));
 		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][1]);
-		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->NumNorms() * sizeof(float), &(mr->model->meshes[i]->normals[0]), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->normals.size() * sizeof(float), &(mr->model->meshes[i]->normals[0]), GL_STATIC_DRAW);
 
-		GLint normAttrib = glGetAttribLocation(mr->model->materials[i]->shaderProgram, "inNorm");
+		GLint normAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inNorm");
 		glEnableVertexAttribArray(normAttrib);
 		glVertexAttribPointer(normAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
 		// UVS
 		glGenBuffers(1, &(mr->vbos[i][2]));
 		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][2]);
-		glBufferData(GL_ARRAY_BUFFER, 2 * mr->model->meshes[i]->NumPositions() * sizeof(float), &(mr->model->meshes[i]->uvs[0]), GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, 2 * mr->model->meshes[i]->uvs.size() * sizeof(float), &(mr->model->meshes[i]->uvs[0]), GL_STATIC_DRAW);
 
-		GLint uvAttrib = glGetAttribLocation(mr->model->materials[i]->shaderProgram, "inUV");
+		GLint uvAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inUV");
 		glEnableVertexAttribArray(uvAttrib);
 		glVertexAttribPointer(uvAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
 		// Indices
 		glGenBuffers(1, &(mr->vbos[i][3]));
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mr->vbos[i][3]);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, mr->model->meshes[i]->NumIndices() * sizeof(GL_UNSIGNED_INT), &(mr->model->meshes[i]->indices[0]), GL_STATIC_DRAW);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, mr->model->meshes[i]->indices.size() * sizeof(GL_UNSIGNED_INT), &(mr->model->meshes[i]->indices[0]), GL_STATIC_DRAW);
 
 
 		// Textures
 		// Load up either a null texture or the wanted one
-		glUseProgram(mr->model->materials[i]->shaderProgram);
+		glUseProgram(mr->model->materials[i]->shader->shaderProgram);
 		Material* mat = mr->model->materials[i];
 
 		if (mat->ambientTexture != nullptr && !mat->ambientTexture->loadedToGPU) {
@@ -265,29 +266,29 @@ void ModelRendererSystem::Render() {
 			// Pre-emptively frustum cull unnecessary meshes
 			if (FrustumCull(modelRenderers[i]->model->meshes[j], model, proj * view)) { continue; }
 
-			glUseProgram(modelRenderers[i]->model->materials[j]->shaderProgram);
+			glUseProgram(modelRenderers[i]->model->materials[j]->shader->shaderProgram);
 			glBindVertexArray(modelRenderers[i]->vaos[j]);
 
 			Material* m = modelRenderers[i]->model->materials[j];
 
-			GLint uniModel = glGetUniformLocation(m->shaderProgram, "model");
+			GLint uniModel = glGetUniformLocation(m->shader->shaderProgram, "model");
 			glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
-			GLint uniView = glGetUniformLocation(m->shaderProgram, "view");
+			GLint uniView = glGetUniformLocation(m->shader->shaderProgram, "view");
 			glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
-			GLint uniProj = glGetUniformLocation(m->shaderProgram, "proj");
+			GLint uniProj = glGetUniformLocation(m->shader->shaderProgram, "proj");
 			glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
 
 
 			// Material variables
-			GLint uniAmbient = glGetUniformLocation(m->shaderProgram, "ambient");
+			GLint uniAmbient = glGetUniformLocation(m->shader->shaderProgram, "ambient");
 			glUniform3f(uniAmbient, m->ambient.r, m->ambient.g, m->ambient.b);
-			GLint uniDiffuse = glGetUniformLocation(m->shaderProgram, "diffuse");
+			GLint uniDiffuse = glGetUniformLocation(m->shader->shaderProgram, "diffuse");
 			glUniform3f(uniDiffuse, m->diffuse.r, m->diffuse.g, m->diffuse.b);
-			GLint uniSpecular = glGetUniformLocation(m->shaderProgram, "specular");
+			GLint uniSpecular = glGetUniformLocation(m->shader->shaderProgram, "specular");
 			glUniform3f(uniSpecular, m->specular.r, m->specular.g, m->specular.b);
-			GLint uniSpecularExp = glGetUniformLocation(m->shaderProgram, "specularExp");
+			GLint uniSpecularExp = glGetUniformLocation(m->shader->shaderProgram, "specularExp");
 			glUniform1f(uniSpecularExp, m->specularExponent);
-			GLint uniOpacity = glGetUniformLocation(m->shaderProgram, "opacity");
+			GLint uniOpacity = glGetUniformLocation(m->shader->shaderProgram, "opacity");
 			glUniform1f(uniOpacity, m->opacity);
 
 			// Textures and booleans
@@ -297,7 +298,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shaderProgram, "ambientTex"), 0);
+			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "ambientTex"), 0);
 
 			glActiveTexture(GL_TEXTURE0 + 1);
 			if (m->diffuseTexture != nullptr) {
@@ -305,7 +306,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shaderProgram, "diffuseTex"), 1);
+			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "diffuseTex"), 1);
 
 			glActiveTexture(GL_TEXTURE0 + 2);
 			if (m->specularTexture != nullptr) {
@@ -313,7 +314,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shaderProgram, "specularTex"), 2);
+			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "specularTex"), 2);
 
 			glActiveTexture(GL_TEXTURE0 + 3);
 			if (m->specularHighLightTexture != nullptr) {
@@ -321,7 +322,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shaderProgram, "specularHighLightTex"), 3);
+			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "specularHighLightTex"), 3);
 
 
 			glActiveTexture(GL_TEXTURE0 + 4);
@@ -330,7 +331,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shaderProgram, "bumpTex"), 4);
+			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "bumpTex"), 4);
 
 
 			glActiveTexture(GL_TEXTURE0 + 5);
@@ -339,7 +340,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shaderProgram, "dispTex"), 5);
+			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "dispTex"), 5);
 
 
 			glActiveTexture(GL_TEXTURE0 + 6);
@@ -348,17 +349,17 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shaderProgram, "alphaTex"), 6);
+			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "alphaTex"), 6);
 
 			checkGLError("After texture bind");
 
 			// Indices
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, modelRenderers[i]->vbos[j][3]);
 
-			totalTriangles += modelRenderers[i]->model->meshes[j]->NumIndices() / 3;
+			totalTriangles += static_cast<int>(modelRenderers[i]->model->meshes[j]->indices.size()) / 3;
 
 			// Use our shader and draw our program
-			glDrawElements(GL_TRIANGLES, modelRenderers[i]->model->meshes[j]->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
+			glDrawElements(GL_TRIANGLES, static_cast<int>(modelRenderers[i]->model->meshes[j]->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 		}
     }
 
@@ -431,10 +432,10 @@ void ModelRendererSystem::Render() {
         GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
         glUniform4f(lightCol, color.r, color.g, color.b, color.a);
 
-		totalTriangles += lightSphere->NumIndices() / 3;
+		totalTriangles += static_cast<int>(lightSphere->indices.size()) / 3;
 
         // User our shader and draw our program
-        glDrawElements(GL_TRIANGLES, lightSphere->NumIndices(), GL_UNSIGNED_INT, 0); //Number of vertices
+        glDrawElements(GL_TRIANGLES, static_cast<int>(lightSphere->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
     }
 
 	glCullFace(GL_BACK);

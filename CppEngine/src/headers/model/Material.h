@@ -10,13 +10,12 @@
 #include <string>
 
 class Texture;
+class Shader;
 
 class Material {
 public:
 
 	std::string filename;
-	std::string vertFile;
-	std::string fragFile;
 
 	glm::vec3 ambient = glm::vec3(0.1, 0.1, 0.1);
 	glm::vec3 diffuse = glm::vec3(1, 1, 1);
@@ -42,13 +41,13 @@ public:
 	int displacementIndex		= -1;
 	int alphaIndex				= -1;
 
-	GLuint shaderProgram;
+	Shader* shader = nullptr;
 
 
     Material();
 	~Material();
 
-    Material(const std::string& filename, const std::string&, const std::string&);
+    Material(const std::string& filename);
 
     Material operator=(const Material&);
 	bool operator==(const Material&) const;

@@ -12,7 +12,6 @@
 #include <glm/gtx/hash.hpp>
 
 #define TINYOBJLOADER_IMPLEMENTATION
-#include "tiny_obj_loader.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
@@ -44,11 +43,13 @@
 #include "GameObject.h"
 
 #include "Utility.h"
+#include "Shader.h"
 
 
 std::vector<Model*> AssetManager::models = std::vector<Model*>();
 std::vector<Material*> AssetManager::materials = std::vector<Material*>();
 std::vector<Texture*> AssetManager::textures = std::vector<Texture*>();
+std::vector<Shader*> AssetManager::shaders = std::vector<Shader*>();
 
 std::vector<GLuint> AssetManager::ambientTextures = std::vector<GLuint>();
 std::vector<GLuint> AssetManager::diffuseTextures = std::vector<GLuint>();
@@ -87,6 +88,11 @@ AssetManager::~AssetManager() {
 		delete textures[i];
 	}
 	textures.clear();
+
+	for (int i = 0; i < shaders.size(); i++) {
+		glDeleteProgram(shaders[i]->shaderProgram);
+	}
+	shaders.clear();
 
 	for (int i = 0; i < ambientTextures.size(); i++) {
 		glDeleteTextures(1, &ambientTextures[i]);
@@ -129,7 +135,7 @@ AssetManager::~AssetManager() {
 void AssetManager::LoadFBX(const std::string fileName) {
 	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
 
-	// open the file containing the scene description
+	// open the file containing the scene description	
 	FILE *fp = fopen(fullFile.c_str(), "rb");
 
 	// check for errors in opening the file
@@ -138,11 +144,16 @@ void AssetManager::LoadFBX(const std::string fileName) {
 		exit(1);
 	}
 
-	fseek(fp, 0, SEEK_END);
+	fseek(fp, 0, SEEK_END); // find size of file
 	long file_size = ftell(fp);
+	fseek(fp, 0, SEEK_SET); // go back to front
 	auto* content = new ofbx::u8[file_size];
 	fread(content, 1, file_size, fp);
 	iscene = ofbx::load((ofbx::u8*)content, file_size, (ofbx::u64)ofbx::LoadFlags::TRIANGULATE);
+
+	if (!iscene) {
+		OutputDebugString(ofbx::getError());
+	}
 
 	delete[] content;
 	fclose(fp);
@@ -162,12 +173,12 @@ struct vertex {
 
 template<> struct std::hash<vertex> {
 	size_t operator()(vertex const& v) const {
-		return ((std::hash<glm::vec3>()(v.pos) ^
-			(std::hash<glm::vec3>()(v.normal) << 1)) >> 1) ^
-			(std::hash<glm::vec2>()(v.uv) << 1);
+		return ((hash<glm::vec3>()(v.pos) ^
+			(hash<glm::vec3>()(v.normal) << 1)) >> 1) ^
+			(hash<glm::vec2>()(v.uv) << 1);
 	}
 };
-Model* AssetManager::tinyLoadObj(const std::string fileName) {
+Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 
 	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
 
@@ -178,96 +189,248 @@ Model* AssetManager::tinyLoadObj(const std::string fileName) {
 	std::string warn;
 	std::string err;
 
-	bool ret = tinyobj::LoadObj(&attrib, &shapes, &mats, &warn, &err, fullFile.c_str());
+	bool ret = tinyobj::LoadObj(&attrib, &shapes, &mats, &warn, &err, fullFile.c_str(), std::string((VK_ROOT_DIR"materials/")).c_str());
 
 	Model* model = new Model();
-	for (const auto& shape : shapes) {
 
-		// For calculating bounds
-		float minx = INFINITY;
-		float miny = INFINITY;
-		float minz = INFINITY;
-		float maxx = -INFINITY;
-		float maxy = -INFINITY;
-		float maxz = -INFINITY;
+	// For calculating bounds
+	float minx = INFINITY;
+	float miny = INFINITY;
+	float minz = INFINITY;
+	float maxx = -INFINITY;
+	float maxy = -INFINITY;
+	float maxz = -INFINITY;
 
-		// Per shape info		
-		std::vector<glm::vec3> positions;
-		std::vector<glm::vec3> normals;
-		std::vector<glm::vec2> uvs;
-		std::vector<unsigned int> indices;
+
+	// Meshes are split by material type
+	if (useTinyMats) {
+
+		std::vector<std::unordered_map<vertex, unsigned int> > vertices = std::vector<std::unordered_map<vertex, unsigned int> >(mats.size());
+
+		std::vector<Mesh*> tinyMeshes = std::vector<Mesh*>(mats.size());
+		for (int i = 0; i < mats.size(); i++) {
+			tinyMeshes[i] = new Mesh();
+			tinyMeshes[i]->bounds = new Bounds();
+			model->meshes.push_back(tinyMeshes[i]);
+		}
+		std::vector<Material*> tinyMaterials = std::vector<Material*>(mats.size());
+		for (int i = 0; i < mats.size(); i++) {
+			tinyMaterials[i] = tinyLoadMaterial(mats[i]);
+			model->materials.push_back(tinyMaterials[i]);
+		}
+
+		for (int i = 0; i < shapes.size(); i++) {
+
+			int indexOffset = 0;
+			for (int j = 0; j < shapes[i].mesh.num_face_vertices.size(); j++) {
+
+				int faceVertices = shapes[i].mesh.num_face_vertices[j];
+				int matID = shapes[i].mesh.material_ids[j];
+
+				for (int k = 0; k < faceVertices; k++) {
+					tinyobj::index_t index = shapes[i].mesh.indices[indexOffset + k];
+
+					vertex v = {};
+
+					float x = attrib.vertices[3 * index.vertex_index + 0];
+					float y = attrib.vertices[3 * index.vertex_index + 1];
+					float z = attrib.vertices[3 * index.vertex_index + 2];
+					v.pos = glm::vec3(x, y, z);
+
+					// Get bounds
+					if (v.pos.x > maxx) { maxx = v.pos.x; }
+					if (v.pos.y > maxy) { maxy = v.pos.y; }
+					if (v.pos.z > maxz) { maxz = v.pos.z; }
+					if (v.pos.x < minx) { minx = v.pos.x; }
+					if (v.pos.y < miny) { miny = v.pos.y; }
+					if (v.pos.z < minz) { minz = v.pos.z; }
+
+					float nx = attrib.normals[3 * index.normal_index + 0];
+					float ny = attrib.normals[3 * index.normal_index + 1];
+					float nz = attrib.normals[3 * index.normal_index + 2];
+					v.normal = glm::vec3(nx, ny, nz);
+
+					float uvx = attrib.texcoords[2 * index.texcoord_index + 0];
+					float uvy = attrib.texcoords[2 * index.texcoord_index + 1];
+					v.uv = glm::vec2(uvx, uvy);
+
+					// Find if this vert already exists
+					if (vertices[matID].count(v) == 0) {
+						vertices[matID][v] = static_cast<unsigned int>(vertices[matID].size());
+						tinyMeshes[matID]->positions.push_back(v.pos);
+						tinyMeshes[matID]->normals.push_back(v.normal);
+						tinyMeshes[matID]->uvs.push_back(v.uv);
+
+						tinyMeshes[matID]->bounds->maxX = maxx;
+						tinyMeshes[matID]->bounds->maxY = maxy;
+						tinyMeshes[matID]->bounds->maxZ = maxz;
+						tinyMeshes[matID]->bounds->minX = minx;
+						tinyMeshes[matID]->bounds->minY = miny;
+						tinyMeshes[matID]->bounds->minZ = minz;
+					}
+
+					tinyMeshes[matID]->indices.push_back(vertices[matID][v]);
+				}
+
+				indexOffset += faceVertices;
+			}
+		}
+
+		for (int i = 0; i < tinyMeshes.size(); i++) {
+			tinyMeshes[i]->bounds->Init();
+			vertices[i].clear();
+		}
+
+	// One model with a material given by user
+	} else {
 
 		std::unordered_map<vertex, unsigned int> vertices = {};
 
 		Mesh* mesh = new Mesh();
-		for (const auto& index : shape.mesh.indices) {
-			vertex v = {};
 
-			float x = attrib.vertices[3 * index.vertex_index + 0];
-			float y = attrib.vertices[3 * index.vertex_index + 1];
-			float z = attrib.vertices[3 * index.vertex_index + 2];
-			v.pos = glm::vec3(x, y, z);
+		for (const auto& shape : shapes) {
+			for (const auto& index : shape.mesh.indices) {
+				vertex v = {};
 
-			// Get bounds
-			if (v.pos.x > maxx) { maxx = v.pos.x; }
-			if (v.pos.y > maxy) { maxy = v.pos.y; }
-			if (v.pos.z > maxz) { maxz = v.pos.z; }
-			if (v.pos.x < minx) { minx = v.pos.x; }
-			if (v.pos.y < miny) { miny = v.pos.y; }
-			if (v.pos.z < minz) { minz = v.pos.z; }
+				float x = attrib.vertices[3 * index.vertex_index + 0];
+				float y = attrib.vertices[3 * index.vertex_index + 1];
+				float z = attrib.vertices[3 * index.vertex_index + 2];
+				v.pos = glm::vec3(x, y, z);
 
-			float nx = attrib.normals[3 * index.normal_index + 0];
-			float ny = attrib.normals[3 * index.normal_index + 1];
-			float nz = attrib.normals[3 * index.normal_index + 2];
-			v.normal = glm::vec3(nx, ny, nz);
+				// Get bounds
+				if (v.pos.x > maxx) { maxx = v.pos.x; }
+				if (v.pos.y > maxy) { maxy = v.pos.y; }
+				if (v.pos.z > maxz) { maxz = v.pos.z; }
+				if (v.pos.x < minx) { minx = v.pos.x; }
+				if (v.pos.y < miny) { miny = v.pos.y; }
+				if (v.pos.z < minz) { minz = v.pos.z; }
 
-			float uvx = attrib.texcoords[2 * index.texcoord_index + 0];
-			float uvy = attrib.texcoords[2 * index.texcoord_index + 1];
-			v.uv = glm::vec2(uvx, uvy);
+				float nx = attrib.normals[3 * index.normal_index + 0];
+				float ny = attrib.normals[3 * index.normal_index + 1];
+				float nz = attrib.normals[3 * index.normal_index + 2];
+				v.normal = glm::vec3(nx, ny, nz);
 
-			// Find if this vert already exists
-			if (vertices.count(v) == 0) {
-				vertices[v] = static_cast<unsigned int>(vertices.size());
-				positions.push_back(v.pos);
-				normals.push_back(v.normal);
-				uvs.push_back(v.uv);
+				float uvx = attrib.texcoords[2 * index.texcoord_index + 0];
+				float uvy = attrib.texcoords[2 * index.texcoord_index + 1];
+				v.uv = glm::vec2(uvx, uvy);
+
+				// Find if this vert already exists
+				if (vertices.count(v) == 0) {
+					vertices[v] = static_cast<unsigned int>(vertices.size());
+					mesh->positions.push_back(v.pos);
+					mesh->normals.push_back(v.normal);
+					mesh->uvs.push_back(v.uv);
+				}
+
+				mesh->indices.push_back(vertices[v]);
+
 			}
-
-			indices.push_back(vertices[v]);
-
 		}
 
-		mesh->SetIndices(indices);
-		mesh->SetPositions(positions);
-		mesh->SetNormals(normals);
-		mesh->SetUvs(uvs);
 		mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
 		model->meshes.push_back(mesh);
-
 		vertices.clear();
-
-		positions.clear();
-		normals.clear();
-		uvs.clear();
-		indices.clear();
 	}
 
 	return model;
 }
 
-Material* AssetManager::LoadMaterial(const std::string& fileName, const std::string& vert, const std::string& frag) {
+Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
+	Material* m = new Material(mat.name);
+
+	m->ambient = glm::vec3(mat.ambient[0], mat.ambient[1], mat.ambient[2]);
+	m->diffuse = glm::vec3(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]);
+	m->specular = glm::vec3(mat.specular[0], mat.specular[1], mat.specular[2]);
+
+	m->specularExponent = mat.shininess;
+	m->opacity = mat.dissolve;
+	m->illum = mat.illum;
+
+	int w;
+	int h;
+	int numChannels;
+
+	Texture* t;
+	if (mat.ambient_texname != "") {
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.ambient_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		t = new Texture(w, h, numChannels, pixels);
+		textures.push_back(t);
+		ambientTextures.resize(ambientTextures.size() + 1);
+		m->ambientTexture = t;
+		m->ambientIndex = static_cast<int>(ambientTextures.size() - 1);
+	}
+
+	if (mat.diffuse_texname != "") {
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.diffuse_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		t = new Texture(w, h, numChannels, pixels);
+		textures.push_back(t);
+		diffuseTextures.resize(diffuseTextures.size() + 1);
+		m->diffuseTexture = t;
+		m->diffuseIndex = static_cast<int>(diffuseTextures.size() - 1);
+	}
+
+	if (mat.specular_texname != "") {
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.specular_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		t = new Texture(w, h, numChannels, pixels);
+		textures.push_back(t);
+		specularTextures.resize(specularTextures.size() + 1);
+		m->specularTexture = t;
+		m->specularIndex = static_cast<int>(specularTextures.size() - 1);
+	}
+
+	if (mat.specular_highlight_texname != "") {
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.specular_highlight_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		t = new Texture(w, h, numChannels, pixels);
+		textures.push_back(t);
+		specularHighLightTextures.resize(specularHighLightTextures.size() + 1);
+		m->specularHighLightTexture = t;
+		m->specularHighLightIndex = static_cast<int>(specularHighLightTextures.size() - 1);
+	}
+
+	if (mat.bump_texname != "") {
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		t = new Texture(w, h, numChannels, pixels);
+		textures.push_back(t);
+		bumpTextures.resize(bumpTextures.size() + 1);
+		m->bumpTexture = t;
+		m->bumpIndex = static_cast<int>(bumpTextures.size() - 1);
+	}
+
+	if (mat.displacement_texname != "") {
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.displacement_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		t = new Texture(w, h, numChannels, pixels);
+		textures.push_back(t);
+		displacementTextures.resize(displacementTextures.size() + 1);
+		m->displacementTexture = t;
+		m->displacementIndex = static_cast<int>(displacementTextures.size() - 1);
+	}
+
+	if (mat.alpha_texname != "") {
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.alpha_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		t = new Texture(w, h, numChannels, pixels);
+		textures.push_back(t);
+		alphaTextures.resize(alphaTextures.size() + 1);
+		m->alphaTexture = t;
+		m->alphaIndex = static_cast<int>(alphaTextures.size() - 1);
+	}
+
+	t = nullptr;
+	return m;
+}
+
+Material* AssetManager::LoadMaterial(const std::string& fileName) {
 
 	//TODO: Only works for 1 material per .mtl file
 
 
 	// Check for existing material
 	for (int i = 0; i < materials.size(); i++) {
-		if (materials[i]->filename == fileName && materials[i]->vertFile == vert && materials[i]->fragFile == frag) {
+		if (materials[i]->filename == fileName) {
 			return materials[i];
 		}
 	}
 
-	Material* m = new Material(fileName, vert, frag);
+	Material* m = new Material(fileName);
 
 	FILE *fp;
 	char line[1024]; //Assumes no line is longer than 1024 characters!
@@ -622,6 +785,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 	GameObject* currGameObject = nullptr;
 	Model* currModel = nullptr;
 	Material* currMaterial = nullptr;
+	Shader* currShader = nullptr;
 
 	//Loop through reading each line
 	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
@@ -648,6 +812,10 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 
 			sscanf(line, "gameObject %s", name);
 			currGameObject->name = name;
+
+			currModel = nullptr;
+			currMaterial = nullptr;
+
 		} else if (strcmp(command, "component") == 0) {
 			char type[1024];
 
@@ -680,11 +848,18 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 
 			sscanf(line, "model %s", &filename);
 
-			currModel = tinyLoadObj(filename);
+			currModel = tinyLoadObj(filename, currMaterial == nullptr);
 			currModel->name = currGameObject->name;
 
 			// TODO: Hack for now, but eventually need to support materials in obj
-			currModel->materials.push_back(currMaterial);
+			if (currMaterial != nullptr) {
+				currModel->materials.push_back(currMaterial);
+			}
+
+			for (int i = 0; i < currModel->materials.size(); i++) {
+				currModel->materials[i]->shader = shaders[shaders.size() - 1];
+			}
+
 		} else if (strcmp(command, "fbx") == 0) {
 			char filename[1024];
 
@@ -693,13 +868,19 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 			LoadFBX(filename);
 		} else if (strcmp(command, "material") == 0) { // If the command is a material
 			char filename[1024];
+
+			sscanf(line, "material  %s",
+				&filename);
+
+			currMaterial = LoadMaterial(filename);
+		} else if (strcmp(command, "shader") == 0) {
 			char vert[1024];
 			char frag[1024];
 
-			sscanf(line, "material %s %s %s",
-				&filename, &vert, &frag);
+			sscanf(line, "shader %s %s",
+				&vert, &frag);
 
-			currMaterial = LoadMaterial(filename, vert, frag);
+			shaders.push_back(new Shader(vert, frag));
 		} else {
 			fprintf(stderr, "WARNING. Do not know command: %s\n", command);
 		}
@@ -713,6 +894,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 	currMaterial = nullptr;
 	currModel = nullptr;
 	currGameObject = nullptr;
+	currShader = nullptr;
 
 }
 
@@ -762,198 +944,3 @@ void AssetManager::LoadTextureToGPU(const std::string texType, const int vecInde
 	stbi_image_free(tex->pixels);
 }
 
-
-// Unused
-Model* AssetManager::LoadObj(const std::string fileName) {
-	FILE *fp;
-	char line[1024]; //Assumes no line is longer than 1024 characters!
-
-	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
-
-	// open the file containing the scene description
-	fp = fopen(fullFile.c_str(), "r");
-
-	// check for errors in opening the file
-	if (fp == NULL) {
-		fprintf(stderr, "Can't open file '%s'\n", fullFile.c_str());
-		exit(1);
-	}
-
-	// For calculating bounds
-	float minx = INFINITY;
-	float miny = INFINITY;
-	float minz = INFINITY;
-	float maxx = -INFINITY;
-	float maxy = -INFINITY;
-	float maxz = -INFINITY;
-
-	std::vector<glm::vec3> rawVerts;
-	std::vector<glm::vec3> rawNormals;
-	std::vector<glm::vec2> rawUvs;
-
-	std::vector<glm::vec3> verts;
-	std::vector<glm::vec3> normals;
-	std::vector<glm::vec2> uvs;
-	std::vector<unsigned int> indices;
-
-
-	struct vertData {
-		int v;
-		int uv;
-		int n;
-
-		bool operator==(const vertData& rhs) {
-			if (v != rhs.v) { return false; }
-			if (uv != rhs.uv) { return false; }
-			if (n != rhs.n) { return false; }
-
-			return true;
-		}
-	};
-	std::vector<vertData> vertMap;
-
-
-	Model* model = nullptr;
-	Mesh* mesh = nullptr;
-	int nextIndex = 0;
-	//Loop through reading each line
-	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
-		if (line[0] == '#') {
-			//fprintf(stderr, "Skipping comment: %s", line);
-			continue;
-		}
-
-		char command[1024];
-		int fieldsRead = sscanf(line, "%s ", command); //Read first word in the line (i.e., the command type)
-
-		if (fieldsRead < 1) { //No command read
-			//Blank line
-			continue;
-		}
-
-		if (line[0] == '#') {
-			//fprintf(stderr, "Skipping comment: %s", line);
-			continue;
-		}
-
-		// vertex
-		if (strcmp(command, "v") == 0) {
-			glm::vec3 v;
-
-			sscanf(line, "v %f %f %f", &v.x, &v.y, &v.z);
-			rawVerts.push_back(v);
-
-			if (v.x > maxx) { maxx = v.x; }
-			if (v.y > maxy) { maxy = v.y; }
-			if (v.z > maxz) { maxz = v.z; }
-			if (v.x < minx) { minx = v.x; }
-			if (v.y < miny) { miny = v.y; }
-			if (v.z < minz) { minz = v.z; }
-		}
-		// uvs
-		else if (strcmp(command, "vt") == 0) {
-			glm::vec2 uv;
-
-			sscanf(line, "vt %f %f", &uv.x, &uv.y);
-			rawUvs.push_back(uv);
-		}
-		// normals
-		else if (strcmp(command, "vn") == 0) {
-			glm::vec3 n;
-
-			sscanf(line, "vn %f %f %f", &n.x, &n.y, &n.z);
-			rawNormals.push_back(glm::normalize(n));
-		}
-		// face
-		else if (strcmp(command, "f") == 0) {
-			int vert_info[3][3];
-
-			sscanf(line, "f %d/%d/%d %d/%d/%d %d/%d/%d",
-				&vert_info[0][0], &vert_info[0][1], &vert_info[0][2],
-				&vert_info[1][0], &vert_info[1][1], &vert_info[1][2],
-				&vert_info[2][0], &vert_info[2][1], &vert_info[2][2]);
-			// https://stackoverflow.com/questions/23349080/opengl-index-buffers-difficulties/23356738#23356738
-
-			for (int i = 0; i < 3; i++) {
-				vertData temp_vert = vertData{
-					temp_vert.v = vert_info[i][0],
-					temp_vert.uv = vert_info[i][1],
-					temp_vert.n = vert_info[i][2]
-				};
-
-				bool exists = false;
-				for (int j = 0; j < vertMap.size(); j++) {
-					if (temp_vert == vertMap[j]) {
-						exists = true;
-						indices.push_back(j);
-						break;
-					}
-				}
-
-				if (!exists) {
-					indices.push_back(nextIndex);
-					vertMap.push_back(temp_vert);
-					nextIndex++;
-					verts.push_back(rawVerts[temp_vert.v - 1]);
-					uvs.push_back(rawUvs[temp_vert.uv - 1]);
-					normals.push_back(rawNormals[temp_vert.n - 1]);
-				}
-			}
-			// We have reached a new obj here, time to store our data and start again
-		} else if (strcmp(command, "o") == 0) {
-
-			// Init our model and mesh for our first obj
-			if (model == nullptr) {
-				model = new Model();
-				mesh = new Mesh();
-				continue;
-			}
-
-			// This is not our first obj, thus we must save data
-			mesh->SetPositions(verts);
-			mesh->SetNormals(normals);
-			mesh->SetUvs(uvs);
-			mesh->SetIndices(indices);
-
-			rawVerts.clear();
-			rawNormals.clear();
-			rawUvs.clear();
-
-			verts.clear();
-			normals.clear();
-			uvs.clear();
-			indices.clear();
-
-			mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
-			minx = INFINITY;
-			miny = INFINITY;
-			minz = INFINITY;
-			maxx = -INFINITY;
-			maxy = -INFINITY;
-			maxz = -INFINITY;
-
-			model->meshes.push_back(mesh);
-			mesh = new Mesh();
-		} else { continue; }
-	}
-
-	mesh->SetPositions(verts);
-	mesh->SetNormals(normals);
-	mesh->SetUvs(uvs);
-	mesh->SetIndices(indices);
-
-	rawVerts.clear();
-	rawNormals.clear();
-	rawUvs.clear();
-
-	verts.clear();
-	normals.clear();
-	uvs.clear();
-	indices.clear();
-
-	mesh->bounds = new Bounds(minx, miny, minz, maxx, maxy, maxz);
-
-	model->meshes.push_back(mesh);
-	AssetManager::models.push_back(model);
-	return model;
-}

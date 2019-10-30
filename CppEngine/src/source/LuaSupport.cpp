@@ -12,6 +12,7 @@ void luaSetup(sol::state& L) {
 	L.set_function("addModel", &addModel);
 	L.set_function("addInstance", &addInstance);
 	L.set_function("placeInstance", &placeInstance);
+	L.set_function("scaleInstance", &scaleInstance);
 
 }
 
@@ -37,6 +38,11 @@ int addInstance(const std::string& gameObjectName) {
 		g->components[i]->gameObject = g;
 	}
 	return static_cast<int>(mainScene->instances.size() - 1);
+}
+
+int scaleInstance(const int& index, const float& x, const float& y, const float& z) {
+	mainScene->instances[index]->transform->scale = glm::vec3(x, y, z);
+	return 1;
 }
 
 int placeInstance(const int& index, const float& x, const float& y, const float& z) {

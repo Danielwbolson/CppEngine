@@ -18,6 +18,8 @@ public:
 	Bounds(const Bounds&);
 	Bounds& operator=(const Bounds& b);
 
+	void Init();
+
 	glm::vec3 Max(const glm::mat4 t);
 	glm::vec3 Min(const glm::mat4 t);
 

@@ -10,16 +10,10 @@
 #include <vector>
 
 class Mesh {
-
-private:
-    int numPositions;
-    int numNormals;
-    int numIndices;
-
 public:
     std::string name;
 
-    std::vector<glm::vec3> pos;
+    std::vector<glm::vec3> positions;
     std::vector<glm::vec3> normals;
     std::vector<glm::vec2> uvs;
     std::vector<unsigned int> indices;
@@ -31,20 +25,6 @@ public:
     Mesh(std::vector<glm::vec3>, std::vector<glm::vec3>, std::vector<glm::vec2>, std::vector<unsigned int>);
 
     std::string ComponentType() const { return "mesh"; }
-
-    int NumPositions() const { return numPositions; }
-    int NumNorms() const { return numNormals; }
-    int NumIndices() const { return numIndices; }
-
-    std::vector<glm::vec3>* Pos() { return &pos; }
-    std::vector<glm::vec3>* Normals() { return &normals; }
-    std::vector<glm::vec2>* UVs() { return &uvs; }
-    std::vector<unsigned int>* Indices() { return &indices; }
-
-    void SetPositions(const std::vector<glm::vec3>& p) { pos = std::vector<glm::vec3>(p.size()); pos = p; numPositions = (int)pos.size(); }
-    void SetNormals(const std::vector<glm::vec3>& n) { normals = std::vector<glm::vec3>(n.size()); normals = n; numNormals = (int)normals.size(); }
-    void SetUvs(const std::vector<glm::vec2>& u) { uvs = std::vector<glm::vec2>(u.size()); uvs = u; }
-    void SetIndices(const std::vector<unsigned int>& ind) { indices = std::vector<unsigned int>(ind.size()); indices = ind; numIndices = (int)indices.size(); }
 
 };
 #endif

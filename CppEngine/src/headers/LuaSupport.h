@@ -16,5 +16,6 @@ int addPointLight(const float&, const float&, const float&, const float&, const 
 int addModel();
 int addInstance(const std::string&);
 int placeInstance(const int&, const float&, const float&, const float&);
+int scaleInstance(const int&, const float&, const float&, const float&);
 
 #endif // LUA_SUPPORT_H_

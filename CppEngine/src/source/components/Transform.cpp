@@ -106,6 +106,10 @@ void Transform::Translate(const glm::vec3& amount) {
 	model = glm::translate(model, amount);
 }
 
+void Transform::Scale(const glm::vec3& amount) {
+	model = glm::scale(model, amount);
+}
+
 void Transform::Update(const float& dt) {
     position += velocity * dt;
 
@@ -113,6 +117,7 @@ void Transform::Update(const float& dt) {
 	Translate(position + velocity * dt);
 	Rotate(-rotation.x, glm::vec3(0, 1, 0));
 	Rotate(-rotation.y, glm::vec3(1, 0, 0));
+	Scale(scale);
 	
     forward = -glm::vec3(model[2]);
     up = glm::vec3(model[1]);

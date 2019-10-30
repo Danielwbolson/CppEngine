@@ -66,10 +66,13 @@ add_library(glad ${glad_src})
 file(GLOB lua_src external/lua-5.3.5/src/*.c)
 add_library(lua ${lua_src})
 
-file(GLOB obfx_src 
+file(GLOB ofbx_src 
 	external/OpenFBX/src/*.c
 	external/OpenFBX/src/*.cpp)
-add_library(obfx ${obfx_src})
+add_library(ofbx ${ofbx_src})
+
+file(GLOB tinyobj_src external/tinyobjloader/*.cc)
+add_library(tinyobj ${tinyobj_src})
 
 
 
@@ -158,10 +161,12 @@ set(UTILITY_CPP
 set(OTHER_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/MainVariables.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/LuaSupport.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/Shader.h
 )
 set(OTHER_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/main.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/LuaSupport.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/Shader.cpp
 )
 
 set(SHADERS
@@ -234,7 +239,7 @@ if (MSVC)
 	target_compile_options(CppEngine PRIVATE "/MP")
 endif()
 
-target_link_libraries(CppEngine ${LIBS} glad lua obfx)
+target_link_libraries(CppEngine ${LIBS} glad lua ofbx tinyobj)
 
 # Put necessary lib files in our build directory
 add_custom_command(TARGET CppEngine POST_BUILD

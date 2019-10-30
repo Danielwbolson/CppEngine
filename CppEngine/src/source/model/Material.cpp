@@ -6,8 +6,6 @@
 Material::Material() {}
 
 Material::~Material() {
-	glDeleteProgram(shaderProgram);
-
 	ambientTexture = nullptr;
 	diffuseTexture = nullptr;
 	specularTexture = nullptr;
@@ -17,10 +15,6 @@ Material::~Material() {
 	alphaTexture = nullptr;
 }
 
-Material::Material(const std::string& filename, const std::string& vert, const std::string& frag) {
+Material::Material(const std::string& filename) {
 	this->filename = filename;
-	vertFile = vert;
-	fragFile = frag;
-
-    this->shaderProgram = util::initShaderFromFiles(vert, frag);
 }
