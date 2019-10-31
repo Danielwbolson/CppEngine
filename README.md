@@ -17,6 +17,6 @@ Make sure you change CMakeLists.txt lines 36-40 to the appropriate location of y
 <br/>
 To run, navigate to the root directory. You should see src/, materials/, etc.
 
-Run: ./build/Debug/CppEngine.exe games/`<gameFolder>`/
+Run: `./build/Debug/CppEngine.exe games/<gameFolder>/`
 
-You can run it currently with games/demo/ to see a complex, basically animated, textured set of models with many light volumes
+You can run it currently with games/demo/ to see a complex, basically animated, textured set of models with many light volumes.
