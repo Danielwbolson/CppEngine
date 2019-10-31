@@ -2,7 +2,7 @@
 
 A Deferred Rendering "engine". Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects.
 Engine Features:
-- Engine-Component-Systems Architecture
+- Entity-Component-Systems Architecture
 - Deferred Lighting
 - Point Light Volumes
 - Material and texturing support (Not normal maps or displacement maps yet)
