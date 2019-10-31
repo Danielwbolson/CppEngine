@@ -8,13 +8,15 @@ Engine Features:
 - Material and texturing support (Not normal maps or displacement maps yet)
 
 Was started as part of a final project for CSCI5607 in the Fall of 2018 at the University of Minnesota.
-</br>
-</br>
+<br/>
+<br/>
+<br/>
 Make sure you change CMakeLists.txt lines 36-40 to the appropriate location of your SDL download.
-</br>
-</br>
+<br/>
+<br/>
+<br/>
 To run, navigate to the root directory. You should see src/, materials/, etc.
 
-Run: ./build/Debug/CppEngine.exe games/<gameFolder>/
+Run: ./build/Debug/CppEngine.exe games/`<gameFolder>`/
 
 You can run it currently with games/demo/ to see a complex, basically animated, textured set of models with many light volumes
