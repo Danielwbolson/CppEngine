@@ -55,7 +55,6 @@ ModelRendererSystem::~ModelRendererSystem() {
 	modelRenderers.clear();
 
 	pointLights.clear();
-	modelRenderers.clear();
 	lightPositions.clear();
 }
 
