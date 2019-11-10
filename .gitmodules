@@ -1,0 +1,15 @@
+[submodule "CppEngine/external/sol2"]
+	path = CppEngine/external/sol2
+	url = https://github.com/ThePhD/sol2
+[submodule "CppEngine/external/imgui"]
+	path = CppEngine/external/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "CppEngine/external/stb"]
+	path = CppEngine/external/stb
+	url = https://github.com/nothings/stb.git
+[submodule "CppEngine/external/OpenFBX"]
+	path = CppEngine/external/OpenFBX
+	url = https://github.com/nem0/OpenFBX.git
+[submodule "CppEngine/external/tinyobjloader"]
+	path = CppEngine/external/tinyobjloader
+	url = https://github.com/syoyo/tinyobjloader.git
