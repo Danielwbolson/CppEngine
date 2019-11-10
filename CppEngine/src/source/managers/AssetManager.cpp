@@ -152,7 +152,7 @@ void AssetManager::LoadFBX(const std::string fileName) {
 	iscene = ofbx::load((ofbx::u8*)content, file_size, (ofbx::u64)ofbx::LoadFlags::TRIANGULATE);
 
 	if (!iscene) {
-		OutputDebugString(ofbx::getError());
+		fprintf(stderr, "%s", (ofbx::getError()));
 	}
 
 	delete[] content;

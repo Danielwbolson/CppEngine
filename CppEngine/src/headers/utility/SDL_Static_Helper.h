@@ -33,7 +33,7 @@ namespace SDL_Input {
         //Ask SDL to get a recent version of OpenGL (4.1 or greater)
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     
         //Create a window (offsetx, offsety, width, height, flags)
         *window = SDL_CreateWindow("My OpenGL Program", 100, 100,

@@ -17,14 +17,15 @@ public:
 
 	std::string filename;
 
+	// Values
 	glm::vec3 ambient = glm::vec3(0.1, 0.1, 0.1);
 	glm::vec3 diffuse = glm::vec3(1, 1, 1);
 	glm::vec3 specular = glm::vec3(.1, .1, .1);
-
 	float specularExponent = 10;
 	float opacity = 1;
 	int illum = 2;
 
+	// References to textures, may be nullptr
 	Texture* ambientTexture				= nullptr; // map_ka
 	Texture* diffuseTexture				= nullptr; // map_kd
 	Texture* specularTexture			= nullptr; // map_ks
@@ -33,6 +34,7 @@ public:
 	Texture* displacementTexture		= nullptr; // disp
 	Texture* alphaTexture				= nullptr; // map_d
 
+	// Index of GLuint for textures in shader. Actual gluint stored in AssetManager
 	int ambientIndex			= -1;
 	int diffuseIndex			= -1;
 	int specularIndex			= -1;
@@ -43,11 +45,33 @@ public:
 
 	Shader* shader = nullptr;
 
+	// Uniform location caches
+	GLint uniModel;
+	GLint uniView;
+	GLint uniProj;
 
+	GLint uniAmbient;
+	GLint uniDiffuse;
+	GLint uniSpecular;
+	GLint uniSpecularExp;
+	GLint uniOpacity;
+
+	GLint uniAmbientTex;
+	GLint uniDiffuseTex;
+	GLint uniSpecularTex;
+	GLint uniSpecularHighLightTex;
+	GLint uniBumpTex;
+	GLint uniDisplacementTex;
+	GLint uniAlphaTex;
+
+
+	// Functions
     Material();
 	~Material();
 
     Material(const std::string& filename);
+
+	void InitUniforms();
 
     Material operator=(const Material&);
 	bool operator==(const Material&) const;

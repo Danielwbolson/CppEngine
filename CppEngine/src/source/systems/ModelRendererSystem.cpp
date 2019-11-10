@@ -15,13 +15,6 @@
 
 #include "glm/gtc/type_ptr.hpp"
 
-void checkGLError(const std::string& s) { 
-    GLenum err;
-    if ((err = glGetError()) != 0) {
-        std::cout << s + " :" << err << std::endl;
-    }
-}
-
 ModelRendererSystem::ModelRendererSystem(const int& sW, const int& sH) {
     screenWidth = sW;
     screenHeight = sH;
@@ -75,7 +68,12 @@ void ModelRendererSystem::Setup() {
         }
     }
 
+	glEnable(GL_DEBUG_OUTPUT);
+	glDebugMessageCallback(util::DebugMessageCallback, 0);
+
     glEnable(GL_DEPTH_TEST);
+	glEnable(GL_CULL_FACE);
+	glBlendFunc(GL_ONE, GL_ONE);
 
     // Set up our shader for rendering to the texture
     combinedShader = util::initShaderFromFiles("deferredLightVolumes.vert", "deferredLightVolumes.frag");
@@ -236,12 +234,18 @@ void ModelRendererSystem::Register(const Component* c) {
 			assetManager->LoadTextureToGPU("alpha", mat->alphaIndex, 6, mat->alphaTexture);
 		}
 
+		mat->InitUniforms();
 		mat = nullptr;
 	}
 }
 
 void ModelRendererSystem::Render() {
-	checkGLError("Top of render");
+
+	// C++ here is actually incredibly small proportion of actual code runtime
+	// Only 8-9% of actual bottleneck. Almost everything is in SwapBuffers with queued OpenGL commands
+	// Which means, the place to optimize is still in this function and it is how I am queueing up OpenGL
+	// commands or the amount of them and amount of context switches
+
 	totalTriangles = 0;
 
     // Bind our deferred texture buffer
@@ -250,7 +254,6 @@ void ModelRendererSystem::Render() {
     // Clear the screen to default color
     glClearColor(0, 0, 0, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_CULL_FACE);
 
     glm::mat4 view = mainCamera->view;
     glm::mat4 proj = mainCamera->proj;
@@ -270,25 +273,20 @@ void ModelRendererSystem::Render() {
 
 			Material* m = modelRenderers[i]->model->materials[j];
 
-			GLint uniModel = glGetUniformLocation(m->shader->shaderProgram, "model");
-			glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(model));
-			GLint uniView = glGetUniformLocation(m->shader->shaderProgram, "view");
-			glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
-			GLint uniProj = glGetUniformLocation(m->shader->shaderProgram, "proj");
-			glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
+			glUniformMatrix4fv(m->uniModel, 1, GL_FALSE, glm::value_ptr(model));
+			glUniformMatrix4fv(m->uniView, 1, GL_FALSE, glm::value_ptr(view));
+			glUniformMatrix4fv(m->uniProj, 1, GL_FALSE, glm::value_ptr(proj));
+
+			glUniform3f(m->uniAmbient, m->ambient.r, m->ambient.g, m->ambient.b);
+			glUniform3f(m->uniDiffuse, m->diffuse.r, m->diffuse.g, m->diffuse.b);
+			glUniform3f(m->uniSpecular, m->specular.r, m->specular.g, m->specular.b);
+			glUniform1f(m->uniSpecularExp, m->specularExponent);
+			glUniform1f(m->uniOpacity, m->opacity);
 
 
-			// Material variables
-			GLint uniAmbient = glGetUniformLocation(m->shader->shaderProgram, "ambient");
-			glUniform3f(uniAmbient, m->ambient.r, m->ambient.g, m->ambient.b);
-			GLint uniDiffuse = glGetUniformLocation(m->shader->shaderProgram, "diffuse");
-			glUniform3f(uniDiffuse, m->diffuse.r, m->diffuse.g, m->diffuse.b);
-			GLint uniSpecular = glGetUniformLocation(m->shader->shaderProgram, "specular");
-			glUniform3f(uniSpecular, m->specular.r, m->specular.g, m->specular.b);
-			GLint uniSpecularExp = glGetUniformLocation(m->shader->shaderProgram, "specularExp");
-			glUniform1f(uniSpecularExp, m->specularExponent);
-			GLint uniOpacity = glGetUniformLocation(m->shader->shaderProgram, "opacity");
-			glUniform1f(uniOpacity, m->opacity);
+			// How could I change the following IF statements to avoid last second state changes?
+			// Could I call specific functions?
+
 
 			// Textures and booleans
 			glActiveTexture(GL_TEXTURE0);
@@ -297,7 +295,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "ambientTex"), 0);
+			glUniform1i(m->uniAmbientTex, 0);
 
 			glActiveTexture(GL_TEXTURE0 + 1);
 			if (m->diffuseTexture != nullptr) {
@@ -305,7 +303,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "diffuseTex"), 1);
+			glUniform1i(m->uniDiffuseTex, 1);
 
 			glActiveTexture(GL_TEXTURE0 + 2);
 			if (m->specularTexture != nullptr) {
@@ -313,7 +311,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "specularTex"), 2);
+			glUniform1i(m->uniSpecularTex, 2);
 
 			glActiveTexture(GL_TEXTURE0 + 3);
 			if (m->specularHighLightTexture != nullptr) {
@@ -321,7 +319,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "specularHighLightTex"), 3);
+			glUniform1i(m->uniSpecularHighLightTex, 3);
 
 
 			glActiveTexture(GL_TEXTURE0 + 4);
@@ -330,7 +328,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "bumpTex"), 4);
+			glUniform1i(m->uniBumpTex, 4);
 
 
 			glActiveTexture(GL_TEXTURE0 + 5);
@@ -339,7 +337,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "dispTex"), 5);
+			glUniform1i(m->uniDisplacementTex, 5);
 
 
 			glActiveTexture(GL_TEXTURE0 + 6);
@@ -348,9 +346,7 @@ void ModelRendererSystem::Render() {
 			} else {
 				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 			}
-			glUniform1i(glGetUniformLocation(m->shader->shaderProgram, "alphaTex"), 6);
-
-			checkGLError("After texture bind");
+			glUniform1i(m->uniAlphaTex, 6);
 
 			// Indices
 			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, modelRenderers[i]->vbos[j][3]);
@@ -361,8 +357,6 @@ void ModelRendererSystem::Render() {
 			glDrawElements(GL_TRIANGLES, static_cast<int>(modelRenderers[i]->model->meshes[j]->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 		}
     }
-
-	checkGLError("After draw to textures");
     
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, screenWidth, screenHeight);
@@ -370,7 +364,6 @@ void ModelRendererSystem::Render() {
     glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
-	glBlendFunc(GL_ONE, GL_ONE);
 
     glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
     glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
@@ -400,6 +393,10 @@ void ModelRendererSystem::Render() {
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
 
+	GLint pvm = glGetUniformLocation(combinedShader, "pvm");
+	GLint lightPos = glGetUniformLocation(combinedShader, "lightPos");
+	GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
+
     // instead of drawing arrays, draw spheres at each light position
     for (int i = 0; i < pointLights.size(); i++) {
         glm::vec4 pos = pointLights[i].position;
@@ -424,11 +421,9 @@ void ModelRendererSystem::Render() {
 			glCullFace(GL_BACK);
 		}
 
-        GLint pvm = glGetUniformLocation(combinedShader, "pvm");
+
         glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
-        GLint lightPos = glGetUniformLocation(combinedShader, "lightPos");
         glUniform4f(lightPos, pos.x, pos.y, pos.z, pos.w);
-        GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
         glUniform4f(lightCol, color.r, color.g, color.b, color.a);
 
 		totalTriangles += static_cast<int>(lightSphere->indices.size()) / 3;
@@ -444,9 +439,10 @@ void ModelRendererSystem::Render() {
 
 bool ModelRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
 	
-	Bounds b = *(mesh->bounds);
-	glm::vec3 maxPoint = b.Max(model);
-	glm::vec3 minPoint = b.Min(model);
+	// Not dereferencing and caching bounds moved my ModelRendererSystem::Render call from 10.11% 
+	// of total time used to 8.66%. Insignificant change, could be randomness or difference in view
+	glm::vec3 maxPoint = mesh->bounds->Max(model);
+	glm::vec3 minPoint = mesh->bounds->Min(model);
 
 	/* https://fgiesen.wordpress.com/2010/10/17/view-frustum-culling/ 
 	* Method 4 
