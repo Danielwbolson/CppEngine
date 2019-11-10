@@ -23,7 +23,7 @@ ModelRendererSystem::ModelRendererSystem(const int& sW, const int& sH) {
     pointLights = std::vector<PointLight>();
 
 	// We know that this is a mesh, not a model
-    lightSphere = (assetManager->tinyLoadObj("sphere.obj"))->meshes[0];
+    lightVolume = (assetManager->tinyLoadObj("cube.obj"))->meshes[0];
 }
 
 ModelRendererSystem::~ModelRendererSystem() {
@@ -83,14 +83,14 @@ void ModelRendererSystem::Setup() {
 
     glGenBuffers(1, &lightVolume_Vbo);
     glBindBuffer(GL_ARRAY_BUFFER, lightVolume_Vbo);
-    glBufferData(GL_ARRAY_BUFFER, lightSphere->positions.size() * 3 * sizeof(float), &(lightSphere->positions[0]), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, lightVolume->positions.size() * 3 * sizeof(float), &(lightVolume->positions[0]), GL_STATIC_DRAW);
     glEnableVertexAttribArray(glGetAttribLocation(combinedShader, "inPos"));
     glVertexAttribPointer(glGetAttribLocation(combinedShader, "inPos"), 3, GL_FLOAT, GL_FALSE, 0, 0);
 
     // index buffer for sphere
     glGenBuffers(1, &lightVolume_Ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightSphere->indices.size() * sizeof(GL_UNSIGNED_INT), &(lightSphere->indices[0]), GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightVolume->indices.size() * sizeof(GL_UNSIGNED_INT), &(lightVolume->indices[0]), GL_STATIC_DRAW);
     glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
     /*glGenVertexArrays(1, &quadVao);
@@ -257,6 +257,7 @@ void ModelRendererSystem::Render() {
 
     glm::mat4 view = mainCamera->view;
     glm::mat4 proj = mainCamera->proj;
+	glm::mat4 projView = proj * view;
 
     // Get all of our meshRenderers to draw to textures
     for (int i = 0; i < modelRenderers.size(); i++) {
@@ -266,7 +267,7 @@ void ModelRendererSystem::Render() {
 		for (int j = 0; j < modelRenderers[i]->numMeshes; j++) {
 
 			// Pre-emptively frustum cull unnecessary meshes
-			if (FrustumCull(modelRenderers[i]->model->meshes[j], model, proj * view)) { continue; }
+			if (FrustumCull(modelRenderers[i]->model->meshes[j], model, projView)) { continue; }
 
 			glUseProgram(modelRenderers[i]->model->materials[j]->shader->shaderProgram);
 			glBindVertexArray(modelRenderers[i]->vaos[j]);
@@ -410,12 +411,13 @@ void ModelRendererSystem::Render() {
         model = glm::scale(model, lum * glm::vec3(radius, radius, radius));
 
 		// Pre-emptively frustum cull unnecessary meshes
-		if (FrustumCull(lightSphere, model, proj * view)) { continue; }
+		if (FrustumCull(lightVolume, model, projView)) { continue; }
 
-		glm::mat4 pvmMatrix = proj * view * model;
+		glm::mat4 pvmMatrix = projView * model;
 
 		// Switch culling if inside light volume
-		if (glm::length(camPos - glm::vec3(pos.x, pos.y, pos.z)) < lum * radius) {
+		float diagRad = sqrt(lum * radius * radius + lum * radius * radius);
+		if (glm::length(camPos - glm::vec3(pos.x, pos.y, pos.z)) < diagRad) {
 			glCullFace(GL_FRONT);
 		} else {
 			glCullFace(GL_BACK);
@@ -426,10 +428,10 @@ void ModelRendererSystem::Render() {
         glUniform4f(lightPos, pos.x, pos.y, pos.z, pos.w);
         glUniform4f(lightCol, color.r, color.g, color.b, color.a);
 
-		totalTriangles += static_cast<int>(lightSphere->indices.size()) / 3;
+		totalTriangles += static_cast<int>(lightVolume->indices.size()) / 3;
 
         // User our shader and draw our program
-        glDrawElements(GL_TRIANGLES, static_cast<int>(lightSphere->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
+        glDrawElements(GL_TRIANGLES, static_cast<int>(lightVolume->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
     }
 
 	glCullFace(GL_BACK);

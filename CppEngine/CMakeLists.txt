@@ -38,6 +38,9 @@ elseif(MSVC)
   #link_directories( ${LAPTOP_SDL}lib/x64)
   #set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)
   
+  #find_file(SDL2_INCLUDE_DIR NAME SDL.h HINTS SDL2)
+  #find_library(SDL2_LIBRARY NAME SDL2)
+  
   set( SDL2_LIBRARIES SDL2 SDL2main )
 endif()
 

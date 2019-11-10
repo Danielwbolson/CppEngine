@@ -50,7 +50,7 @@ private:
     GLuint quadVao; GLuint quadVbo;
     GLuint combinedShader;
 
-    Mesh* lightSphere;
+    Mesh* lightVolume;
 
 public:
 	int totalTriangles = 0;
