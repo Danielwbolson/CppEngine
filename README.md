@@ -7,9 +7,7 @@ Engine Features:
 - Point Light Volumes
 - Material and texturing support (Not normal maps or displacement maps yet)
 
-Was started as part of a final project for CSCI5607 in the Fall of 2018 at the University of Minnesota.
-<br/>
-<br/>
+clone using --recursive to grab submodules
 <br/>
 Make sure you change CMakeLists.txt lines 36-40 to the appropriate location of your SDL download.
 <br/>
