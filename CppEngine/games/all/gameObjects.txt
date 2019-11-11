@@ -1,0 +1,38 @@
+
+# sponza
+gameObject sponza
+shader deferredToTexture.vert deferredToTexture.frag
+model sponza.obj
+component modelRenderer
+
+# mansion
+gameObject mansion
+shader deferredToTexture.vert deferredToTexture.frag
+model mansion.obj
+component modelRenderer
+
+# tree
+gameObject tulip
+shader deferredToTexture.vert deferredToTexture.frag
+model TULIPS_2703.obj
+component modelRenderer
+
+# Floor
+gameObject floor
+shader deferredToTexture.vert deferredToTexture.frag
+material default.mtl
+model floor.obj
+component modelRenderer
+
+# suzzane
+gameObject suzanne
+shader deferredToTexture.vert deferredToTexture.frag
+material default.mtl
+model suzanne.obj
+component modelRenderer
+
+# chalet
+gameObject chalet
+shader deferredToTexture.vert deferredToTexture.frag
+model chalet.obj
+component modelRenderer

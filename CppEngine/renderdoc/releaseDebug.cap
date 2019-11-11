@@ -2,7 +2,7 @@
     "rdocCaptureSettings": 1,
     "settings": {
         "autoStart": false,
-        "commandLine": "games/demo/",
+        "commandLine": "games/sponza/",
         "environment": [
         ],
         "executable": "C:\\Users\\Daniel\\Desktop\\CppEngine\\CppEngine\\build\\Release\\CppEngine.exe",

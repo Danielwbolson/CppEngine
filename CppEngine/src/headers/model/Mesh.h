@@ -17,6 +17,8 @@ public:
     std::vector<glm::vec3> normals;
     std::vector<glm::vec2> uvs;
     std::vector<unsigned int> indices;
+	std::vector<glm::vec3> tangents;
+	std::vector<glm::vec3> bitangents;
 
 	Bounds* bounds;
 

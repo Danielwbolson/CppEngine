@@ -11,7 +11,7 @@ ModelRenderer::ModelRenderer(Model* m) {
 	vbos.resize(model->meshes.size());
 
 	for (int i = 0; i < vaos.size(); i++) {
-		std::array<GLuint, 4> arr = { 0, 0, 0, 0 };
+		std::array<GLuint, 6> arr = { 0, 0, 0, 0, 0, 0 };
 		vbos[0] = arr;
 	}
 
@@ -20,7 +20,7 @@ ModelRenderer::ModelRenderer(Model* m) {
 
 ModelRenderer::~ModelRenderer() {
 	for (int i = 0; i < vaos.size(); i++) {
-		for (int j = 0; j < 4; j++) {
+		for (int j = 0; j < vbos[i].size(); j++) {
 			glDeleteBuffers(1, &vbos[i][j]);
 		}
 		glDeleteVertexArrays(1, &vaos[i]);

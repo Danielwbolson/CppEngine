@@ -15,7 +15,7 @@ class ModelRenderer : public Component {
 
 public:
     // 0 : position, 1 : normals, 2 : uvs, 3 : indices
-	std::vector<std::array<GLuint, 4> > vbos;
+	std::vector<std::array<GLuint, 6> > vbos;
     std::vector<GLuint> vaos;
 
 	int numMeshes;

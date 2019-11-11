@@ -20,22 +20,34 @@ uniform float specularExp;
 uniform float opacity;
 
 in vec3 fragNorm;
+in vec3 fragTan;
+in vec3 fragBitan;
 in vec3 fragPos;
 in vec2 fragUV;
 
 void main() {
 
     gPosition = fragPos;
-    gNormal = normalize(fragNorm);
 
-	vec4 a = vec4(ambient, 1) * texture(ambientTex, fragUV);
-	vec4 d = vec4(diffuse, 1) * texture(diffuseTex, fragUV);
-	float o = opacity * texture(alphaTex, fragUV).r;
+	//gNormal = texture(bumpTex, fragUV).r * fragNorm;
+	// Normal map
+	vec3 n = normalize(fragNorm);
+	vec3 t = normalize(fragTan);
+	vec3 b = normalize(fragBitan);
+	t = normalize(t - dot(t, n) * n);
+	mat3 tbn = mat3(t, b, n);
+
+	vec3 bumpNormal = normalize(texture2D(bumpTex, fragUV).rgb * 2.0 - 1.0);
+	gNormal = normalize(tbn * bumpNormal);
+
+	vec4 a = texture(ambientTex, fragUV) * 0.001 * vec4(ambient, 1);
+	vec4 d = texture(diffuseTex, fragUV) * vec4(diffuse, 1);
+	float o = texture(alphaTex, fragUV).r * opacity;
 
 	gDiffuse = vec3(a.xyz + d.xyz);
 
-	vec4 s = vec4(specular, 1) * texture(specularTex, fragUV);
+	vec3 s = texture(specularTex, fragUV).rgb * specular;
 	float sE = specularExp * texture(specularHighLightTex, fragUV).r;
 
-	gSpecularExp = vec4(s.xyz, sE);
+	gSpecularExp = vec4(s, sE);
 }

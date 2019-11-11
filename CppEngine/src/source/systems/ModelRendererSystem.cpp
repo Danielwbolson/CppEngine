@@ -212,6 +212,23 @@ void ModelRendererSystem::Register(const Component* c) {
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mr->vbos[i][3]);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, mr->model->meshes[i]->indices.size() * sizeof(GL_UNSIGNED_INT), &(mr->model->meshes[i]->indices[0]), GL_STATIC_DRAW);
 
+		// Tangents
+		glGenBuffers(1, &(mr->vbos[i][4]));
+		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][4]);
+		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->tangents.size() * sizeof(float), &(mr->model->meshes[i]->tangents[0]), GL_STATIC_DRAW);
+
+		GLint tangAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inTang");
+		glEnableVertexAttribArray(tangAttrib);
+		glVertexAttribPointer(tangAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
+		// Bitangents
+		glGenBuffers(1, &(mr->vbos[i][5]));
+		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][5]);
+		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->bitangents.size() * sizeof(float), &(mr->model->meshes[i]->bitangents[0]), GL_STATIC_DRAW);
+
+		GLint bitangAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inBitang");
+		glEnableVertexAttribArray(bitangAttrib);
+		glVertexAttribPointer(bitangAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
 		// Textures
 		// Load up either a null texture or the wanted one
@@ -220,17 +237,23 @@ void ModelRendererSystem::Register(const Component* c) {
 
 		if (mat->ambientTexture != nullptr && !mat->ambientTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("ambient", mat->ambientIndex, 0, mat->ambientTexture);
-		} else if (mat->diffuseTexture != nullptr && !mat->diffuseTexture->loadedToGPU) {
+		} 
+		if (mat->diffuseTexture != nullptr && !mat->diffuseTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("diffuse", mat->diffuseIndex, 1, mat->diffuseTexture);
-		} else if (mat->specularTexture != nullptr && !mat->specularTexture->loadedToGPU) {
+		} 
+		if (mat->specularTexture != nullptr && !mat->specularTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("specular", mat->specularIndex, 2, mat->specularTexture);
-		} else if (mat->specularHighLightTexture != nullptr && !mat->specularHighLightTexture->loadedToGPU) {
+		} 
+		if (mat->specularHighLightTexture != nullptr && !mat->specularHighLightTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("specularHighlight", mat->specularHighLightIndex, 3, mat->specularHighLightTexture);
-		} else if (mat->bumpTexture != nullptr && !mat->bumpTexture->loadedToGPU) {
+		} 
+		if (mat->bumpTexture != nullptr && !mat->bumpTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("bump", mat->bumpIndex, 4, mat->bumpTexture);
-		} else if (mat->displacementTexture != nullptr && !mat->displacementTexture->loadedToGPU) {
+		} 
+		if (mat->displacementTexture != nullptr && !mat->displacementTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("displacement", mat->displacementIndex, 5, mat->displacementTexture);
-		} else if (mat->alphaTexture != nullptr && !mat->alphaTexture->loadedToGPU) {
+		} 
+		if (mat->alphaTexture != nullptr && !mat->alphaTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("alpha", mat->alphaIndex, 6, mat->alphaTexture);
 		}
 
@@ -399,6 +422,17 @@ void ModelRendererSystem::Render() {
 	GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
 
     // instead of drawing arrays, draw spheres at each light position
+	// Tiled deferred rendering has a huge boost over deferred with light volumes in densely
+	// populated lights (like my demo). However, it performs (slightly?) worse with sparsely
+	// populated lights
+	// Assuming I want to keep deferred/light-volumes due to performing better in more realistic
+	// scenarios, how can I boost performance?
+
+	// Right now we loop through every single pixel for every single light --> WASTE
+	// We want to get that to looping through every pixel for every meaningful light
+	// - BVH --> Would be similar to frustum planes. Would need to figure out bounds of object and which bvh sections it fits in
+	// - 
+	// - Tiled-deferred
     for (int i = 0; i < pointLights.size(); i++) {
         glm::vec4 pos = pointLights[i].position;
         glm::vec4 color = pointLights[i].color;

@@ -1,0 +1,7 @@
+
+# sponza
+gameObject sponza
+shader deferredToTexture.vert deferredToTexture.frag
+model sponza.obj
+component modelRenderer
+

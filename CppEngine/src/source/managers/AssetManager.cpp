@@ -7,6 +7,7 @@
 #include <string>
 #include <stdlib.h>
 #include <unordered_map>
+#include <algorithm>
 
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
@@ -224,42 +225,53 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 			int indexOffset = 0;
 			for (int j = 0; j < shapes[i].mesh.num_face_vertices.size(); j++) {
 
-				int faceVertices = shapes[i].mesh.num_face_vertices[j];
 				int matID = shapes[i].mesh.material_ids[j];
 
-				for (int k = 0; k < faceVertices; k++) {
-					tinyobj::index_t index = shapes[i].mesh.indices[indexOffset + k];
+				vertex v[3];
+				for (int k = 0; k < 3; k++) {
+					tinyobj::index_t index = shapes[i].mesh.indices[indexOffset++];
 
-					vertex v = {};
-
+					v[k] = {};
 					float x = attrib.vertices[3 * index.vertex_index + 0];
 					float y = attrib.vertices[3 * index.vertex_index + 1];
 					float z = attrib.vertices[3 * index.vertex_index + 2];
-					v.pos = glm::vec3(x, y, z);
-
-					// Get bounds
-					if (v.pos.x > maxx) { maxx = v.pos.x; }
-					if (v.pos.y > maxy) { maxy = v.pos.y; }
-					if (v.pos.z > maxz) { maxz = v.pos.z; }
-					if (v.pos.x < minx) { minx = v.pos.x; }
-					if (v.pos.y < miny) { miny = v.pos.y; }
-					if (v.pos.z < minz) { minz = v.pos.z; }
-
+					v[k].pos = glm::vec3(x, y, z);
 					float nx = attrib.normals[3 * index.normal_index + 0];
 					float ny = attrib.normals[3 * index.normal_index + 1];
 					float nz = attrib.normals[3 * index.normal_index + 2];
-					v.normal = glm::vec3(nx, ny, nz);
-
+					v[k].normal = glm::vec3(nx, ny, nz);
 					float uvx = attrib.texcoords[2 * index.texcoord_index + 0];
-					float uvy = attrib.texcoords[2 * index.texcoord_index + 1];
-					v.uv = glm::vec2(uvx, uvy);
+					float uvy = 1.0f - attrib.texcoords[2 * index.texcoord_index + 1];
+					v[k].uv = glm::vec2(uvx, uvy);
+					// Check if new max bounds
+					if (v[k].pos.x > maxx) { maxx = v[k].pos.x; }
+					if (v[k].pos.y > maxy) { maxy = v[k].pos.y; }
+					if (v[k].pos.z > maxz) { maxz = v[k].pos.z; }
+					if (v[k].pos.x < minx) { minx = v[k].pos.x; }
+					if (v[k].pos.y < miny) { miny = v[k].pos.y; }
+					if (v[k].pos.z < minz) { minz = v[k].pos.z; }
+				}
 
+				// Compute tangents and bitangents
+				glm::vec3 deltaPos1 = v[1].pos - v[0].pos;
+				glm::vec3 deltaPos2 = v[2].pos - v[0].pos;
+				glm::vec2 deltaUV1 = v[1].uv - v[0].uv;
+				glm::vec2 deltaUV2 = v[2].uv - v[0].uv;
+
+				float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+
+				glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
+				glm::vec3 bitangent = (-deltaPos1 * deltaUV2.x - deltaPos2 * deltaUV1.x) * r;
+
+				for (int k = 0; k < 3; k++) {
 					// Find if this vert already exists
-					if (vertices[matID].count(v) == 0) {
-						vertices[matID][v] = static_cast<unsigned int>(vertices[matID].size());
-						tinyMeshes[matID]->positions.push_back(v.pos);
-						tinyMeshes[matID]->normals.push_back(v.normal);
-						tinyMeshes[matID]->uvs.push_back(v.uv);
+					if (vertices[matID].count(v[k]) == 0) {
+						vertices[matID][v[k]] = static_cast<unsigned int>(vertices[matID].size());
+						tinyMeshes[matID]->positions.push_back(v[k].pos);
+						tinyMeshes[matID]->normals.push_back(v[k].normal);
+						tinyMeshes[matID]->uvs.push_back(v[k].uv);
+						tinyMeshes[matID]->tangents.push_back(tangent);
+						tinyMeshes[matID]->bitangents.push_back(bitangent);
 
 						tinyMeshes[matID]->bounds->maxX = maxx;
 						tinyMeshes[matID]->bounds->maxY = maxy;
@@ -267,13 +279,19 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 						tinyMeshes[matID]->bounds->minX = minx;
 						tinyMeshes[matID]->bounds->minY = miny;
 						tinyMeshes[matID]->bounds->minZ = minz;
+					} else {
+						std::vector<glm::vec2>::iterator it = std::find(tinyMeshes[matID]->uvs.begin(), tinyMeshes[matID]->uvs.end(), v[k].uv);
+						auto found = std::distance(tinyMeshes[matID]->uvs.begin(), it);
+
+						tinyMeshes[matID]->tangents[found] += tangent;
+						tinyMeshes[matID]->bitangents[found] += bitangent;
 					}
 
-					tinyMeshes[matID]->indices.push_back(vertices[matID][v]);
+					tinyMeshes[matID]->indices.push_back(vertices[matID][v[k]]);
 				}
 
-				indexOffset += faceVertices;
 			}
+
 		}
 
 		for (int i = 0; i < tinyMeshes.size(); i++) {
@@ -289,41 +307,66 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 		Mesh* mesh = new Mesh();
 
 		for (const auto& shape : shapes) {
-			for (const auto& index : shape.mesh.indices) {
-				vertex v = {};
 
-				float x = attrib.vertices[3 * index.vertex_index + 0];
-				float y = attrib.vertices[3 * index.vertex_index + 1];
-				float z = attrib.vertices[3 * index.vertex_index + 2];
-				v.pos = glm::vec3(x, y, z);
+			int indexOffset = 0;
 
-				// Get bounds
-				if (v.pos.x > maxx) { maxx = v.pos.x; }
-				if (v.pos.y > maxy) { maxy = v.pos.y; }
-				if (v.pos.z > maxz) { maxz = v.pos.z; }
-				if (v.pos.x < minx) { minx = v.pos.x; }
-				if (v.pos.y < miny) { miny = v.pos.y; }
-				if (v.pos.z < minz) { minz = v.pos.z; }
+			for (int i = 0; i < shape.mesh.num_face_vertices.size(); i++) {
 
-				float nx = attrib.normals[3 * index.normal_index + 0];
-				float ny = attrib.normals[3 * index.normal_index + 1];
-				float nz = attrib.normals[3 * index.normal_index + 2];
-				v.normal = glm::vec3(nx, ny, nz);
+				vertex v[3];
+				for (int j = 0; j < 3; j++) {
+					tinyobj::index_t index = shape.mesh.indices[indexOffset++];
 
-				float uvx = attrib.texcoords[2 * index.texcoord_index + 0];
-				float uvy = attrib.texcoords[2 * index.texcoord_index + 1];
-				v.uv = glm::vec2(uvx, uvy);
-
-				// Find if this vert already exists
-				if (vertices.count(v) == 0) {
-					vertices[v] = static_cast<unsigned int>(vertices.size());
-					mesh->positions.push_back(v.pos);
-					mesh->normals.push_back(v.normal);
-					mesh->uvs.push_back(v.uv);
+					v[j] = {};
+					float x = attrib.vertices[3 * index.vertex_index + 0];
+					float y = attrib.vertices[3 * index.vertex_index + 1];
+					float z = attrib.vertices[3 * index.vertex_index + 2];
+					v[j].pos = glm::vec3(x, y, z);
+					float nx = attrib.normals[3 * index.normal_index + 0];
+					float ny = attrib.normals[3 * index.normal_index + 1];
+					float nz = attrib.normals[3 * index.normal_index + 2];
+					v[j].normal = glm::vec3(nx, ny, nz);
+					float uvx = attrib.texcoords[2 * index.texcoord_index + 0];
+					float uvy = 1.0f - attrib.texcoords[2 * index.texcoord_index + 1];
+					v[j].uv = glm::vec2(uvx, uvy);
+					// Check if new max bounds
+					if (v[j].pos.x > maxx) { maxx = v[j].pos.x; }
+					if (v[j].pos.y > maxy) { maxy = v[j].pos.y; }
+					if (v[j].pos.z > maxz) { maxz = v[j].pos.z; }
+					if (v[j].pos.x < minx) { minx = v[j].pos.x; }
+					if (v[j].pos.y < miny) { miny = v[j].pos.y; }
+					if (v[j].pos.z < minz) { minz = v[j].pos.z; }
 				}
 
-				mesh->indices.push_back(vertices[v]);
+				// Compute tangents and bitangents
+				glm::vec3 deltaPos1 = v[1].pos - v[0].pos;
+				glm::vec3 deltaPos2 = v[2].pos - v[0].pos;
+				glm::vec2 deltaUV1 = v[1].uv - v[0].uv;
+				glm::vec2 deltaUV2 = v[2].uv - v[0].uv;
 
+				float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+				glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
+				glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
+
+				for (int j = 0; j < 3; j++) {
+					// Find if this vert already exists
+					if (vertices.count(v[j]) == 0) {
+						vertices[v[j]] = static_cast<unsigned int>(vertices.size());
+						mesh->positions.push_back(v[j].pos);
+						mesh->normals.push_back(v[j].normal);
+						mesh->uvs.push_back(v[j].uv);
+						mesh->tangents.push_back(tangent);
+						mesh->bitangents.push_back(bitangent);
+
+					} else {
+						std::vector<glm::vec2>::iterator it = std::find(mesh->uvs.begin(), mesh->uvs.end(), v[j].uv);
+						auto found = std::distance(mesh->uvs.begin(), it);
+
+						mesh->tangents[found] += tangent;
+						mesh->bitangents[found] += bitangent;
+					}
+
+					mesh->indices.push_back(vertices[v[j]]);
+				}
 			}
 		}
 
@@ -379,7 +422,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.specular_highlight_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.specular_highlight_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.specular_highlight_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		specularHighLightTextures.resize(specularHighLightTextures.size() + 1);
@@ -388,7 +431,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.bump_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		bumpTextures.resize(bumpTextures.size() + 1);
@@ -397,7 +440,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.displacement_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.displacement_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.displacement_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		displacementTextures.resize(displacementTextures.size() + 1);
@@ -406,7 +449,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.alpha_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.alpha_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.alpha_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		alphaTextures.resize(alphaTextures.size() + 1);
@@ -904,33 +947,38 @@ void AssetManager::LoadTextureToGPU(const std::string texType, const int vecInde
 		glGenTextures(1, &ambientTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, ambientTextures[vecIndex]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "diffuse") {
 		glGenTextures(1, &diffuseTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, diffuseTextures[vecIndex]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "specular") {
 		glGenTextures(1, &specularTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, specularTextures[vecIndex]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "specularHighlight") {
 		glGenTextures(1, &specularHighLightTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, specularHighLightTextures[vecIndex]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "bump") {
 		glGenTextures(1, &bumpTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, bumpTextures[vecIndex]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "displacement") {
 		glGenTextures(1, &displacementTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, displacementTextures[vecIndex]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "alpha") {
 		glGenTextures(1, &alphaTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, alphaTextures[vecIndex]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
 	}
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
