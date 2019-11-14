@@ -38,6 +38,7 @@ public:
 	static std::vector<GLuint> specularTextures;
 	static std::vector<GLuint> specularHighLightTextures;
 	static std::vector<GLuint> bumpTextures;
+	static std::vector<GLuint> normalTextures;
 	static std::vector<GLuint> displacementTextures;
 	static std::vector<GLuint> alphaTextures;
 

@@ -32,8 +32,12 @@ void Material::InitUniforms() {
 	uniSpecularTex = glGetUniformLocation(shader->shaderProgram, "specularTex");
 	uniSpecularHighLightTex = glGetUniformLocation(shader->shaderProgram, "specularHighLightTex");
 	uniBumpTex = glGetUniformLocation(shader->shaderProgram, "bumpTex");
+	uniNormalTex = glGetUniformLocation(shader->shaderProgram, "normalTex");
 	uniDisplacementTex = glGetUniformLocation(shader->shaderProgram, "dispTex");
 	uniAlphaTex = glGetUniformLocation(shader->shaderProgram, "alphaTex");
+
+	uniUsingBump = glGetUniformLocation(shader->shaderProgram, "usingBump");
+	uniUsingNormal = glGetUniformLocation(shader->shaderProgram, "usingNormal");
 }
 
 Material::Material(const std::string& filename) {

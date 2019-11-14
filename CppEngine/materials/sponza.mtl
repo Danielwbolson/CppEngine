@@ -350,7 +350,7 @@ newmtl Material__25
 	Ke 0.0000 0.0000 0.0000
 	map_Ka lion.png
 	map_Kd lion.png
-	map_bump lion_bump.png
+	map_bump lionNRM.png
 
 newmtl roof
 	Ns 10.0000

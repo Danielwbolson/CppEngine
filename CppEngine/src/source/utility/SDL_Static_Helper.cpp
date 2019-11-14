@@ -9,5 +9,6 @@ namespace SDL_Input {
     float xRel = 0;
     float yRel = 0;
     const Uint8* keyboard;
+	KeyState keyState;
 
 }

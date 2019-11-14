@@ -57,6 +57,7 @@ std::vector<GLuint> AssetManager::diffuseTextures = std::vector<GLuint>();
 std::vector<GLuint> AssetManager::specularTextures = std::vector<GLuint>();
 std::vector<GLuint> AssetManager::specularHighLightTextures = std::vector<GLuint>();
 std::vector<GLuint> AssetManager::bumpTextures = std::vector<GLuint>();
+std::vector<GLuint> AssetManager::normalTextures = std::vector<GLuint>();
 std::vector<GLuint> AssetManager::displacementTextures = std::vector<GLuint>();
 std::vector<GLuint> AssetManager::alphaTextures = std::vector<GLuint>();
 
@@ -119,6 +120,11 @@ AssetManager::~AssetManager() {
 		glDeleteTextures(1, &bumpTextures[i]);
 	}
 	bumpTextures.clear();
+
+	for (int i = 0; i < normalTextures.size(); i++) {
+		glDeleteTextures(1, &normalTextures[i]);
+	}
+	normalTextures.clear();
 
 	for (int i = 0; i < displacementTextures.size(); i++) {
 		glDeleteTextures(1, &displacementTextures[i]);
@@ -251,7 +257,7 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 					if (v[k].pos.y < miny) { miny = v[k].pos.y; }
 					if (v[k].pos.z < minz) { minz = v[k].pos.z; }
 				}
-
+				// https://learnopengl.com/Advanced-Lighting/Normal-Mapping
 				// Compute tangents and bitangents
 				glm::vec3 deltaPos1 = v[1].pos - v[0].pos;
 				glm::vec3 deltaPos2 = v[2].pos - v[0].pos;
@@ -261,7 +267,7 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 				float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
 
 				glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
-				glm::vec3 bitangent = (-deltaPos1 * deltaUV2.x - deltaPos2 * deltaUV1.x) * r;
+				glm::vec3 bitangent = (-deltaPos1 * deltaUV2.x + deltaPos2 * deltaUV1.x) * r;
 
 				for (int k = 0; k < 3; k++) {
 					// Find if this vert already exists
@@ -395,7 +401,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 
 	Texture* t;
 	if (mat.ambient_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.ambient_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.ambient_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		ambientTextures.resize(ambientTextures.size() + 1);
@@ -404,7 +410,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.diffuse_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.diffuse_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.diffuse_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		diffuseTextures.resize(diffuseTextures.size() + 1);
@@ -413,7 +419,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.specular_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.specular_texname)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.specular_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		specularTextures.resize(specularTextures.size() + 1);
@@ -432,11 +438,25 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 
 	if (mat.bump_texname != "") {
 		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
-		t = new Texture(w, h, numChannels, pixels);
-		textures.push_back(t);
-		bumpTextures.resize(bumpTextures.size() + 1);
-		m->bumpTexture = t;
-		m->bumpIndex = static_cast<int>(bumpTextures.size() - 1);
+		
+		// bumpMap
+		if (numChannels == 1) {
+			stbi_image_free(pixels);
+			pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
+			bumpTextures.resize(bumpTextures.size() + 1);
+
+			t = new Texture(w, h, numChannels, pixels);
+			textures.push_back(t);
+			m->bumpTexture = t;
+			m->bumpIndex = static_cast<int>(bumpTextures.size() - 1);
+		} else { // normal maps
+			normalTextures.resize(normalTextures.size() + 1);
+
+			t = new Texture(w, h, numChannels, pixels);
+			textures.push_back(t);
+			m->normalTexture = t;
+			m->normalIndex = static_cast<int>(normalTextures.size() - 1);
+		}
 	}
 
 	if (mat.displacement_texname != "") {
@@ -947,17 +967,17 @@ void AssetManager::LoadTextureToGPU(const std::string texType, const int vecInde
 		glGenTextures(1, &ambientTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, ambientTextures[vecIndex]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "diffuse") {
 		glGenTextures(1, &diffuseTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, diffuseTextures[vecIndex]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "specular") {
 		glGenTextures(1, &specularTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, specularTextures[vecIndex]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tex->width, tex->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, tex->pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "specularHighlight") {
 		glGenTextures(1, &specularHighLightTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
@@ -967,6 +987,11 @@ void AssetManager::LoadTextureToGPU(const std::string texType, const int vecInde
 		glGenTextures(1, &bumpTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, bumpTextures[vecIndex]);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
+	} else if (texType == "normal") {
+		glGenTextures(1, &normalTextures[vecIndex]);
+		glActiveTexture(GL_TEXTURE0 + texIndex);
+		glBindTexture(GL_TEXTURE_2D, normalTextures[vecIndex]);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "displacement") {
 		glGenTextures(1, &displacementTextures[vecIndex]);

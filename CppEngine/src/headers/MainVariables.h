@@ -29,6 +29,7 @@ std::string gameFolder = "";
 
 sol::state lua;
 sol::function frameUpdate;
+sol::function keyInput;
 
 int windowWidth = 1200;
 int windowHeight = 800;

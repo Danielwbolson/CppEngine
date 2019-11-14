@@ -14,12 +14,17 @@
 
 namespace SDL_Input {
 
+	struct KeyState {
+		bool one, two, three, four, five, six;
+	};
+
     extern bool fullscreen;
     extern SDL_Event windowEvent;
     extern SDL_Window* _window;
     extern float xRel;
     extern float yRel;
     extern const Uint8* keyboard;
+	extern KeyState keyState;
 
     static int SDLInit(SDL_Window** window, SDL_GLContext* context, int screenWidth, int screenHeight) {
         SDL_Init(SDL_INIT_VIDEO);  //Initialize Graphics (for OpenGL)
@@ -68,6 +73,13 @@ namespace SDL_Input {
         SDL_PumpEvents();
         xRel = 0;
         yRel = 0;
+
+		keyState.one = keyboard[SDL_SCANCODE_1];
+		keyState.two = keyboard[SDL_SCANCODE_2];
+		keyState.three = keyboard[SDL_SCANCODE_3];
+		keyState.four = keyboard[SDL_SCANCODE_4];
+		keyState.five = keyboard[SDL_SCANCODE_5];
+		keyState.six = keyboard[SDL_SCANCODE_6];
 
         while (SDL_PollEvent(&windowEvent)) {
             if (windowEvent.type == SDL_QUIT) *quit = true; //Exit Game Loop

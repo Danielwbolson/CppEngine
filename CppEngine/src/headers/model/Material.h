@@ -24,6 +24,7 @@ public:
 	float specularExponent = 10;
 	float opacity = 1;
 	int illum = 2;
+	bool useTextures = true;
 
 	// References to textures, may be nullptr
 	Texture* ambientTexture				= nullptr; // map_ka
@@ -31,8 +32,12 @@ public:
 	Texture* specularTexture			= nullptr; // map_ks
 	Texture* specularHighLightTexture	= nullptr; // map_ns
 	Texture* bumpTexture				= nullptr; // map_bump
+	Texture* normalTexture				= nullptr; // map_bump
 	Texture* displacementTexture		= nullptr; // disp
 	Texture* alphaTexture				= nullptr; // map_d
+
+	bool usingBump = false;
+	bool usingNormal = false;
 
 	// Index of GLuint for textures in shader. Actual gluint stored in AssetManager
 	int ambientIndex			= -1;
@@ -40,6 +45,7 @@ public:
 	int specularIndex			= -1;
 	int specularHighLightIndex	= -1;
 	int bumpIndex				= -1;
+	int normalIndex				= -1;
 	int displacementIndex		= -1;
 	int alphaIndex				= -1;
 
@@ -61,8 +67,12 @@ public:
 	GLint uniSpecularTex;
 	GLint uniSpecularHighLightTex;
 	GLint uniBumpTex;
+	GLint uniNormalTex;
 	GLint uniDisplacementTex;
 	GLint uniAlphaTex;
+
+	GLint uniUsingBump;
+	GLint uniUsingNormal;
 
 
 	// Functions

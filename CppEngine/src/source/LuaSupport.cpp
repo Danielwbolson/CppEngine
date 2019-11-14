@@ -4,6 +4,9 @@
 #include "Scene.h"
 #include "Light.h"
 #include "PointLight.h"
+#include "ModelRenderer.h"
+#include "Model.h"
+#include "Material.h"
 
 void luaSetup(sol::state& L) {
 	L.open_libraries(sol::lib::base, sol::lib::math, sol::lib::os);
@@ -14,6 +17,9 @@ void luaSetup(sol::state& L) {
 	L.set_function("placeInstance", &placeInstance);
 	L.set_function("scaleInstance", &scaleInstance);
 	L.set_function("rotateInstance", &rotateInstance);
+	L.set_function("changeColor", &changeColor);
+	L.set_function("disableTextures", &disableTextures);
+	L.set_function("enableTextures", &enableTextures);
 
 }
 
@@ -53,5 +59,54 @@ int placeInstance(const int& index, const float& x, const float& y, const float&
 
 int rotateInstance(const int& index, const float& xRot, const float& yRot) {
 	mainScene->instances[index]->transform->rotation = glm::vec3(xRot, yRot, 0);
+	return 1;
+}
+
+int changeColor(const int& index, const float& r, const float& g, const float& b) {
+	ModelRenderer* mr = (ModelRenderer*)mainScene->instances[index]->GetComponent("modelRenderer");
+	
+	if (!mr) { return -1; }
+
+	Model* m = mr->model;
+	for (int i = 0; i < m->materials.size(); i++) {
+		m->materials[i]->ambient = glm::vec3(r, g, b);
+		m->materials[i]->diffuse = glm::vec3(r, g, b);
+	}
+
+	mr = nullptr;
+	m = nullptr;
+
+	return 1;
+}
+
+int disableTextures(const int& index) {
+	ModelRenderer* mr = (ModelRenderer*)mainScene->instances[index]->GetComponent("modelRenderer");
+
+	if (!mr) { return -1; }
+
+	Model* m = mr->model;
+	for (int i = 0; i < m->materials.size(); i++) {
+		m->materials[i]->useTextures = false;
+	}
+
+	mr = nullptr;
+	m = nullptr;
+
+	return 1;
+}
+
+int enableTextures(const int& index) {
+	ModelRenderer* mr = (ModelRenderer*)mainScene->instances[index]->GetComponent("modelRenderer");
+
+	if (!mr) { return -1; }
+
+	Model* m = mr->model;
+	for (int i = 0; i < m->materials.size(); i++) {
+		m->materials[i]->useTextures = true;
+	}
+
+	mr = nullptr;
+	m = nullptr;
+
 	return 1;
 }
