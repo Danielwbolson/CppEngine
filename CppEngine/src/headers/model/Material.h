@@ -32,7 +32,7 @@ public:
 	Texture* specularTexture			= nullptr; // map_ks
 	Texture* specularHighLightTexture	= nullptr; // map_ns
 	Texture* bumpTexture				= nullptr; // map_bump
-	Texture* normalTexture				= nullptr; // map_bump
+	Texture* normalTexture				= nullptr; // 
 	Texture* displacementTexture		= nullptr; // disp
 	Texture* alphaTexture				= nullptr; // map_d
 

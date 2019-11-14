@@ -1,0 +1,13 @@
+
+# Floor
+gameObject floor
+shader deferredToTexture.vert deferredToTexture.frag
+material default.mtl
+model floor
+component modelRenderer
+
+# cyborg
+gameObject cyborg
+shader deferredToTexture.vert deferredToTexture.frag
+model cyborg
+component modelRenderer

@@ -18,7 +18,7 @@ void main() {
     vec2 UV = 0.5 * (normalizedFragPos.xy + vec2(1.0));
 
     vec3 fragPos      = texture(gPosition, UV).rgb;
-    vec3 n            = normalize(texture(gNormal, UV).rgb);
+    vec3 normal       = normalize(texture(gNormal, UV).rgb);
     vec3 diffuseColor = texture(gDiffuse, UV).rgb;
     vec4 specExp      = texture(gSpecularExp, UV);
     
@@ -29,14 +29,14 @@ void main() {
     // light info in world space
     vec3 lightDir = normalize(lightPos.xyz - fragPos);
 
-    float ndotL = max(dot(n, lightDir), 0.0);
+    float ndotL = max(dot(normal, lightDir), 0.0);
     if (ndotL > 0.0) {
         // diffuse
         vec3 diffuse = lightCol.rgb * diffuseColor * ndotL;
 
         // specular
         vec3 h = normalize(lightDir + eye);
-        float spec = pow(max(dot(h, n), 0.0), specExp.a);
+        float spec = pow(max(dot(h, normal), 0.0), specExp.a);
         vec3 specular = specExp.rgb * spec;
 
         // attenuation

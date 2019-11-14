@@ -6,10 +6,10 @@ scaleInstance(id, 0.01, 0.01, 0.01)
 
 pointLightArray = {}
 idPoint = 1
-for i = 0,1200 do
-	local r = math.random()
-	local g = math.random()
-	local b = math.random()
+for i = 0,1000 do
+	local r = 0.945
+	local g = 0.9
+	local b = 0.8
 	local a = 1
 	
 	local x = -3 + math.random() * 30

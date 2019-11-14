@@ -187,7 +187,7 @@ template<> struct std::hash<vertex> {
 };
 Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 
-	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName;
+	std::string fullFile = VK_ROOT_DIR"meshes/" + fileName + ".obj";
 
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -222,7 +222,7 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 		}
 		std::vector<Material*> tinyMaterials = std::vector<Material*>(mats.size());
 		for (int i = 0; i < mats.size(); i++) {
-			tinyMaterials[i] = tinyLoadMaterial(mats[i]);
+			tinyMaterials[i] = tinyLoadMaterial(mats[i], fileName);
 			model->materials.push_back(tinyMaterials[i]);
 		}
 
@@ -384,7 +384,7 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 	return model;
 }
 
-Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
+Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const std::string& name) {
 	Material* m = new Material(mat.name);
 
 	m->ambient = glm::vec3(mat.ambient[0], mat.ambient[1], mat.ambient[2]);
@@ -401,7 +401,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 
 	Texture* t;
 	if (mat.ambient_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.ambient_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.ambient_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		ambientTextures.resize(ambientTextures.size() + 1);
@@ -410,7 +410,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.diffuse_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.diffuse_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.diffuse_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		diffuseTextures.resize(diffuseTextures.size() + 1);
@@ -419,7 +419,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.specular_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.specular_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.specular_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		specularTextures.resize(specularTextures.size() + 1);
@@ -428,7 +428,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.specular_highlight_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.specular_highlight_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.specular_highlight_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		specularHighLightTextures.resize(specularHighLightTextures.size() + 1);
@@ -437,12 +437,12 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.bump_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 		
 		// bumpMap
 		if (numChannels == 1) {
 			stbi_image_free(pixels);
-			pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
+			pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
 			bumpTextures.resize(bumpTextures.size() + 1);
 
 			t = new Texture(w, h, numChannels, pixels);
@@ -460,7 +460,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.displacement_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.displacement_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.displacement_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		displacementTextures.resize(displacementTextures.size() + 1);
@@ -469,7 +469,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat) {
 	}
 
 	if (mat.alpha_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(mat.alpha_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
+		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.alpha_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
 		t = new Texture(w, h, numChannels, pixels);
 		textures.push_back(t);
 		alphaTextures.resize(alphaTextures.size() + 1);

@@ -53,3 +53,25 @@ function frameUpdate(dt)
 	rotateInstance(idMansion, math.sin(totalTime), 0)
 end
 
+function keyInput(keys)
+	if keys.one then
+		-- I have beautifully coded the below to not work at runtime...
+		--local index = addInstance("sponza")
+		--placeInstance(index, 20, 0, -10)
+		--scaleInstance(index, 0.01, 0.01, 0.01)
+		changeColor(id, 1, 0, 0)
+	elseif keys.two then
+		changeColor(id, 0, 1, 0)
+	elseif keys.three then
+		changeColor(id, 0, 0, 1)
+	elseif keys.four then
+	-- THIS ONE DOES NOT WORK AS EXPECTED
+	-- STILL LIT THO
+		disableTextures(id)
+	elseif keys.five then
+		enableTextures(id)
+	elseif keys.six then
+		changeColor(id, 1, 1, 1)
+	end
+	
+end

@@ -2,6 +2,6 @@
 # sponza
 gameObject sponza
 shader deferredToTexture.vert deferredToTexture.frag
-model sponza.obj
+model sponza
 component modelRenderer
 

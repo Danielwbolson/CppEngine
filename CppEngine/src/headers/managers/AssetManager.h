@@ -52,7 +52,7 @@ public:
 	static Scene* LoadScene(const std::string fileName);
 	static void LoadGameObjects(const std::string fileName, Scene* scene);
 	static Material* LoadMaterial(const std::string& fileName);
-	static Material* tinyLoadMaterial(const tinyobj::material_t& mat);
+	static Material* tinyLoadMaterial(const tinyobj::material_t& mat, const std::string& name);
 
 	static void LoadTextureToGPU(const std::string texType, const int vecIndex, const int texIndex, Texture* tex);
 
