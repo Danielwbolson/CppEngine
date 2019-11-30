@@ -141,13 +141,13 @@ set(MODEL_CPP
 
 set(SYSTEMS_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/ColliderSystem.h
-	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/ModelRendererSystem.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/RendererSystem.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/PhysicsSystem.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/Systems.h
 )
 set(SYSTEMS_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/ColliderSystem.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/ModelRendererSystem.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/RendererSystem.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/PhysicsSystem.cpp
 )
 

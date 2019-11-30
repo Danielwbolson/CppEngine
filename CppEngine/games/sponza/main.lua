@@ -6,7 +6,7 @@ scaleInstance(id, 0.01, 0.01, 0.01)
 
 pointLightArray = {}
 idPoint = 1
-for i = 0,1000 do
+for i = 0,800 do
 	local r = 0.945
 	local g = 0.9
 	local b = 0.8

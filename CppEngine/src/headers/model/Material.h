@@ -38,6 +38,7 @@ public:
 
 	bool usingBump = false;
 	bool usingNormal = false;
+	bool isTransparent = false;
 
 	// Index of GLuint for textures in shader. Actual gluint stored in AssetManager
 	int ambientIndex			= -1;

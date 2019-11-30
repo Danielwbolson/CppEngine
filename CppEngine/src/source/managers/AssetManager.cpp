@@ -392,8 +392,12 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const s
 	m->specular = glm::vec3(mat.specular[0], mat.specular[1], mat.specular[2]);
 
 	m->specularExponent = mat.shininess;
-	m->opacity = mat.dissolve;
 	m->illum = mat.illum;
+
+	m->opacity = mat.dissolve;
+	if (mat.dissolve < 0.999) {
+		m->isTransparent = true;
+	}
 
 	int w;
 	int h;
@@ -559,6 +563,9 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 			sscanf(line, "Tr %f",
 				&tr);
 
+			if (tr > 0.001) {
+				m->isTransparent = true;
+			}
 			m->opacity = 1.0f - tr;
 		} else if (strcmp(command, "d") == 0) {
 			float d;
@@ -566,6 +573,9 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 			sscanf(line, "d %f",
 				&d);
 
+			if (d < 0.001) {
+				m->isTransparent = true;
+			}
 			m->opacity = d;
 		} else if (strcmp(command, "illum") == 0) {
 			int illum;
@@ -914,7 +924,6 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 			currModel = tinyLoadObj(filename, currMaterial == nullptr);
 			currModel->name = currGameObject->name;
 
-			// TODO: Hack for now, but eventually need to support materials in obj
 			if (currMaterial != nullptr) {
 				currModel->materials.push_back(currMaterial);
 			}

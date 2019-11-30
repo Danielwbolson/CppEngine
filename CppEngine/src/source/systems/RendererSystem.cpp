@@ -1,5 +1,5 @@
 
-#include "ModelRendererSystem.h"
+#include "RendererSystem.h"
 #include "Utility.h"
 #include "Configuration.h"
 #include "Scene.h"
@@ -15,18 +15,22 @@
 
 #include "glm/gtc/type_ptr.hpp"
 
-ModelRendererSystem::ModelRendererSystem(const int& sW, const int& sH) {
+RendererSystem::RendererSystem(const int& sW, const int& sH) {
     screenWidth = sW;
     screenHeight = sH;
 
     modelRenderers = std::vector<ModelRenderer*>();
-    pointLights = std::vector<PointLight>();
+	meshesToDraw = std::vector<MeshToDraw>();
+	transparentToDraw = std::vector<MeshToDraw>();
+
+    pointLights = std::vector<PointLight*>();
+	pointLightsToDraw = std::vector<PointLightToDraw>();
 
 	// We know that this is a mesh, not a model
     lightVolume = (assetManager->tinyLoadObj("cube"))->meshes[0];
 }
 
-ModelRendererSystem::~ModelRendererSystem() {
+RendererSystem::~RendererSystem() {
     glDeleteProgram(combinedShader);
 
     glDeleteBuffers(1, &quadVbo);
@@ -47,16 +51,19 @@ ModelRendererSystem::~ModelRendererSystem() {
 	}
 	modelRenderers.clear();
 
+	for (int i = 0; i < pointLights.size(); i++) {
+		pointLights[i] = nullptr;
+	}
 	pointLights.clear();
-	lightPositions.clear();
+
+	meshesToDraw.clear();
+	transparentToDraw.clear();
 }
 
-void ModelRendererSystem::Setup() {
+void RendererSystem::Setup() {
     for (int i = 0; i < mainScene->lights.size(); i++) {
-        PointLight p = *((PointLight*)mainScene->lights[i]);
+        PointLight* p = (PointLight*)mainScene->lights[i];
         pointLights.push_back(p);
-
-        lightPositions.push_back(p.position);
     }
 
     // Get our list of related components, in this case MeshRenderers
@@ -170,7 +177,7 @@ void ModelRendererSystem::Setup() {
 
 }
 
-void ModelRendererSystem::Register(const Component* c) {
+void RendererSystem::Register(const Component* c) {
     // Quick reference
     ModelRenderer* mr = (ModelRenderer*)c;
 
@@ -217,18 +224,18 @@ void ModelRendererSystem::Register(const Component* c) {
 		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][4]);
 		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->tangents.size() * sizeof(float), &(mr->model->meshes[i]->tangents[0]), GL_STATIC_DRAW);
 
-		GLint tangAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inTang");
-		glEnableVertexAttribArray(tangAttrib);
-		glVertexAttribPointer(tangAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		GLint tanAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inTan");
+		glEnableVertexAttribArray(tanAttrib);
+		glVertexAttribPointer(tanAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
 		// Bitangents
 		glGenBuffers(1, &(mr->vbos[i][5]));
 		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][5]);
 		glBufferData(GL_ARRAY_BUFFER, 3 * mr->model->meshes[i]->bitangents.size() * sizeof(float), &(mr->model->meshes[i]->bitangents[0]), GL_STATIC_DRAW);
 
-		GLint bitangAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inBitang");
-		glEnableVertexAttribArray(bitangAttrib);
-		glVertexAttribPointer(bitangAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+		GLint bitanAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inBitan");
+		glEnableVertexAttribArray(bitanAttrib);
+		glVertexAttribPointer(bitanAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
 		// Textures
 		// Load up either a null texture or the wanted one
@@ -267,7 +274,43 @@ void ModelRendererSystem::Register(const Component* c) {
 	}
 }
 
-void ModelRendererSystem::Render() {
+bool RendererSystem::ShouldFrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
+
+	// Not dereferencing and caching bounds moved my ModelRendererSystem::Render call from 10.11% 
+	// of total time used to 8.66%. Insignificant change, could be randomness or difference in view
+	glm::vec3 maxPoint = mesh->bounds->Max(model);
+	glm::vec3 minPoint = mesh->bounds->Min(model);
+
+	/* https://fgiesen.wordpress.com/2010/10/17/view-frustum-culling/
+	* Method 4
+		Switched to this method instead of checking each bounding box point
+		because I ran into issues with large meshes. I would be looking
+		directly at the mesh and all of its bounds points are ouside the
+		frustum. So even though it is right in front of me, it is culled
+		due to only checking it's extremes.
+
+		Checks if every plane can "see" the most likely point. If every plane can see
+		at least one point that means our mesh is at least partially visible.
+	*/
+	std::vector<glm::vec4> planes = mainCamera->frustumPlanes;
+
+	int success = 0;
+	for (int j = 0; j < 6; j++) {
+		float val = fmax(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)
+			+ fmax(minPoint.y * planes[j].y, maxPoint.y * planes[j].y)
+			+ fmax(minPoint.z * planes[j].z, maxPoint.z * planes[j].z)
+			+ planes[j].w;
+		success += (val > 0);
+	}
+
+	if (success == 6) {
+		return false;
+	}
+
+	return true;
+}
+
+void RendererSystem::Render() {
 
 	// C++ here is actually incredibly small proportion of actual code runtime
 	// Only 8-9% of actual bottleneck. Almost everything is in SwapBuffers with queued OpenGL commands
@@ -287,141 +330,200 @@ void ModelRendererSystem::Render() {
     glm::mat4 proj = mainCamera->proj;
 	glm::mat4 projView = proj * view;
 
-    // Get all of our meshRenderers to draw to textures
-    for (int i = 0; i < modelRenderers.size(); i++) {
 
+
+	// Get all of our meshes that are not frustum culled. These will be used for later drawing
+	meshesToDraw.clear();
+	transparentToDraw.clear();
+	for (int i = 0; i < modelRenderers.size(); i++) {
 		glm::mat4 model = modelRenderers[i]->gameObject->transform->model;
-
 		for (int j = 0; j < modelRenderers[i]->numMeshes; j++) {
 
-			// Pre-emptively frustum cull unnecessary meshes
-			if (FrustumCull(modelRenderers[i]->model->meshes[j], model, projView)) { continue; }
+			if (!ShouldFrustumCull(modelRenderers[i]->model->meshes[j], model, projView)) {
+				MeshToDraw m = MeshToDraw{
+					m.mesh = modelRenderers[i]->model->meshes[j],
+					m.material = modelRenderers[i]->model->materials[j],
+					m.model = model,
+					m.vao = modelRenderers[i]->vaos[j],
+					m.indexVbo = modelRenderers[i]->vbos[j][3],
+					m.shaderProgram = modelRenderers[i]->model->materials[j]->shader->shaderProgram					
+				};
 
-			glUseProgram(modelRenderers[i]->model->materials[j]->shader->shaderProgram);
-			glBindVertexArray(modelRenderers[i]->vaos[j]);
-
-			Material* m = modelRenderers[i]->model->materials[j];
-
-			glUniformMatrix4fv(m->uniModel, 1, GL_FALSE, glm::value_ptr(model));
-			glUniformMatrix4fv(m->uniView, 1, GL_FALSE, glm::value_ptr(view));
-			glUniformMatrix4fv(m->uniProj, 1, GL_FALSE, glm::value_ptr(proj));
-
-			glUniform3f(m->uniAmbient, m->ambient.r, m->ambient.g, m->ambient.b);
-			glUniform3f(m->uniDiffuse, m->diffuse.r, m->diffuse.g, m->diffuse.b);
-			glUniform3f(m->uniSpecular, m->specular.r, m->specular.g, m->specular.b);
-			glUniform1f(m->uniSpecularExp, m->specularExponent);
-			glUniform1f(m->uniOpacity, m->opacity);
-
-			glUniform1i(m->uniUsingBump, m->usingBump);
-			glUniform1i(m->uniUsingNormal, m->usingNormal);
-
-
-			// How could I change the following IF statements to avoid last second state changes?
-			// Could I call specific functions?
-
-			if (m->useTextures) {
-				// Textures and booleans
-				glActiveTexture(GL_TEXTURE0);
-				if (m->ambientTexture != nullptr) {
-					glBindTexture(GL_TEXTURE_2D, assetManager->ambientTextures[m->ambientIndex]);
+				if (m.material->isTransparent) {
+					transparentToDraw.push_back(m);
 				} else {
-					glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+					meshesToDraw.push_back(m);
 				}
-				glUniform1i(m->uniAmbientTex, 0);
 
-				glActiveTexture(GL_TEXTURE0 + 1);
-				if (m->diffuseTexture != nullptr) {
-					glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
-				} else {
-					glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-				}
-				glUniform1i(m->uniDiffuseTex, 1);
-
-				glActiveTexture(GL_TEXTURE0 + 2);
-				if (m->specularTexture != nullptr) {
-					glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
-				} else {
-					glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-				}
-				glUniform1i(m->uniSpecularTex, 2);
-
-				glActiveTexture(GL_TEXTURE0 + 3);
-				if (m->specularHighLightTexture != nullptr) {
-					glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
-				} else {
-					glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-				}
-				glUniform1i(m->uniSpecularHighLightTex, 3);
-
-				glActiveTexture(GL_TEXTURE0 + 4);
-				if (m->bumpTexture != nullptr) {
-					glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
-				} else {
-					glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-				}
-				glUniform1i(m->uniBumpTex, 4);
-
-				glActiveTexture(GL_TEXTURE0 + 5);
-				if (m->normalTexture != nullptr) {
-					glBindTexture(GL_TEXTURE_2D, assetManager->normalTextures[m->normalIndex]);
-				} else {
-					glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-				}
-				glUniform1i(m->uniNormalTex, 5);
-
-				glActiveTexture(GL_TEXTURE0 + 6);
-				if (m->displacementTexture != nullptr) {
-					glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
-				} else {
-					glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-				}
-				glUniform1i(m->uniDisplacementTex, 6);
-
-				glActiveTexture(GL_TEXTURE0 + 7);
-				if (m->alphaTexture != nullptr) {
-					glBindTexture(GL_TEXTURE_2D, assetManager->alphaTextures[m->alphaIndex]);
-				} else {
-					glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-				}
-				glUniform1i(m->uniAlphaTex, 7);
 			}
 
-			// Indices
-			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, modelRenderers[i]->vbos[j][3]);
-
-			totalTriangles += static_cast<int>(modelRenderers[i]->model->meshes[j]->indices.size()) / 3;
-
-			// Use our shader and draw our program
-			glDrawElements(GL_TRIANGLES, static_cast<int>(modelRenderers[i]->model->meshes[j]->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 		}
-    }
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glViewport(0, 0, screenWidth, screenHeight);
+	}
 
-    glClear(GL_COLOR_BUFFER_BIT);
+	// Get all of our lights that will be used for drawing.
+	pointLightsToDraw.clear();
+	for (int i = 0; i < pointLights.size(); i++) {
+		glm::vec4 pos = pointLights[i]->position;
+		glm::vec4 color = pointLights[i]->color;
+
+		float lum = .6f * color.g + .3f * color.r + .1f * color.b;
+		float radius = 14;
+
+		glm::mat4 model = glm::mat4(1);
+		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
+		model = glm::scale(model, lum * glm::vec3(radius, radius, radius));
+
+		PointLightToDraw p = PointLightToDraw {
+			p.luminance = lum,
+			p.radius = radius,
+			p.position = pos,
+			p.color = color,
+			p.model = model
+		};
+
+		// Pre-emptively frustum cull unnecessary meshes
+		if (!ShouldFrustumCull(lightVolume, model, projView)) { 
+			pointLightsToDraw.push_back(p);
+		}
+	}
+
+
+	// First deferred rendering pass with all of our non-transparent model renderers
+	DrawModels(proj, view, projView);
+
+	// Next, draw our transparent items in a forward rendering pass
+	DrawTransparency(proj, view, projView);
+}
+
+void RendererSystem::DrawModels(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
+
+	// Draw all of our wanted meshRendereres
+	for (int i = 0; i < meshesToDraw.size(); i++) {
+
+		glUseProgram(meshesToDraw[i].shaderProgram);
+		glBindVertexArray(meshesToDraw[i].vao);
+
+		Material* m = meshesToDraw[i].material;
+
+		glUniformMatrix4fv(m->uniModel, 1, GL_FALSE, glm::value_ptr(meshesToDraw[i].model));
+		glUniformMatrix4fv(m->uniView, 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(m->uniProj, 1, GL_FALSE, glm::value_ptr(proj));
+
+		glUniform3f(m->uniAmbient, m->ambient.r, m->ambient.g, m->ambient.b);
+		glUniform3f(m->uniDiffuse, m->diffuse.r, m->diffuse.g, m->diffuse.b);
+		glUniform3f(m->uniSpecular, m->specular.r, m->specular.g, m->specular.b);
+		glUniform1f(m->uniSpecularExp, m->specularExponent);
+		glUniform1f(m->uniOpacity, m->opacity);
+
+		glUniform1i(m->uniUsingBump, m->usingBump);
+		glUniform1i(m->uniUsingNormal, m->usingNormal);
+
+
+		// How could I change the following IF statements to avoid last second state changes?
+		// Could I call specific functions?
+
+		if (m->useTextures) {
+			// Textures and booleans
+			glActiveTexture(GL_TEXTURE0);
+			if (m->ambientTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->ambientTextures[m->ambientIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniAmbientTex, 0);
+
+			glActiveTexture(GL_TEXTURE0 + 1);
+			if (m->diffuseTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniDiffuseTex, 1);
+
+			glActiveTexture(GL_TEXTURE0 + 2);
+			if (m->specularTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniSpecularTex, 2);
+
+			glActiveTexture(GL_TEXTURE0 + 3);
+			if (m->specularHighLightTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniSpecularHighLightTex, 3);
+
+			glActiveTexture(GL_TEXTURE0 + 4);
+			if (m->bumpTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniBumpTex, 4);
+
+			glActiveTexture(GL_TEXTURE0 + 5);
+			if (m->normalTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->normalTextures[m->normalIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniNormalTex, 5);
+
+			glActiveTexture(GL_TEXTURE0 + 6);
+			if (m->displacementTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniDisplacementTex, 6);
+
+			glActiveTexture(GL_TEXTURE0 + 7);
+			if (m->alphaTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->alphaTextures[m->alphaIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniAlphaTex, 7);
+		}
+
+		// Indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshesToDraw[i].indexVbo);
+
+		totalTriangles += static_cast<int>(meshesToDraw[i].mesh->indices.size()) / 3;
+
+		// Use our shader and draw our program
+		glDrawElements(GL_TRIANGLES, static_cast<int>(meshesToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, screenWidth, screenHeight);
+
+	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 
-    glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
-    glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-    glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
-    glUseProgram(combinedShader);
-    glBindVertexArray(lightVolume_Vao);
+	glUseProgram(combinedShader);
+	glBindVertexArray(lightVolume_Vao);
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
-    glUniform1i(glGetUniformLocation(combinedShader, "gPosition"), 0);
-    glUniform1i(glGetUniformLocation(combinedShader, "gNormal"), 1);
-    glUniform1i(glGetUniformLocation(combinedShader, "gDiffuse"), 2);
-    glUniform1i(glGetUniformLocation(combinedShader, "gSpecularExp"), 3);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
+	glActiveTexture(GL_TEXTURE3);
+	glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
+	glUniform1i(glGetUniformLocation(combinedShader, "gPosition"), 0);
+	glUniform1i(glGetUniformLocation(combinedShader, "gNormal"), 1);
+	glUniform1i(glGetUniformLocation(combinedShader, "gDiffuse"), 2);
+	glUniform1i(glGetUniformLocation(combinedShader, "gSpecularExp"), 3);
 
 	glm::vec3 camPos = mainCamera->transform->position;
 	GLint uniCamPos = glGetUniformLocation(combinedShader, "camPos");
@@ -433,7 +535,7 @@ void ModelRendererSystem::Render() {
 	GLint lightPos = glGetUniformLocation(combinedShader, "lightPos");
 	GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
 
-    // instead of drawing arrays, draw spheres at each light position
+	// instead of drawing arrays, draw spheres at each light position
 	// Tiled deferred rendering has a huge boost over deferred with light volumes in densely
 	// populated lights (like my demo). However, it performs (slightly?) worse with sparsely
 	// populated lights
@@ -445,78 +547,39 @@ void ModelRendererSystem::Render() {
 	// - BVH --> Would be similar to frustum planes. Would need to figure out bounds of object and which bvh sections it fits in
 	// - 
 	// - Tiled-deferred
-    for (int i = 0; i < pointLights.size(); i++) {
-        glm::vec4 pos = pointLights[i].position;
-        glm::vec4 color = pointLights[i].color;
+	for (int i = 0; i < pointLightsToDraw.size(); i++) {
 
-        float lum = .6f * color.g + .3f * color.r + .1f * color.b;
-		float radius = 14; // falloff where edge of radius is 1/10000th the color
-
-        glm::mat4 model = glm::mat4(1);
-        model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
-        model = glm::scale(model, lum * glm::vec3(radius, radius, radius));
-
-		// Pre-emptively frustum cull unnecessary meshes
-		if (FrustumCull(lightVolume, model, projView)) { continue; }
-
-		glm::mat4 pvmMatrix = projView * model;
+		glm::mat4 pvmMatrix = projView * pointLightsToDraw[i].model;
 
 		// Switch culling if inside light volume
-		float diagRad = sqrt(lum * radius * radius + lum * radius * radius);
-		if (glm::length(camPos - glm::vec3(pos.x, pos.y, pos.z)) < diagRad) {
+		float diagRad = sqrt(pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius + 
+								pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
+		if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < diagRad) {
 			glCullFace(GL_FRONT);
 		} else {
 			glCullFace(GL_BACK);
 		}
 
 
-        glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
-        glUniform4f(lightPos, pos.x, pos.y, pos.z, pos.w);
-        glUniform4f(lightCol, color.r, color.g, color.b, color.a);
+		glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
+		glUniform4f(lightPos, pointLightsToDraw[i].position.x, pointLightsToDraw[i].position.y, pointLightsToDraw[i].position.z, pointLightsToDraw[i].position.w);
+		glUniform4f(lightCol, pointLightsToDraw[i].color.r, pointLightsToDraw[i].color.g, pointLightsToDraw[i].color.b, pointLightsToDraw[i].color.a);
 
 		totalTriangles += static_cast<int>(lightVolume->indices.size()) / 3;
 
-        // User our shader and draw our program
-        glDrawElements(GL_TRIANGLES, static_cast<int>(lightVolume->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
-    }
+		// User our shader and draw our program
+		glDrawElements(GL_TRIANGLES, static_cast<int>(lightVolume->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
+	}
 
 	glCullFace(GL_BACK);
-    glDisable(GL_BLEND);
-    glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
+	glEnable(GL_DEPTH_TEST);
 }
 
-bool ModelRendererSystem::FrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
-	
-	// Not dereferencing and caching bounds moved my ModelRendererSystem::Render call from 10.11% 
-	// of total time used to 8.66%. Insignificant change, could be randomness or difference in view
-	glm::vec3 maxPoint = mesh->bounds->Max(model);
-	glm::vec3 minPoint = mesh->bounds->Min(model);
+void RendererSystem::DrawTransparency(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
 
-	/* https://fgiesen.wordpress.com/2010/10/17/view-frustum-culling/ 
-	* Method 4 
-		Switched to this method instead of checking each bounding box point
-		because I ran into issues with large meshes. I would be looking 
-		directly at the mesh and all of its bounds points are ouside the 
-		frustum. So even though it is right in front of me, it is culled
-		due to only checking it's extremes.
-
-		Checks if every plane can "see" the most likely point. If every plane can see
-		at least one point that means our mesh is at least partially visible.
-	*/
-	std::vector<glm::vec4> planes = mainCamera->frustumPlanes;
-
-	int success = 0;
-	for (int j = 0; j < 6; j++) {
-		float val = fmax(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)
-			+ fmax(minPoint.y * planes[j].y, maxPoint.y * planes[j].y)
-			+ fmax(minPoint.z * planes[j].z, maxPoint.z * planes[j].z)
-			+ planes[j].w;
-		success += (val > 0);
-	}
-
-	if (success == 6) { 
-		return false;
-	}
-
-	return true;
 }
+
+void RendererSystem::DrawShadows() {}
+
+void RendererSystem::PostProcess() {}
