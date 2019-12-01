@@ -73,6 +73,11 @@ AssetManager::AssetManager() {
 	glBindTexture(GL_TEXTURE_2D, nullTexture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullData);
 
+	shaders.push_back(new Shader("deferredToTexture.vert", "deferredToTexture.frag"));
+
+	//TODO: Need to change to a transparent handling shader
+	//shaders.push_back(new Shader("deferredToTexture.vert", "deferredToTexture.frag"));
+
 }
 
 AssetManager::~AssetManager() {
@@ -858,7 +863,6 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 	GameObject* currGameObject = nullptr;
 	Model* currModel = nullptr;
 	Material* currMaterial = nullptr;
-	Shader* currShader = nullptr;
 
 	//Loop through reading each line
 	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
@@ -928,10 +932,6 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 				currModel->materials.push_back(currMaterial);
 			}
 
-			for (int i = 0; i < currModel->materials.size(); i++) {
-				currModel->materials[i]->shader = shaders[shaders.size() - 1];
-			}
-
 		} else if (strcmp(command, "fbx") == 0) {
 			char filename[1024];
 
@@ -945,14 +945,6 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 				&filename);
 
 			currMaterial = LoadMaterial(filename);
-		} else if (strcmp(command, "shader") == 0) {
-			char vert[1024];
-			char frag[1024];
-
-			sscanf(line, "shader %s %s",
-				&vert, &frag);
-
-			shaders.push_back(new Shader(vert, frag));
 		} else {
 			fprintf(stderr, "WARNING. Do not know command: %s\n", command);
 		}
@@ -966,7 +958,6 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 	currMaterial = nullptr;
 	currModel = nullptr;
 	currGameObject = nullptr;
-	currShader = nullptr;
 
 }
 

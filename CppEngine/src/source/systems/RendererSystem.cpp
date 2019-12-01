@@ -183,6 +183,15 @@ void RendererSystem::Register(const Component* c) {
 
 	// run through every mesh/material for our model
 	for (int i = 0; i < mr->numMeshes; i++) {
+
+		// Set up our shader based on if we need transparency or not
+		Material* mat = mr->model->materials[i];
+		if (!mat->isTransparent) {
+			mat->shader = assetManager->shaders[0];
+		} else {
+			mat->shader = assetManager->shaders[0];
+		}
+
 		glGenVertexArrays(1, &(mr->vaos[i]));
 		glBindVertexArray(mr->vaos[i]);
 
@@ -240,7 +249,6 @@ void RendererSystem::Register(const Component* c) {
 		// Textures
 		// Load up either a null texture or the wanted one
 		glUseProgram(mr->model->materials[i]->shader->shaderProgram);
-		Material* mat = mr->model->materials[i];
 
 		if (mat->ambientTexture != nullptr && !mat->ambientTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("ambient", mat->ambientIndex, 0, mat->ambientTexture);
@@ -373,16 +381,15 @@ void RendererSystem::Render() {
 		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
 		model = glm::scale(model, lum * glm::vec3(radius, radius, radius));
 
-		PointLightToDraw p = PointLightToDraw {
-			p.luminance = lum,
-			p.radius = radius,
-			p.position = pos,
-			p.color = color,
-			p.model = model
-		};
+		if (!ShouldFrustumCull(lightVolume, model, projView)) {
 
-		// Pre-emptively frustum cull unnecessary meshes
-		if (!ShouldFrustumCull(lightVolume, model, projView)) { 
+			PointLightToDraw p = PointLightToDraw{
+				p.luminance = lum,
+				p.radius = radius,
+				p.position = pos,
+				p.color = color,
+				p.model = model
+			};
 			pointLightsToDraw.push_back(p);
 		}
 	}
