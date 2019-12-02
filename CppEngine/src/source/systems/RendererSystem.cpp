@@ -33,9 +33,6 @@ RendererSystem::RendererSystem(const int& sW, const int& sH) {
 RendererSystem::~RendererSystem() {
     glDeleteProgram(combinedShader);
 
-    glDeleteBuffers(1, &quadVbo);
-    glDeleteVertexArrays(1, &quadVao);
-
 	glDeleteBuffers(1, &lightVolume_Ibo);
 	glDeleteBuffers(1, &lightVolume_Vbo);
 	glDeleteVertexArrays(1, &lightVolume_Vao);
@@ -80,7 +77,6 @@ void RendererSystem::Setup() {
 
     glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
-	glBlendFunc(GL_ONE, GL_ONE);
 
     // Set up our shader for rendering to the texture
     combinedShader = util::initShaderFromFiles("deferredLightVolumes.vert", "deferredLightVolumes.frag");
@@ -189,7 +185,7 @@ void RendererSystem::Register(const Component* c) {
 		if (!mat->isTransparent) {
 			mat->shader = assetManager->shaders[0];
 		} else {
-			mat->shader = assetManager->shaders[0];
+			mat->shader = assetManager->shaders[1];
 		}
 
 		glGenVertexArrays(1, &(mr->vaos[i]));
@@ -324,11 +320,10 @@ void RendererSystem::Render() {
 	// Only 8-9% of actual bottleneck. Almost everything is in SwapBuffers with queued OpenGL commands
 	// Which means, the place to optimize is still in this function and it is how I am queueing up OpenGL
 	// commands or the amount of them and amount of context switches
+		// Bind our deferred texture buffer
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 
 	totalTriangles = 0;
-
-    // Bind our deferred texture buffer
-    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 
     // Clear the screen to default color
     glClearColor(0, 0, 0, 1.0f);
@@ -348,6 +343,7 @@ void RendererSystem::Render() {
 		for (int j = 0; j < modelRenderers[i]->numMeshes; j++) {
 
 			if (!ShouldFrustumCull(modelRenderers[i]->model->meshes[j], model, projView)) {
+				
 				MeshToDraw m = MeshToDraw{
 					m.mesh = modelRenderers[i]->model->meshes[j],
 					m.material = modelRenderers[i]->model->materials[j],
@@ -375,7 +371,7 @@ void RendererSystem::Render() {
 		glm::vec4 color = pointLights[i]->color;
 
 		float lum = .6f * color.g + .3f * color.r + .1f * color.b;
-		float radius = 14;
+		float radius = 7;
 
 		glm::mat4 model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
@@ -396,13 +392,19 @@ void RendererSystem::Render() {
 
 
 	// First deferred rendering pass with all of our non-transparent model renderers
-	DrawModels(proj, view, projView);
+	DeferredPass(proj, view, projView);
+
+	// Save all of our depth information from deferred pass for use in forward pass
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// Next, draw our transparent items in a forward rendering pass
-	DrawTransparency(proj, view, projView);
+	ForwardPass(proj, view, projView);
 }
 
-void RendererSystem::DrawModels(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
+void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
 
 	// Draw all of our wanted meshRendereres
 	for (int i = 0; i < meshesToDraw.size(); i++) {
@@ -511,10 +513,7 @@ void RendererSystem::DrawModels(const glm::mat4& proj, const glm::mat4& view, co
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
-
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBlendFunc(GL_ONE, GL_ONE);
 
 	glUseProgram(combinedShader);
 	glBindVertexArray(lightVolume_Vao);
@@ -559,8 +558,8 @@ void RendererSystem::DrawModels(const glm::mat4& proj, const glm::mat4& view, co
 		glm::mat4 pvmMatrix = projView * pointLightsToDraw[i].model;
 
 		// Switch culling if inside light volume
-		float diagRad = sqrt(pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius + 
-								pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
+		float diagRad = sqrt(pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius +
+			pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
 		if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < diagRad) {
 			glCullFace(GL_FRONT);
 		} else {
@@ -579,12 +578,133 @@ void RendererSystem::DrawModels(const glm::mat4& proj, const glm::mat4& view, co
 	}
 
 	glCullFace(GL_BACK);
-	glDisable(GL_BLEND);
 	glEnable(GL_DEPTH_TEST);
+	glDisable(GL_BLEND);
 }
 
-void RendererSystem::DrawTransparency(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
+void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
 
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glm::vec3 camPos = mainCamera->transform->position;
+
+	// For each of our transparent objects, set up its shader
+	for (int i = 0; i < static_cast<int>(transparentToDraw.size()); i++) {
+
+		glUseProgram(transparentToDraw[i].shaderProgram);
+		glBindVertexArray(transparentToDraw[i].vao);
+
+		Material* m = transparentToDraw[i].material;
+
+		glUniformMatrix4fv(m->uniModel, 1, GL_FALSE, glm::value_ptr(transparentToDraw[i].model));
+		glUniformMatrix4fv(m->uniView, 1, GL_FALSE, glm::value_ptr(view));
+		glUniformMatrix4fv(m->uniProj, 1, GL_FALSE, glm::value_ptr(proj));
+
+		glUniform3f(m->uniAmbient, m->ambient.r, m->ambient.g, m->ambient.b);
+		glUniform3f(m->uniDiffuse, m->diffuse.r, m->diffuse.g, m->diffuse.b);
+		glUniform3f(m->uniSpecular, m->specular.r, m->specular.g, m->specular.b);
+		glUniform1f(m->uniSpecularExp, m->specularExponent);
+		glUniform1f(m->uniOpacity, m->opacity);
+
+		glUniform1i(m->uniUsingBump, m->usingBump);
+		glUniform1i(m->uniUsingNormal, m->usingNormal);
+
+		GLint uniCamPos = glGetUniformLocation(transparentToDraw[i].shaderProgram, "camPos");
+		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+
+		GLint lightPos = glGetUniformLocation(transparentToDraw[i].shaderProgram, "lightPos");
+		GLint lightCol = glGetUniformLocation(transparentToDraw[i].shaderProgram, "lightCol");
+
+
+		// How could I change the following IF statements to avoid last second state changes?
+		// Could I call specific functions?
+
+		if (m->useTextures) {
+			// Textures and booleans
+			glActiveTexture(GL_TEXTURE0);
+			if (m->ambientTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->ambientTextures[m->ambientIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniAmbientTex, 0);
+
+			glActiveTexture(GL_TEXTURE0 + 1);
+			if (m->diffuseTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniDiffuseTex, 1);
+
+			glActiveTexture(GL_TEXTURE0 + 2);
+			if (m->specularTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniSpecularTex, 2);
+
+			glActiveTexture(GL_TEXTURE0 + 3);
+			if (m->specularHighLightTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniSpecularHighLightTex, 3);
+
+			glActiveTexture(GL_TEXTURE0 + 4);
+			if (m->bumpTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniBumpTex, 4);
+
+			glActiveTexture(GL_TEXTURE0 + 5);
+			if (m->normalTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->normalTextures[m->normalIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniNormalTex, 5);
+
+			glActiveTexture(GL_TEXTURE0 + 6);
+			if (m->displacementTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniDisplacementTex, 6);
+
+			glActiveTexture(GL_TEXTURE0 + 7);
+			if (m->alphaTexture != nullptr) {
+				glBindTexture(GL_TEXTURE_2D, assetManager->alphaTextures[m->alphaIndex]);
+			} else {
+				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			}
+			glUniform1i(m->uniAlphaTex, 7);
+		}
+
+		// Indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, transparentToDraw[i].indexVbo);
+
+		totalTriangles += static_cast<int>(transparentToDraw[i].mesh->indices.size()) / 3;
+
+		//TODO: Wrong thinking here. Need to send up all lights at once and do the loop there in the frag shader
+
+		// Now that we have our mesh set up, run through each light and draw
+		for (int j = 0; j < 1; /* static_cast<int>(pointLightsToDraw.size());*/ j++) {
+
+			glUniform4f(lightPos, pointLightsToDraw[j].position.x, pointLightsToDraw[j].position.y, pointLightsToDraw[j].position.z, pointLightsToDraw[j].position.w);
+			glUniform4f(lightCol, pointLightsToDraw[j].color.r, pointLightsToDraw[j].color.g, pointLightsToDraw[j].color.b, pointLightsToDraw[j].color.a);
+
+			// Use our shader and draw our program
+			glDrawElements(GL_TRIANGLES, static_cast<int>(transparentToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
+		}
+	}
+
+	glDisable(GL_BLEND);
 }
 
 void RendererSystem::DrawShadows() {}

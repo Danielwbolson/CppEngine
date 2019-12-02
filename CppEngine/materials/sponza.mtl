@@ -44,7 +44,7 @@ Ni 1.000000
 d 0.000000
 illum 2
 map_Kd vase_plant.tga
-map_d vase_plant_mask.tga
+map_d vase_plant_mask.png
 map_Ka vase_plant.tga
 
 newmtl arch
@@ -92,7 +92,7 @@ Ni 1.000000
 d 0.000000
 illum 2
 map_Kd chain_texture.tga
-map_d chain_texture_mask.tga
+map_d chain_texture_mask.png
 map_bump chain_texture_ddn.tga
 map_Ka chain_texture.tga
 
@@ -253,7 +253,7 @@ Ni 1.000000
 d 0.000000
 illum 2
 map_Kd sponza_thorn_diff.tga
-map_d sponza_thorn_mask.tga
+map_d sponza_thorn_mask.png
 map_bump sponza_thorn_ddn.tga
 map_Ka sponza_thorn_diff.tga
 

@@ -42,6 +42,11 @@ struct MeshToDraw {
 	GLuint vao;
 	GLuint indexVbo;
 	GLuint shaderProgram;
+
+	~MeshToDraw() {
+		mesh = nullptr;
+		material = nullptr;
+	}
 };
 
 struct PointLightToDraw {
@@ -50,6 +55,7 @@ struct PointLightToDraw {
 	glm::vec4 position;
 	glm::vec4 color;
 	glm::mat4 model;
+
 };
 
 
@@ -68,7 +74,6 @@ private:
     int screenWidth; int screenHeight;
     GBuffer gBuffer;
     GLuint lightVolume_Vao; GLuint lightVolume_Vbo; GLuint lightVolume_Ibo;
-    GLuint quadVao; GLuint quadVbo;
     GLuint combinedShader;
 
     Mesh* lightVolume;
@@ -86,8 +91,9 @@ public:
 
     void Render();
 
-	void DrawModels(const glm::mat4&, const glm::mat4&, const glm::mat4&);
-	void DrawTransparency(const glm::mat4&, const glm::mat4&, const glm::mat4&);
+	void DeferredPass(const glm::mat4&, const glm::mat4&, const glm::mat4&);
+	void ForwardPass(const glm::mat4&, const glm::mat4&, const glm::mat4&);
+
 	void DrawShadows();
 	void PostProcess();
 

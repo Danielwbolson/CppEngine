@@ -30,7 +30,7 @@ Transform::Transform(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3
 
 	// Need to match with given directions
 	glm::vec3 tempVec = glm::normalize(glm::vec3(dir.x, 0, dir.z));
-	float xRot = glm::angle(tempVec, glm::vec3(0, 0, -1));
+	float xRot = glm::orientedAngle(tempVec, glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
 	glm::vec3 dirXRot = glm::rotate(tempVec, xRot, glm::vec3(0, 1, 0));
 
 	float yRot = glm::angle(tempVec, dir);

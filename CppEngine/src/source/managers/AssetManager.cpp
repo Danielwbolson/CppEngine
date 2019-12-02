@@ -74,6 +74,7 @@ AssetManager::AssetManager() {
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullData);
 
 	shaders.push_back(new Shader("deferredToTexture.vert", "deferredToTexture.frag"));
+	shaders.push_back(new Shader("forwardPhong.vert", "forwardPhong.frag"));
 
 	//TODO: Need to change to a transparent handling shader
 	//shaders.push_back(new Shader("deferredToTexture.vert", "deferredToTexture.frag"));

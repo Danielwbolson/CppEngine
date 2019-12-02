@@ -173,12 +173,12 @@ set(OTHER_CPP
 )
 
 set(SHADERS
-	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredLighting.frag
-	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredLighting.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredLightvolumes.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredLightvolumes.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredToTexture.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredToTexture.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPhong.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPhong.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/Phong.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/Phong.frag
 )

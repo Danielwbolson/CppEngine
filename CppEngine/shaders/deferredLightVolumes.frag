@@ -7,7 +7,6 @@ uniform sampler2D gSpecularExp;
 
 uniform vec4 lightPos;
 uniform vec4 lightCol;
-
 uniform vec3 camPos;
 
 in vec4 outPos;
