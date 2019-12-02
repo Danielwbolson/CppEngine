@@ -400,8 +400,10 @@ void RendererSystem::Render() {
 	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+	glDisable(GL_CULL_FACE);
 	// Next, draw our transparent items in a forward rendering pass
 	ForwardPass(proj, view, projView);
+	glEnable(GL_CULL_FACE);
 }
 
 void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {

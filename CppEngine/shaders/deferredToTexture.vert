@@ -20,16 +20,13 @@ out mat3 tbn;
 void main() {
 	gl_Position = proj * view * model * vec4(inPos,1.0);
 	fragPos = (model * vec4(inPos,1.0)).xyz;
+	fragNorm = normalize(vec3(transpose(inverse(model)) * vec4(inNorm, 0.0)));
 
 	if (usingNormal) {
 		// https://learnopengl.com/Advanced-Lighting/Normal-Mapping
-		fragNorm = normalize(vec3(transpose(inverse(model)) * vec4(inNorm, 0.0)));
-		vec3 normal = normalize((model * vec4(inNorm, 0.0)).xyz);
-		vec3 fragBitan = normalize((model * vec4(inBitan, 0.0)).xyz);
-		vec3 fragTan = normalize((model * vec4(inTan, 0.0)).xyz);
+		vec3 fragBitan = normalize(vec3(model * vec4(inBitan, 0.0)).xyz);
+		vec3 fragTan = normalize(vec3(model * vec4(inTan, 0.0)).xyz);
 		tbn = mat3(fragTan, fragBitan, fragNorm);
-	} else {
-		fragNorm = inNorm;
 	}
 
 	fragUV = inUV;

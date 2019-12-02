@@ -32,10 +32,7 @@ void main() {
 
     gPosition = fragPos;
 
-	if (usingBump) {
-	float diff = texture(bumpTex, fragUV).r - 0.5;
-		gNormal = normalize(fragNorm + fragNorm * diff);
-	} else if (usingNormal) {
+	if (usingNormal) {
 		// https://learnopengl.com/Advanced-Lighting/Normal-Mapping
 		// Normal map
 		vec3 normal = texture(normalTex, fragUV).rgb * 2.0 - 1.0;

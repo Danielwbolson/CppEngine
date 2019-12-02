@@ -34,7 +34,7 @@ void main() {
 	// calculate normal
 	vec3 n;
 	if (usingBump) {
-	float diff = texture(bumpTex, fragUV).r - 0.5;
+		float diff = texture(bumpTex, fragUV).r - 0.5;
 		n = normalize(fragNorm + fragNorm * diff);
 	} else if (usingNormal) {
 		// https://learnopengl.com/Advanced-Lighting/Normal-Mapping
