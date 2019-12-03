@@ -58,12 +58,17 @@ struct PointLightToDraw {
 
 };
 
+struct PointLightToGPU {
+	glm::vec4 position;
+	glm::vec4 color;
+};
 
 class RendererSystem : public Systems {
 private:
     std::vector<ModelRenderer*> modelRenderers;
 	std::vector<MeshToDraw> meshesToDraw;
 	std::vector<MeshToDraw> transparentToDraw;
+	std::vector<PointLightToGPU> pointLightsToGPU;
 
 	// TODO: Need to add lights to the asset manager
     std::vector<PointLight*> pointLights;
@@ -75,6 +80,7 @@ private:
     GBuffer gBuffer;
     GLuint lightVolume_Vao; GLuint lightVolume_Vbo; GLuint lightVolume_Ibo;
     GLuint combinedShader;
+	GLuint pointLights_Ssbo = 0;
 
     Mesh* lightVolume;
 

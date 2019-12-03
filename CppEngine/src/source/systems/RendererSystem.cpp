@@ -25,6 +25,7 @@ RendererSystem::RendererSystem(const int& sW, const int& sH) {
 
     pointLights = std::vector<PointLight*>();
 	pointLightsToDraw = std::vector<PointLightToDraw>();
+	pointLightsToGPU = std::vector<PointLightToGPU>();
 
 	// We know that this is a mesh, not a model
     lightVolume = (assetManager->tinyLoadObj("cube"))->meshes[0];
@@ -191,6 +192,7 @@ void RendererSystem::Register(const Component* c) {
 		glGenVertexArrays(1, &(mr->vaos[i]));
 		glBindVertexArray(mr->vaos[i]);
 
+
 		// Position
 		glGenBuffers(1, &(mr->vbos[i][0]));
 		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][0]);
@@ -201,6 +203,7 @@ void RendererSystem::Register(const Component* c) {
 		glVertexAttribPointer(posAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 		//Attribute, vals/attrib., type, isNormalized, stride, offset
 
+
 		// Normals
 		glGenBuffers(1, &(mr->vbos[i][1]));
 		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][1]);
@@ -209,6 +212,7 @@ void RendererSystem::Register(const Component* c) {
 		GLint normAttrib = glGetAttribLocation(mr->model->materials[i]->shader->shaderProgram, "inNorm");
 		glEnableVertexAttribArray(normAttrib);
 		glVertexAttribPointer(normAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
+
 
 		// UVS
 		glGenBuffers(1, &(mr->vbos[i][2]));
@@ -219,10 +223,12 @@ void RendererSystem::Register(const Component* c) {
 		glEnableVertexAttribArray(uvAttrib);
 		glVertexAttribPointer(uvAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
+
 		// Indices
 		glGenBuffers(1, &(mr->vbos[i][3]));
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mr->vbos[i][3]);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, mr->model->meshes[i]->indices.size() * sizeof(GL_UNSIGNED_INT), &(mr->model->meshes[i]->indices[0]), GL_STATIC_DRAW);
+
 
 		// Tangents
 		glGenBuffers(1, &(mr->vbos[i][4]));
@@ -233,6 +239,7 @@ void RendererSystem::Register(const Component* c) {
 		glEnableVertexAttribArray(tanAttrib);
 		glVertexAttribPointer(tanAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
+
 		// Bitangents
 		glGenBuffers(1, &(mr->vbos[i][5]));
 		glBindBuffer(GL_ARRAY_BUFFER, mr->vbos[i][5]);
@@ -242,10 +249,23 @@ void RendererSystem::Register(const Component* c) {
 		glEnableVertexAttribArray(bitanAttrib);
 		glVertexAttribPointer(bitanAttrib, 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-		// Textures
-		// Load up either a null texture or the wanted one
+
 		glUseProgram(mr->model->materials[i]->shader->shaderProgram);
 
+
+		// Set up SSBO for forward rendering for our transparent objects
+		// We are not setting the data as that will be dynamically set depending on culled lights
+		if (mat->isTransparent && pointLights_Ssbo == 0) {
+			glGenBuffers(1, &pointLights_Ssbo);
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
+			glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(glm::vec4) * pointLights.size(), &pointLightsToGPU, GL_DYNAMIC_DRAW);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLights_Ssbo);
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+		}
+
+
+		// Textures
+		// Load up either a null texture or the wanted one
 		if (mat->ambientTexture != nullptr && !mat->ambientTexture->loadedToGPU) {
 			assetManager->LoadTextureToGPU("ambient", mat->ambientIndex, 0, mat->ambientTexture);
 		} 
@@ -379,14 +399,20 @@ void RendererSystem::Render() {
 
 		if (!ShouldFrustumCull(lightVolume, model, projView)) {
 
-			PointLightToDraw p = PointLightToDraw{
-				p.luminance = lum,
-				p.radius = radius,
-				p.position = pos,
-				p.color = color,
-				p.model = model
+			PointLightToDraw pToDraw = PointLightToDraw{
+				pToDraw.luminance = lum,
+				pToDraw.radius = radius,
+				pToDraw.position = pos,
+				pToDraw.color = color,
+				pToDraw.model = model
 			};
-			pointLightsToDraw.push_back(p);
+			pointLightsToDraw.push_back(pToDraw);
+
+			PointLightToGPU pToGPU = PointLightToGPU{
+				pToGPU.position = pos,
+				pToGPU.color = color
+			};
+			pointLightsToGPU.push_back(pToGPU);
 		}
 	}
 
@@ -595,6 +621,10 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, c
 
 		glUseProgram(transparentToDraw[i].shaderProgram);
 		glBindVertexArray(transparentToDraw[i].vao);
+
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(glm::vec4) * pointLightsToGPU.size(), &(pointLightsToGPU[0]));
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 		Material* m = transparentToDraw[i].material;
 

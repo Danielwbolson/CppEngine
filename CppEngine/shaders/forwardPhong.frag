@@ -1,4 +1,4 @@
-#version 410 core
+#version 450 core
 
 uniform sampler2D ambientTex;
 uniform sampler2D diffuseTex;
@@ -18,9 +18,17 @@ uniform vec3 specular;
 uniform float specularExp;
 uniform float opacity;
 
-uniform vec4 lightPos;
-uniform vec4 lightCol;
 uniform vec3 camPos;
+
+
+struct PointLightToGPU {
+	vec4 position;
+	vec4 color;
+};
+layout (binding = 0) buffer PointLights {
+	PointLightToGPU pointLights[];
+};
+
 
 in vec3 fragNorm;
 in vec3 fragPos;
@@ -57,32 +65,33 @@ void main() {
 
 	// eye
     vec3 eye = normalize(camPos-fragPos);
-    vec3 outColor = vec3(0, 0, 0);
 
-    // light info in world space
-    vec3 lightDir = normalize(lightPos.xyz - fragPos);
 
-    float ndotL = max(dot(n, lightDir), 0.0);
-    if (ndotL > 0.0) {
-        // diffuse
-        diffuseColor = lightCol.rgb * diffuseColor * ndotL;
+	vec3 outColor = vec3(0, 0, 0);
+	// For each light, run through and add up calculations
+	for (int i = 0; i < pointLights.length; i++) {
+		vec3 lightDir = normalize(pointLights[i].position.xyz - fragPos);
 
-        // specular
-        vec3 h = normalize(lightDir + eye);
-        float exponent = pow(max(dot(h, n), 0.0), specExp);
-        vec3 specularColor = spec * exponent;
+		float ndotL = max(dot(n, lightDir), 0.0);
+		if (ndotL > 0.0) {
+			// diffuse
+			diffuseColor = diffuseColor * pointLights[i].color.rgb * ndotL;
 
-        // attenuation
-        float dist = length(lightPos.xyz - fragPos);
-        float attenuation = 1.0 / (1 + 5 * dist + dist * dist);
+			// specular
+			vec3 h = normalize(lightDir + eye);
+			float exponent = pow(max(dot(h, n), 0.0), specExp);
+			vec3 specularColor = spec * exponent;
 
-        outColor += diffuseColor * attenuation; // diffuse
-        outColor += specularColor * attenuation; // specular
-    }
+			// attenuation
+			float dist = length(pointLights[i].position.xyz - fragPos);
+			float attenuation = 1.0 / (1 + 5 * dist + dist * dist);
 
-    //finalColor.rgb = outColor;
-	//finalColor.a = o;
-
-	finalColor = vec4(diffuseColor, o);
+			outColor += diffuseColor * attenuation; // diffuse
+			outColor += specularColor * attenuation; // specular
+		}
+	}
+    
+    finalColor.rgb = outColor;
+	finalColor.a = o;
 
 }
