@@ -25,7 +25,7 @@ struct PointLightToGPU {
 	vec4 position;
 	vec4 color;
 };
-layout (binding = 0) buffer PointLights {
+layout(std140, binding = 0) buffer PointLights {
 	PointLightToGPU pointLights[];
 };
 
@@ -69,7 +69,7 @@ void main() {
 
 	vec3 outColor = vec3(0, 0, 0);
 	// For each light, run through and add up calculations
-	for (int i = 0; i < pointLights.length; i++) {
+	for (int i = 0; i < pointLights.length(); i++) {
 		vec3 lightDir = normalize(pointLights[i].position.xyz - fragPos);
 
 		float ndotL = max(dot(n, lightDir), 0.0);
@@ -91,7 +91,5 @@ void main() {
 		}
 	}
     
-    finalColor.rgb = outColor;
-	finalColor.a = o;
-
+    finalColor = vec4(outColor, o);
 }

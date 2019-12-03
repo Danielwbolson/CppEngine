@@ -254,7 +254,7 @@ void RendererSystem::Register(const Component* c) {
 
 
 		// Set up SSBO for forward rendering for our transparent objects
-		// We are not setting the data as that will be dynamically set depending on culled lights
+		// Only do this once as our transparent objects are all in same shader
 		if (mat->isTransparent && pointLights_Ssbo == 0) {
 			glGenBuffers(1, &pointLights_Ssbo);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
@@ -386,6 +386,7 @@ void RendererSystem::Render() {
 
 	// Get all of our lights that will be used for drawing.
 	pointLightsToDraw.clear();
+	pointLightsToGPU.clear();
 	for (int i = 0; i < pointLights.size(); i++) {
 		glm::vec4 pos = pointLights[i]->position;
 		glm::vec4 color = pointLights[i]->color;
@@ -624,7 +625,6 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, c
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
 		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(glm::vec4) * pointLightsToGPU.size(), &(pointLightsToGPU[0]));
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 		Material* m = transparentToDraw[i].material;
 
