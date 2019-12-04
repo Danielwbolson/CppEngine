@@ -74,7 +74,11 @@ void RendererSystem::Setup() {
     }
 
 	glEnable(GL_DEBUG_OUTPUT);
+	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(util::DebugMessageCallback, 0);
+	GLuint unusedIds = 0;
+	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, &unusedIds, true);
+
 
     glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
@@ -341,7 +345,6 @@ void RendererSystem::Render() {
 	// Which means, the place to optimize is still in this function and it is how I am queueing up OpenGL
 	// commands or the amount of them and amount of context switches
 		// Bind our deferred texture buffer
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 
 	totalTriangles = 0;
 
@@ -434,6 +437,8 @@ void RendererSystem::Render() {
 }
 
 void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
+
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 
 	// Draw all of our wanted meshRendereres
 	for (int i = 0; i < meshesToDraw.size(); i++) {
@@ -644,9 +649,6 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, c
 		GLint uniCamPos = glGetUniformLocation(transparentToDraw[i].shaderProgram, "camPos");
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
-		GLint lightPos = glGetUniformLocation(transparentToDraw[i].shaderProgram, "lightPos");
-		GLint lightCol = glGetUniformLocation(transparentToDraw[i].shaderProgram, "lightCol");
-
 
 		// How could I change the following IF statements to avoid last second state changes?
 		// Could I call specific functions?
@@ -723,17 +725,8 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, c
 
 		totalTriangles += static_cast<int>(transparentToDraw[i].mesh->indices.size()) / 3;
 
-		//TODO: Wrong thinking here. Need to send up all lights at once and do the loop there in the frag shader
-
-		// Now that we have our mesh set up, run through each light and draw
-		for (int j = 0; j < 1; /* static_cast<int>(pointLightsToDraw.size());*/ j++) {
-
-			glUniform4f(lightPos, pointLightsToDraw[j].position.x, pointLightsToDraw[j].position.y, pointLightsToDraw[j].position.z, pointLightsToDraw[j].position.w);
-			glUniform4f(lightCol, pointLightsToDraw[j].color.r, pointLightsToDraw[j].color.g, pointLightsToDraw[j].color.b, pointLightsToDraw[j].color.a);
-
-			// Use our shader and draw our program
-			glDrawElements(GL_TRIANGLES, static_cast<int>(transparentToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
-		}
+		// Use our shader and draw our program
+		glDrawElements(GL_TRIANGLES, static_cast<int>(transparentToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 	}
 
 	glDisable(GL_BLEND);

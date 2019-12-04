@@ -23,7 +23,7 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/Configuration.h.in ${CMAKE_CURRENT_SO
 
 
 
-set(LAPTOP_SDL D:/SDL2-2.0.8/)
+set(LAPTOP_SDL D:/SDL2-2.0.10/)
 set(DESKTOP_SDL E:/SDL2-2.0.10/)
 
 if (UNIX AND NOT APPLE)
