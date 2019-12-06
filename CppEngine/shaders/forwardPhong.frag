@@ -28,6 +28,7 @@ struct PointLightToGPU {
 layout(std140, binding = 0) buffer PointLights {
 	PointLightToGPU pointLights[];
 };
+uniform int numLights;
 
 
 in vec3 fragNorm;
@@ -41,10 +42,7 @@ void main() {
 
 	// calculate normal
 	vec3 n;
-	if (usingBump) {
-		float diff = texture(bumpTex, fragUV).r - 0.5;
-		n = normalize(fragNorm + fragNorm * diff);
-	} else if (usingNormal) {
+	if (usingNormal) {
 		// https://learnopengl.com/Advanced-Lighting/Normal-Mapping
 		// Normal map
 		vec3 normal = texture(normalTex, fragUV).rgb * 2.0 - 1.0;
@@ -56,8 +54,12 @@ void main() {
 	// diffuse and opacity
 	vec4 a = texture(ambientTex, fragUV) * 0.001 * vec4(ambient, 1);
 	vec4 d = texture(diffuseTex, fragUV) * vec4(diffuse, 1);
+
+	// Quick exit if we have a fully transparent fragment
 	float o = texture(alphaTex, fragUV).r;
-	vec3 diffuseColor = vec3(a.xyz + d.xyz);
+	if (o < 0.0001) { discard; }
+
+	vec3 albedo = vec3(a.xyz + d.xyz);
 
 	// specular
 	vec3 spec = texture(specularTex, fragUV).rgb * specular;
@@ -69,13 +71,13 @@ void main() {
 
 	vec3 outColor = vec3(0, 0, 0);
 	// For each light, run through and add up calculations
-	for (int i = 0; i < pointLights.length(); i++) {
+	for (int i = 0; i < numLights; i++) {
 		vec3 lightDir = normalize(pointLights[i].position.xyz - fragPos);
 
 		float ndotL = max(dot(n, lightDir), 0.0);
 		if (ndotL > 0.0) {
 			// diffuse
-			diffuseColor = diffuseColor * pointLights[i].color.rgb * ndotL;
+			vec3 diffuseColor = albedo * pointLights[i].color.rgb * ndotL;
 
 			// specular
 			vec3 h = normalize(lightDir + eye);
@@ -91,5 +93,6 @@ void main() {
 		}
 	}
     
+    //finalColor = vec4(outColor, o);
     finalColor = vec4(outColor, o);
 }

@@ -79,7 +79,6 @@ void RendererSystem::Setup() {
 	GLuint unusedIds = 0;
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, &unusedIds, true);
 
-
     glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
@@ -262,7 +261,8 @@ void RendererSystem::Register(const Component* c) {
 		if (mat->isTransparent && pointLights_Ssbo == 0) {
 			glGenBuffers(1, &pointLights_Ssbo);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
-			glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(glm::vec4) * pointLights.size(), &pointLightsToGPU, GL_DYNAMIC_DRAW);
+			pointLightsToGPU.reserve(pointLights.size());
+			glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(glm::vec4) * pointLights.size(), pointLightsToGPU.data(), GL_DYNAMIC_DRAW);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLights_Ssbo);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		}
@@ -348,10 +348,6 @@ void RendererSystem::Render() {
 
 	totalTriangles = 0;
 
-    // Clear the screen to default color
-    glClearColor(0, 0, 0, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
     glm::mat4 view = mainCamera->view;
     glm::mat4 proj = mainCamera->proj;
 	glm::mat4 projView = proj * view;
@@ -421,6 +417,12 @@ void RendererSystem::Render() {
 	}
 
 
+	// Bind the output framebuffer from our deferred shading
+	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
+	// Clear the buffer to default color
+	glClearColor(0, 0, 0, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	// First deferred rendering pass with all of our non-transparent model renderers
 	DeferredPass(proj, view, projView);
 
@@ -437,8 +439,6 @@ void RendererSystem::Render() {
 }
 
 void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
-
-	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 
 	// Draw all of our wanted meshRendereres
 	for (int i = 0; i < meshesToDraw.size(); i++) {
@@ -622,6 +622,13 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, c
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glm::vec3 camPos = mainCamera->transform->position;
 
+	// First, sort our transparent objects by their position relative to the camera
+	std::sort(pointLightsToGPU.begin(), pointLightsToGPU.end(), [camPos] 
+		(const PointLightToGPU& a, const PointLightToGPU& b) { 
+			return glm::length(glm::vec3(a.position) - camPos) < glm::length(glm::vec3(b.position) - camPos);
+		}
+	);
+
 	// For each of our transparent objects, set up its shader
 	for (int i = 0; i < static_cast<int>(transparentToDraw.size()); i++) {
 
@@ -629,7 +636,10 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, c
 		glBindVertexArray(transparentToDraw[i].vao);
 
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
-		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(glm::vec4) * pointLightsToGPU.size(), &(pointLightsToGPU[0]));
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(glm::vec4) * pointLightsToGPU.size(), pointLightsToGPU.data());
+
+		GLint uniNumLights = glGetUniformLocation(transparentToDraw[i].shaderProgram, "numLights");
+		glUniform1i(uniNumLights, static_cast<int>(pointLightsToGPU.size()));
 
 		Material* m = transparentToDraw[i].material;
 

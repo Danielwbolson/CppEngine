@@ -43,7 +43,7 @@ void main() {
 
 	vec4 a = texture(ambientTex, fragUV) * 0.001 * vec4(ambient, 1);
 	vec4 d = texture(diffuseTex, fragUV) * vec4(diffuse, 1);
-	float o = texture(alphaTex, fragUV).r * opacity;
+	float o = texture(alphaTex, fragUV).r;
 
 	gDiffuse = vec3(a.xyz + d.xyz);
 
