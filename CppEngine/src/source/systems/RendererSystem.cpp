@@ -115,7 +115,7 @@ void RendererSystem::Setup() {
     // - position color buffer
     glGenTextures(1, &(gBuffer.positions));
     glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.positions, 0);
@@ -391,7 +391,15 @@ void RendererSystem::Render() {
 		glm::vec4 color = pointLights[i]->color;
 
 		float lum = .6f * color.g + .3f * color.r + .1f * color.b;
-		float radius = 7;
+
+		// Calculate radius of volume using luminence and wanted cutoff value of 0.004f
+		// 0.004 = lum / (1 + 2 * radius + 2 * radius * radius);
+		float a = 2;
+		float b = 1;
+		float c = 0.004f / lum;
+		c = 1.0f / c;
+		c = 1 - c; // Now on right side of equation
+		float radius = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
 
 		glm::mat4 model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
@@ -410,7 +418,8 @@ void RendererSystem::Render() {
 
 			PointLightToGPU pToGPU = PointLightToGPU{
 				pToGPU.position = pos,
-				pToGPU.color = color
+				pToGPU.color = color,
+				pToGPU.luminance = lum
 			};
 			pointLightsToGPU.push_back(pToGPU);
 		}
@@ -546,6 +555,7 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, 
 
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
+	glDepthMask(GL_FALSE);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 
@@ -574,6 +584,7 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, 
 	GLint pvm = glGetUniformLocation(combinedShader, "pvm");
 	GLint lightPos = glGetUniformLocation(combinedShader, "lightPos");
 	GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
+	GLint lightLum = glGetUniformLocation(combinedShader, "lightLum");
 
 	// instead of drawing arrays, draw spheres at each light position
 	// Tiled deferred rendering has a huge boost over deferred with light volumes in densely
@@ -587,14 +598,15 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, 
 	// - BVH --> Would be similar to frustum planes. Would need to figure out bounds of object and which bvh sections it fits in
 	// - 
 	// - Tiled-deferred
+
 	for (int i = 0; i < pointLightsToDraw.size(); i++) {
 
 		glm::mat4 pvmMatrix = projView * pointLightsToDraw[i].model;
 
 		// Switch culling if inside light volume
-		float diagRad = sqrt(pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius +
+		float cubeRadius = sqrt(pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius +
 			pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
-		if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < diagRad) {
+		if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < cubeRadius) {
 			glCullFace(GL_FRONT);
 		} else {
 			glCullFace(GL_BACK);
@@ -602,8 +614,10 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, 
 
 
 		glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
+		glUniform1f(lightLum, pointLightsToDraw[i].luminance);
 		glUniform4f(lightPos, pointLightsToDraw[i].position.x, pointLightsToDraw[i].position.y, pointLightsToDraw[i].position.z, pointLightsToDraw[i].position.w);
 		glUniform4f(lightCol, pointLightsToDraw[i].color.r, pointLightsToDraw[i].color.g, pointLightsToDraw[i].color.b, pointLightsToDraw[i].color.a);
+
 
 		totalTriangles += static_cast<int>(lightVolume->indices.size()) / 3;
 
@@ -614,6 +628,7 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, 
 	glCullFace(GL_BACK);
 	glEnable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
+	glDepthMask(GL_TRUE);
 }
 
 void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
@@ -622,21 +637,18 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, c
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glm::vec3 camPos = mainCamera->transform->position;
 
-	// First, sort our transparent objects by their position relative to the camera
-	std::sort(pointLightsToGPU.begin(), pointLightsToGPU.end(), [camPos] 
-		(const PointLightToGPU& a, const PointLightToGPU& b) { 
-			return glm::length(glm::vec3(a.position) - camPos) < glm::length(glm::vec3(b.position) - camPos);
-		}
-	);
+	// Not worth sorting for sponza as each transparent model is not separate
+
+	if (transparentToDraw.size() > 0) {
+		glUseProgram(transparentToDraw[0].shaderProgram);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(glm::vec4) * pointLightsToGPU.size(), pointLightsToGPU.data());
+	}
 
 	// For each of our transparent objects, set up its shader
 	for (int i = 0; i < static_cast<int>(transparentToDraw.size()); i++) {
 
-		glUseProgram(transparentToDraw[i].shaderProgram);
 		glBindVertexArray(transparentToDraw[i].vao);
-
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
-		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(glm::vec4) * pointLightsToGPU.size(), pointLightsToGPU.data());
 
 		GLint uniNumLights = glGetUniformLocation(transparentToDraw[i].shaderProgram, "numLights");
 		glUniform1i(uniNumLights, static_cast<int>(pointLightsToGPU.size()));

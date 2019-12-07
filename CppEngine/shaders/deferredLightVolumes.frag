@@ -7,6 +7,7 @@ uniform sampler2D gSpecularExp;
 
 uniform vec4 lightPos;
 uniform vec4 lightCol;
+uniform float lightLum;
 uniform vec3 camPos;
 
 in vec4 outPos;
@@ -40,7 +41,7 @@ void main() {
 
         // attenuation
         float dist = length(lightPos.xyz - fragPos);
-        float attenuation = 1.0 / (1 + 5 * dist + dist * dist);
+        float attenuation = lightLum / (1 + 1 * dist + 2 * dist * dist);
 
         outColor += diffuse * attenuation; // diffuse
         outColor += specular * attenuation; // specular

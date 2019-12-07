@@ -61,6 +61,7 @@ struct PointLightToDraw {
 struct PointLightToGPU {
 	glm::vec4 position;
 	glm::vec4 color;
+	float luminance;
 };
 
 class RendererSystem : public Systems {

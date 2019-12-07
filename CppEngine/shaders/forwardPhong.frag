@@ -24,6 +24,7 @@ uniform vec3 camPos;
 struct PointLightToGPU {
 	vec4 position;
 	vec4 color;
+	float luminance;
 };
 layout(std140, binding = 0) buffer PointLights {
 	PointLightToGPU pointLights[];
@@ -86,7 +87,7 @@ void main() {
 
 			// attenuation
 			float dist = length(pointLights[i].position.xyz - fragPos);
-			float attenuation = 1.0 / (1 + 5 * dist + dist * dist);
+			float attenuation = pointLights[i].luminance / (1 + 1 * dist + 2 * dist * dist);
 
 			outColor += diffuseColor * attenuation; // diffuse
 			outColor += specularColor * attenuation; // specular
