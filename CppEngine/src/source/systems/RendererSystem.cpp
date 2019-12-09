@@ -262,7 +262,7 @@ void RendererSystem::Register(const Component* c) {
 			glGenBuffers(1, &pointLights_Ssbo);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
 			pointLightsToGPU.reserve(pointLights.size());
-			glBufferData(GL_SHADER_STORAGE_BUFFER, 2 * sizeof(glm::vec4) * pointLights.size(), pointLightsToGPU.data(), GL_DYNAMIC_DRAW);
+			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * pointLights.size(), pointLightsToGPU.data(), GL_DYNAMIC_DRAW);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLights_Ssbo);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		}
@@ -302,7 +302,7 @@ void RendererSystem::Register(const Component* c) {
 	}
 }
 
-bool RendererSystem::ShouldFrustumCull(const Mesh* mesh, const glm::mat4& model, const glm::mat4& projViewMat) const {
+bool RendererSystem::ShouldFrustumCull(const Mesh* mesh, const glm::mat4& model) const {
 
 	// Not dereferencing and caching bounds moved my ModelRendererSystem::Render call from 10.11% 
 	// of total time used to 8.66%. Insignificant change, could be randomness or difference in view
@@ -350,8 +350,6 @@ void RendererSystem::Render() {
 
     glm::mat4 view = mainCamera->view;
     glm::mat4 proj = mainCamera->proj;
-	glm::mat4 projView = proj * view;
-
 
 
 	// Get all of our meshes that are not frustum culled. These will be used for later drawing
@@ -361,7 +359,7 @@ void RendererSystem::Render() {
 		glm::mat4 model = modelRenderers[i]->gameObject->transform->model;
 		for (int j = 0; j < modelRenderers[i]->numMeshes; j++) {
 
-			if (!ShouldFrustumCull(modelRenderers[i]->model->meshes[j], model, projView)) {
+			if (!ShouldFrustumCull(modelRenderers[i]->model->meshes[j], model)) {
 				
 				MeshToDraw m = MeshToDraw{
 					m.mesh = modelRenderers[i]->model->meshes[j],
@@ -396,16 +394,16 @@ void RendererSystem::Render() {
 		// 0.004 = lum / (1 + 2 * radius + 2 * radius * radius);
 		float a = 2;
 		float b = 1;
-		float c = 0.004f / lum;
+		float c = 0.01f / lum;
 		c = 1.0f / c;
 		c = 1 - c; // Now on right side of equation
 		float radius = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
 
 		glm::mat4 model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
-		model = glm::scale(model, lum * glm::vec3(radius, radius, radius));
+		model = glm::scale(model, glm::vec3(radius, radius, radius));
 
-		if (!ShouldFrustumCull(lightVolume, model, projView)) {
+		if (!ShouldFrustumCull(lightVolume, model)) {
 
 			PointLightToDraw pToDraw = PointLightToDraw{
 				pToDraw.luminance = lum,
@@ -433,7 +431,7 @@ void RendererSystem::Render() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// First deferred rendering pass with all of our non-transparent model renderers
-	DeferredPass(proj, view, projView);
+	DeferredPass(proj, view);
 
 	// Save all of our depth information from deferred pass for use in forward pass
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
@@ -441,18 +439,20 @@ void RendererSystem::Render() {
 	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-	glDisable(GL_CULL_FACE);
 	// Next, draw our transparent items in a forward rendering pass
-	ForwardPass(proj, view, projView);
-	glEnable(GL_CULL_FACE);
+	ForwardPass(proj, view);
 }
 
-void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
+void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view) {
+
+	// All opaque meshes use same shader
+	if (meshesToDraw.size() > 0) {
+		glUseProgram(meshesToDraw[0].shaderProgram);
+	}
 
 	// Draw all of our wanted meshRendereres
 	for (int i = 0; i < meshesToDraw.size(); i++) {
 
-		glUseProgram(meshesToDraw[i].shaderProgram);
 		glBindVertexArray(meshesToDraw[i].vao);
 
 		Material* m = meshesToDraw[i].material;
@@ -601,11 +601,11 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, 
 
 	for (int i = 0; i < pointLightsToDraw.size(); i++) {
 
-		glm::mat4 pvmMatrix = projView * pointLightsToDraw[i].model;
+		glm::mat4 pvmMatrix = proj * view * pointLightsToDraw[i].model;
 
 		// Switch culling if inside light volume
-		float cubeRadius = sqrt(pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius +
-			pointLightsToDraw[i].luminance * pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
+		float cubeRadius = sqrt(pointLightsToDraw[i].radius * pointLightsToDraw[i].radius + pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
+		
 		if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < cubeRadius) {
 			glCullFace(GL_FRONT);
 		} else {
@@ -631,27 +631,32 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view, 
 	glDepthMask(GL_TRUE);
 }
 
-void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, const glm::mat4& projView) {
+void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view) {
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glm::vec3 camPos = mainCamera->transform->position;
 
-	// Not worth sorting for sponza as each transparent model is not separate
+	// Not worth sorting transparent objects for sponza as each transparent model is not separate. 1 obj has transparent models in multiple locations
 
+	// all transparent objects use same shader
 	if (transparentToDraw.size() > 0) {
 		glUseProgram(transparentToDraw[0].shaderProgram);
+
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
-		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 2 * sizeof(glm::vec4) * pointLightsToGPU.size(), pointLightsToGPU.data());
+		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data());
+
+		GLint uniNumLights = glGetUniformLocation(transparentToDraw[0].shaderProgram, "numLights");
+		glUniform1i(uniNumLights, static_cast<int>(pointLightsToGPU.size()));
+
+		GLint uniCamPos = glGetUniformLocation(transparentToDraw[0].shaderProgram, "camPos");
+		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 	}
 
 	// For each of our transparent objects, set up its shader
 	for (int i = 0; i < static_cast<int>(transparentToDraw.size()); i++) {
 
 		glBindVertexArray(transparentToDraw[i].vao);
-
-		GLint uniNumLights = glGetUniformLocation(transparentToDraw[i].shaderProgram, "numLights");
-		glUniform1i(uniNumLights, static_cast<int>(pointLightsToGPU.size()));
 
 		Material* m = transparentToDraw[i].material;
 
@@ -667,9 +672,6 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view, c
 
 		glUniform1i(m->uniUsingBump, m->usingBump);
 		glUniform1i(m->uniUsingNormal, m->usingNormal);
-
-		GLint uniCamPos = glGetUniformLocation(transparentToDraw[i].shaderProgram, "camPos");
-		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
 
 		// How could I change the following IF statements to avoid last second state changes?

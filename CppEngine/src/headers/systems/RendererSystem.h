@@ -62,6 +62,7 @@ struct PointLightToGPU {
 	glm::vec4 position;
 	glm::vec4 color;
 	float luminance;
+	float padding[3];
 };
 
 class RendererSystem : public Systems {
@@ -98,13 +99,13 @@ public:
 
     void Render();
 
-	void DeferredPass(const glm::mat4&, const glm::mat4&, const glm::mat4&);
-	void ForwardPass(const glm::mat4&, const glm::mat4&, const glm::mat4&);
+	void DeferredPass(const glm::mat4&, const glm::mat4&);
+	void ForwardPass(const glm::mat4&, const glm::mat4&);
 
 	void DrawShadows();
 	void PostProcess();
 
-	bool ShouldFrustumCull(const Mesh*, const glm::mat4&, const glm::mat4&) const;
+	bool ShouldFrustumCull(const Mesh*, const glm::mat4&) const;
 };
 
 #endif

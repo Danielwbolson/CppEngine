@@ -25,8 +25,9 @@ struct PointLightToGPU {
 	vec4 position;
 	vec4 color;
 	float luminance;
+	float[3] padding;
 };
-layout(std140, binding = 0) buffer PointLights {
+layout(std430, binding = 0) buffer PointLights {
 	PointLightToGPU pointLights[];
 };
 uniform int numLights;
@@ -76,7 +77,7 @@ void main() {
 		vec3 lightDir = normalize(pointLights[i].position.xyz - fragPos);
 
 		float ndotL = max(dot(n, lightDir), 0.0);
-		if (ndotL > 0.0) {
+		if (ndotL > 0.0001) {
 			// diffuse
 			vec3 diffuseColor = albedo * pointLights[i].color.rgb * ndotL;
 
@@ -88,6 +89,8 @@ void main() {
 			// attenuation
 			float dist = length(pointLights[i].position.xyz - fragPos);
 			float attenuation = pointLights[i].luminance / (1 + 1 * dist + 2 * dist * dist);
+
+			if (attenuation < 0.01) { attenuation = 0; }
 
 			outColor += diffuseColor * attenuation; // diffuse
 			outColor += specularColor * attenuation; // specular
