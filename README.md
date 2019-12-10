@@ -18,4 +18,4 @@ To run, navigate to the root directory. You should see src/, materials/, etc.
 
 Run: `./build/Debug/CppEngine.exe games/<gameFolder>/`
 
-You can run it currently with games/demo/ to see a complex, basically animated, textured set of models with many light volumes.
+You can run it currently with games/sponza/ to see a demo of the popular Sponza model featuring 1000 lights and transparency.
