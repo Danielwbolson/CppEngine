@@ -1,13 +1,14 @@
 # CppEngine
 
-A Deferred Rendering "engine". Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects.
+A Rendering engine using deferred shading. Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects.
 Engine Features:
 - Entity-Component-Systems Architecture
-- Deferred Lighting
+- Deferred Shading
 - Point Light Volumes
-- Material and texturing support (Not normal maps or displacement maps yet)
+- Material and texturing support
+- Transparency (Sorted back-to-front on CPU)
 
-clone using --recursive to grab submodules
+clone using --recurse-submodules to grab submodules
 <br/>
 Make sure you change CMakeLists.txt lines 36-40 to the appropriate location of your SDL download.
 <br/>
