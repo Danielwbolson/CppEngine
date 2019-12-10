@@ -10,14 +10,12 @@ for i = 0,1000 do
 	local r = 0.945
 	local g = 0.9
 	local b = 0.8
-	local a = 1
 	
 	local x = -10 + math.random() * 40
 	local y = 0 + math.random() * 15
 	local z = 5 - math.random() * 40
-	local w = 1
 	
-	pointLightArray[idPoint] = addPointLight(r, g, b, a, x, y, z, w)
+	pointLightArray[idPoint] = addPointLight(r, g, b, x, y, z)
 	idPoint = idPoint + 1
 end
 

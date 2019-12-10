@@ -23,9 +23,8 @@ uniform vec3 camPos;
 
 struct PointLightToGPU {
 	vec4 position;
-	vec4 color;
+	vec3 color;
 	float luminance;
-	float[3] padding;
 };
 layout(std430, binding = 0) buffer PointLights {
 	PointLightToGPU pointLights[];
@@ -54,14 +53,12 @@ void main() {
 	}
 
 	// diffuse and opacity
-	vec4 a = texture(ambientTex, fragUV) * 0.001 * vec4(ambient, 1);
+	vec4 a = texture(ambientTex, fragUV) * 0.1 * vec4(ambient, 1);
 	vec4 d = texture(diffuseTex, fragUV) * vec4(diffuse, 1);
 
 	// Quick exit if we have a fully transparent fragment
 	float o = texture(alphaTex, fragUV).r;
 	if (o < 0.0001) { discard; }
-
-	vec3 albedo = vec3(a.xyz + d.xyz);
 
 	// specular
 	vec3 spec = texture(specularTex, fragUV).rgb * specular;
@@ -79,7 +76,7 @@ void main() {
 		float ndotL = max(dot(n, lightDir), 0.0);
 		if (ndotL > 0.0001) {
 			// diffuse
-			vec3 diffuseColor = albedo * pointLights[i].color.rgb * ndotL;
+			vec3 diffuseColor = d.xyz * pointLights[i].color * ndotL;
 
 			// specular
 			vec3 h = normalize(lightDir + eye);
@@ -98,5 +95,5 @@ void main() {
 	}
     
     //finalColor = vec4(outColor, o);
-    finalColor = vec4(outColor, o);
+    finalColor = vec4(outColor + a.xyz, o);
 }

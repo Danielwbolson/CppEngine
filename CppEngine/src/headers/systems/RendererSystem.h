@@ -42,6 +42,7 @@ struct MeshToDraw {
 	GLuint vao;
 	GLuint indexVbo;
 	GLuint shaderProgram;
+	glm::vec3 position;
 
 	~MeshToDraw() {
 		mesh = nullptr;
@@ -50,19 +51,17 @@ struct MeshToDraw {
 };
 
 struct PointLightToDraw {
+	glm::mat4 model; 
+	glm::vec3 position;
 	float luminance;
+	glm::vec3 color;
 	float radius;
-	glm::vec4 position;
-	glm::vec4 color;
-	glm::mat4 model;
-
 };
 
 struct PointLightToGPU {
 	glm::vec4 position;
-	glm::vec4 color;
+	glm::vec3 color;
 	float luminance;
-	float padding[3];
 };
 
 class RendererSystem : public Systems {

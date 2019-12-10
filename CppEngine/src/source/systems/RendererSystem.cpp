@@ -367,7 +367,8 @@ void RendererSystem::Render() {
 					m.model = model,
 					m.vao = modelRenderers[i]->vaos[j],
 					m.indexVbo = modelRenderers[i]->vbos[j][3],
-					m.shaderProgram = modelRenderers[i]->model->materials[j]->shader->shaderProgram					
+					m.shaderProgram = modelRenderers[i]->model->materials[j]->shader->shaderProgram,
+					m.position = modelRenderers[i]->gameObject->transform->position
 				};
 
 				if (m.material->isTransparent) {
@@ -386,7 +387,7 @@ void RendererSystem::Render() {
 	pointLightsToGPU.clear();
 	for (int i = 0; i < pointLights.size(); i++) {
 		glm::vec4 pos = pointLights[i]->position;
-		glm::vec4 color = pointLights[i]->color;
+		glm::vec3 color = pointLights[i]->color;
 
 		float lum = .6f * color.g + .3f * color.r + .1f * color.b;
 
@@ -406,11 +407,11 @@ void RendererSystem::Render() {
 		if (!ShouldFrustumCull(lightVolume, model)) {
 
 			PointLightToDraw pToDraw = PointLightToDraw{
-				pToDraw.luminance = lum,
-				pToDraw.radius = radius,
+				pToDraw.model = model,
 				pToDraw.position = pos,
+				pToDraw.luminance = lum,
 				pToDraw.color = color,
-				pToDraw.model = model
+				pToDraw.radius = radius
 			};
 			pointLightsToDraw.push_back(pToDraw);
 
@@ -615,8 +616,8 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view) 
 
 		glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
 		glUniform1f(lightLum, pointLightsToDraw[i].luminance);
-		glUniform4f(lightPos, pointLightsToDraw[i].position.x, pointLightsToDraw[i].position.y, pointLightsToDraw[i].position.z, pointLightsToDraw[i].position.w);
-		glUniform4f(lightCol, pointLightsToDraw[i].color.r, pointLightsToDraw[i].color.g, pointLightsToDraw[i].color.b, pointLightsToDraw[i].color.a);
+		glUniform3f(lightPos, pointLightsToDraw[i].position.x, pointLightsToDraw[i].position.y, pointLightsToDraw[i].position.z);
+		glUniform3f(lightCol, pointLightsToDraw[i].color.r, pointLightsToDraw[i].color.g, pointLightsToDraw[i].color.b);
 
 
 		totalTriangles += static_cast<int>(lightVolume->indices.size()) / 3;
@@ -638,6 +639,12 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view) {
 	glm::vec3 camPos = mainCamera->transform->position;
 
 	// Not worth sorting transparent objects for sponza as each transparent model is not separate. 1 obj has transparent models in multiple locations
+	// But will sort anyways to deal with other models
+	std::sort(transparentToDraw.begin(), transparentToDraw.end(), [camPos]
+		(const MeshToDraw& a, const MeshToDraw& b) {
+			return glm::length(a.position - camPos) > glm::length(b.position - camPos);
+		}
+	);
 
 	// all transparent objects use same shader
 	if (transparentToDraw.size() > 0) {

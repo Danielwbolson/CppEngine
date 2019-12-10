@@ -27,8 +27,8 @@ void luaSetup(sol::state& L) {
 // C++ implementations
 // output functionName(lua_State* luaState) {}
 
-int addPointLight(const float& r, const float& g, const float& b, const float& a, const float& x , const float& y, const float& z, const float& w) {
-	mainScene->lights.push_back(new PointLight(glm::vec4(r, g, b, a), glm::vec4(x, y, z, w)));
+int addPointLight(const float& r, const float& g, const float& b, const float& x , const float& y, const float& z) {
+	mainScene->lights.push_back(new PointLight(glm::vec3(r, g, b), glm::vec4(x, y, z, 1)));
 	return static_cast<int>(mainScene->lights.size() - 1);
 }
 

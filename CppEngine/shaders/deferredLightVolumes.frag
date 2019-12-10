@@ -5,8 +5,8 @@ uniform sampler2D gNormal;
 uniform sampler2D gDiffuse;
 uniform sampler2D gSpecularExp;
 
-uniform vec4 lightPos;
-uniform vec4 lightCol;
+uniform vec3 lightPos;
+uniform vec3 lightCol;
 uniform float lightLum;
 uniform vec3 camPos;
 
@@ -27,12 +27,12 @@ void main() {
     vec3 outColor = vec3(0, 0, 0);
 
     // light info in world space
-    vec3 lightDir = normalize(lightPos.xyz - fragPos);
+    vec3 lightDir = normalize(lightPos - fragPos);
 
     float ndotL = max(dot(normal, lightDir), 0.0);
     if (ndotL > 0.0) {
         // diffuse
-        vec3 diffuse = lightCol.rgb * diffuseColor * ndotL;
+        vec3 diffuse = lightCol * diffuseColor * ndotL;
 
         // specular
         vec3 h = normalize(lightDir + eye);
@@ -40,7 +40,7 @@ void main() {
         vec3 specular = specExp.rgb * spec;
 
         // attenuation
-        float dist = length(lightPos.xyz - fragPos);
+        float dist = length(lightPos - fragPos);
         float attenuation = lightLum / (1 + 1 * dist + 2 * dist * dist);
 
         outColor += diffuse * attenuation; // diffuse
