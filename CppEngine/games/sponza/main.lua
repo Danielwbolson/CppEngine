@@ -4,6 +4,10 @@ id = addInstance("sponza")
 placeInstance(id, 10, 0, -10)
 scaleInstance(id, 0.01, 0.01, 0.01)
 
+
+sun = addDirectionalLight(0.945, 0.9, 0.8, 0, -1, 0)
+
+
 pointLightArray = {}
 idPoint = 1
 for i = 0,1000 do

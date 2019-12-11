@@ -13,6 +13,7 @@ void luaSetup(sol::state& L);
 // output functionName(lua_State* luaState);
 
 int addPointLight(const float&, const float&, const float&, const float&, const float&, const float&);
+int addDirectionalLight(const float&, const float&, const float&, const float&, const float&, const float&);
 int addModel();
 int addInstance(const std::string&);
 int placeInstance(const int&, const float&, const float&, const float&);

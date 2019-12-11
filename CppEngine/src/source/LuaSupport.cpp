@@ -4,6 +4,7 @@
 #include "Scene.h"
 #include "Light.h"
 #include "PointLight.h"
+#include "DirectionalLight.h"
 #include "ModelRenderer.h"
 #include "Model.h"
 #include "Material.h"
@@ -12,6 +13,7 @@ void luaSetup(sol::state& L) {
 	L.open_libraries(sol::lib::base, sol::lib::math, sol::lib::os);
 
 	L.set_function("addPointLight", &addPointLight);
+	L.set_function("addDirectionalLight", &addDirectionalLight);
 	L.set_function("addModel", &addModel);
 	L.set_function("addInstance", &addInstance);
 	L.set_function("placeInstance", &placeInstance);
@@ -29,6 +31,11 @@ void luaSetup(sol::state& L) {
 
 int addPointLight(const float& r, const float& g, const float& b, const float& x , const float& y, const float& z) {
 	mainScene->lights.push_back(new PointLight(glm::vec3(r, g, b), glm::vec4(x, y, z, 1)));
+	return static_cast<int>(mainScene->lights.size() - 1);
+}
+
+int addDirectionalLight(const float& r, const float& g, const float& b, const float& dx, const float& dy, const float& dz) {
+	mainScene->lights.push_back(new DirectionalLight(glm::vec4(r, g, b, 1), glm::vec4(dx, dy, dz, 1)));
 	return static_cast<int>(mainScene->lights.size() - 1);
 }
 

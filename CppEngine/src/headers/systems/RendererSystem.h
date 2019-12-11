@@ -11,6 +11,7 @@
 #include "GameObject.h"
 #include "ModelRenderer.h"
 #include "PointLight.h"
+#include "DirectionalLight.h"
 #include "Model.h"
 #include "Mesh.h"
 #include "Texture.h"
@@ -73,17 +74,24 @@ private:
 
 	// TODO: Need to add lights to the asset manager
     std::vector<PointLight*> pointLights;
+	DirectionalLight* sun;
 	std::vector<PointLightToDraw> pointLightsToDraw;
 
 	GLubyte dummyData[4] = { 255, 255, 255, 255 };
 
     int screenWidth; int screenHeight;
     GBuffer gBuffer;
-    GLuint lightVolume_Vao; GLuint lightVolume_Vbo; GLuint lightVolume_Ibo;
-    GLuint combinedShader;
-	GLuint pointLights_Ssbo = 0;
+	GLuint lightVolumeShader;
+	
+	GLuint quadVAO; GLuint quadVBO;
+	GLuint directionalLightShader;
 
     Mesh* lightVolume;
+	GLuint lightVolumeVAO; GLuint lightVolumeVBO; GLuint lightVolumeIBO;
+
+	glm::mat4 proj; glm::mat4 view;
+
+	GLuint pointLightsSSBO = 0;
 
 public:
 	int totalTriangles = 0;
@@ -95,14 +103,15 @@ public:
     void Register(const Component*);
 
     void Update(const float&) {}
-
     void Render();
 
-	void DeferredPass(const glm::mat4&, const glm::mat4&);
-	void ForwardPass(const glm::mat4&, const glm::mat4&);
-
+	void CullScene();
 	void DrawShadows();
+	void DeferredToTexture();
+	void DeferredLighting();
+	void DrawTransparent();
 	void PostProcess();
+	void DrawQuad();
 
 	bool ShouldFrustumCull(const Mesh*, const glm::mat4&) const;
 };

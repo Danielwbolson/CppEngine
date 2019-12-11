@@ -173,6 +173,8 @@ set(OTHER_CPP
 )
 
 set(SHADERS
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredDirectionalLight.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredDirectionalLight.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredLightvolumes.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredLightvolumes.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredToTexture.frag
