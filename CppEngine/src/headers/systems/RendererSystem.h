@@ -85,9 +85,14 @@ private:
 	
 	GLuint quadVAO; GLuint quadVBO;
 	GLuint directionalLightShader;
+	glm::mat4 lightProjView;
 
     Mesh* lightVolume;
 	GLuint lightVolumeVAO; GLuint lightVolumeVBO; GLuint lightVolumeIBO;
+
+	GLuint shadowMapShader;
+	GLuint depthMapFBO; GLuint depthMap;
+	const int shadowWidth = 4096; const int shadowHeight = 4096;
 
 	glm::mat4 proj; glm::mat4 view;
 

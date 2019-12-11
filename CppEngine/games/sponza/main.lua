@@ -5,6 +5,7 @@ placeInstance(id, 10, 0, -10)
 scaleInstance(id, 0.01, 0.01, 0.01)
 
 
+--sun = addDirectionalLight(0.945, 0.9, 0.8, -0.5, -1.2, -0.7)
 sun = addDirectionalLight(0.945, 0.9, 0.8, 0, -1, 0)
 
 
@@ -15,7 +16,7 @@ for i = 0,1000 do
 	local g = 0.9
 	local b = 0.8
 	
-	local x = -10 + math.random() * 40
+	local x = -5 + math.random() * 30
 	local y = 0 + math.random() * 15
 	local z = 5 - math.random() * 40
 	

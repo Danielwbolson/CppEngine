@@ -5,13 +5,21 @@ uniform sampler2D gNormal;
 uniform sampler2D gDiffuse;
 uniform sampler2D gSpecularExp;
 
+uniform sampler2D depthMap;
+
 uniform vec3 lightDir;
 uniform vec3 lightCol;
+uniform mat4 lightProjView;
 
 uniform vec3 camPos;
 
 in vec2 UV;
 out vec4 finalColor;
+
+const float span = 1.0 / 4096.0;
+
+
+float calculateShadow(vec4);
 
 void main() {
 
@@ -19,6 +27,8 @@ void main() {
     vec3 normal       = normalize(texture(gNormal, UV).rgb);
     vec3 diffuseColor = texture(gDiffuse, UV).rgb;
     vec4 specExp      = texture(gSpecularExp, UV);
+
+	vec4 fragPosLightSpace = (lightProjView * vec4(fragPos, 1.0));
     
     // eye
     vec3 eye = normalize(camPos-fragPos);
@@ -34,10 +44,30 @@ void main() {
         float spec = pow(max(dot(h, normal), 0.0), specExp.a);
         vec3 specular = specExp.rgb * spec;
 
-        outColor += diffuse; // diffuse
-        outColor += specular; // specular
+		float shadow = calculateShadow(fragPosLightSpace);
+        outColor = (1.0 - shadow) * (diffuse + specular); // diffuse
     }
     
     finalColor.rgb = outColor;
     finalColor.a   = 1.0;
+}
+
+float calculateShadow(vec4 fragPosLightSpace) {
+	// Calculate where our fragment is located on the screen
+	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+	projCoords = projCoords * 0.5 + 0.5;
+	
+	float shadow = 0;
+	for (int i = 0; i < 5; i++) {
+		for (int j = 0; j < 5; j++) {
+			float x = projCoords.x + span * (i - 2);
+			float y = projCoords.y + span * (j - 2);
+			float textureDepth = texture(depthMap, vec2(x, y)).r;
+
+			shadow += textureDepth < projCoords.z - 0.001 ? 1.0 : 0.0;
+		}
+	}
+
+
+	return shadow / 25.0f;
 }

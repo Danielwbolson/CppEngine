@@ -9,6 +9,9 @@ uniform sampler2D normalTex;
 uniform sampler2D dispTex;
 uniform sampler2D alphaTex;
 
+uniform sampler2D depthMap;
+const float span = 1.0 / 4096.0;
+
 uniform bool usingBump;
 uniform bool usingNormal;
 
@@ -31,9 +34,9 @@ layout(std430, binding = 0) buffer PointLights {
 };
 uniform int numLights;
 
-uniform vec3 dirLightDir;
-uniform vec3 dirLightCol;
-
+uniform vec3 lightDir;
+uniform vec3 lightCol;
+uniform mat4 lightProjView;
 
 in vec3 fragNorm;
 in vec3 fragPos;
@@ -44,13 +47,13 @@ out vec4 finalColor;
 
 vec3 calculatePointLights(vec3, vec3, vec4, vec3, float);
 vec3 calculateDirectionalLight(vec3, vec3, vec4, vec3, float);
+float calculateShadow(vec4);
 
 void main() {
 
 	// Quick exit if we have a fully transparent fragment
 	float o = texture(alphaTex, fragUV).r;
 	if (o < 0.0001) { discard; }
-
 
 	// calculate normal
 	vec3 n;
@@ -76,7 +79,10 @@ void main() {
 
 	// Calculate total color from lights
 	vec3 pointLightCol = calculatePointLights(eye, n, d, spec, specExp);
-	vec3 directionalLightCol = calculateDirectionalLight(eye, n, d, spec, specExp);
+
+	vec4 fragPosLightSpace = (lightProjView * vec4(fragPos, 1.0));
+	float shadow = calculateShadow(fragPosLightSpace);
+	vec3 directionalLightCol = (1.0 - shadow) * calculateDirectionalLight(eye, n, d, spec, specExp);
 
     finalColor = vec4(pointLightCol + directionalLightCol + a.xyz, o);
 }
@@ -117,19 +123,37 @@ vec3 calculateDirectionalLight(vec3 eye, vec3 n, vec4 d, vec3 spec, float specEx
 
 	vec3 outColor = vec3(0, 0, 0);
 
-	float ndotL = max(dot(n, -dirLightDir), 0.0);
+	float ndotL = max(dot(n, -lightDir), 0.0);
 	if (ndotL > 0.0) {
 		// diffuse
-		vec3 diffuseColor = dirLightCol * d.xyz * ndotL;
+		vec3 diffuseColor = lightCol * d.xyz * ndotL;
 
 		// specular
-		vec3 h = normalize(-dirLightDir + eye);
+		vec3 h = normalize(-lightDir + eye);
 		float exponent = pow(max(dot(h, n), 0.0), specExp);
 		vec3 specularColor = spec * exponent;
 
-		outColor += diffuseColor; // diffuse
-		outColor += specularColor; // specular
+        outColor = diffuseColor + specularColor; // diffuse
+    }
+    
+    return outColor;
+}
+
+float calculateShadow(vec4 fragPosLightSpace) {
+	// Calculate where our fragment is located on the screen
+	vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+	projCoords = projCoords * 0.5 + 0.5;
+	
+	float shadow = 0;
+	for (int i = 0; i < 5; i++) {
+		for (int j = 0; j < 5; j++) {
+			float x = projCoords.x + span * (i - 2);
+			float y = projCoords.y + span * (j - 2);
+			float textureDepth = texture(depthMap, vec2(x, y)).r;
+
+			shadow += textureDepth < projCoords.z - 0.001 ? 1.0 : 0.0;
+		}
 	}
 
-	return outColor;
+	return shadow / 25.0f;
 }

@@ -155,6 +155,13 @@ void RendererSystem::Setup() {
 		// - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
 		GLuint attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
 		glDrawBuffers(4, attachments);
+
+		GLuint rboDepth;
+		glGenRenderbuffers(1, &rboDepth);
+		glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+
 	}
 
 	// Set up our directional light shader
@@ -175,13 +182,33 @@ void RendererSystem::Setup() {
 		// Also uses GBuffer stuff
 	}
 
-    GLuint rboDepth;
-    glGenRenderbuffers(1, &rboDepth);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	// Create depth buffer and map for shadow maps from directional light
+	{
+		shadowMapShader = util::initShaderFromFiles("shadowMap.vert", "shadowMap.frag");
+
+		glGenFramebuffers(1, &depthMapFBO);
+		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+
+		// Set up our depth texture
+		glGenTextures(1, &depthMap);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowWidth, shadowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+		// Set up our depth framebuffer
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 }
 
@@ -313,15 +340,18 @@ void RendererSystem::Register(const Component* c) {
 void RendererSystem::Render() {
 
 	totalTriangles = 0;
-    view = mainCamera->view;
-    proj = mainCamera->proj;
 
 	// First, cull out unwanted geometry. Currently, only Frustum Culling is supported
 	CullScene();
 
 	// Next, calculate our shadow map using our directional light only
 	// We do this every frame because we are assuming the directional light will move
+	glCullFace(GL_FRONT);
 	DrawShadows();
+	glCullFace(GL_BACK);
+
+	view = mainCamera->view;
+	proj = mainCamera->proj;
 
 	// Next, draw our opaque geometry to our buffers for deferred shading and then calculate lighting for our deferred objects
 	DeferredToTexture();
@@ -404,7 +434,62 @@ void RendererSystem::CullScene() {
 
 }
 
+void RendererSystem::DrawShadows() {
+
+	// Set our viewport for our shadow map and link our depth FBO
+	glViewport(0, 0, shadowWidth, shadowHeight);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+
+	// Clear our depth bit as we are going to overwrite it with our new shadow map
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	// Actually draw to our depth buffer
+	glUseProgram(shadowMapShader);
+
+	// Create matrices to simulate drawing from our directional light's perspective
+	proj = glm::ortho(-30.0f, 10.0f, -15.0f, 40.0f, 0.01f, 1000.0f);
+	glm::vec3 pos = glm::vec3(sun->direction) * -100.0f;
+	view = glm::lookAt(pos, pos + glm::vec3(sun->direction), glm::vec3(1.0f, 0.0f, 0.0f));
+	lightProjView = proj * view;
+	glUniformMatrix4fv(glGetUniformLocation(shadowMapShader, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
+
+	GLint uniModel = glGetUniformLocation(shadowMapShader, "model");
+
+	for (int i = 0; i < meshesToDraw.size(); i++) {
+		glBindVertexArray(meshesToDraw[i].vao);
+
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(meshesToDraw[i].model));
+
+		// Indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshesToDraw[i].indexVbo);
+
+		totalTriangles += static_cast<int>(meshesToDraw[i].mesh->indices.size()) / 3;
+
+		// Use our shader and draw our program
+		glDrawElements(GL_TRIANGLES, static_cast<int>(meshesToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
+	}
+
+	for (int i = 0; i < transparentToDraw.size(); i++) {
+		glBindVertexArray(transparentToDraw[i].vao);
+
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(transparentToDraw[i].model));
+
+		// Indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, transparentToDraw[i].indexVbo);
+
+		totalTriangles += static_cast<int>(transparentToDraw[i].mesh->indices.size()) / 3;
+
+		// Use our shader and draw our program
+		glDrawElements(GL_TRIANGLES, static_cast<int>(transparentToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+}
+
 void RendererSystem::DeferredToTexture() {
+
+	glViewport(0, 0, windowWidth, windowHeight);
 
 	// Bind the output framebuffer from our deferred shading
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
@@ -515,8 +600,6 @@ void RendererSystem::DeferredToTexture() {
 
 void RendererSystem::DeferredLighting() {
 
-	glViewport(0, 0, screenWidth, screenHeight);
-
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 	glDepthMask(GL_FALSE);
@@ -599,6 +682,12 @@ void RendererSystem::DeferredLighting() {
 	glUniform1i(glGetUniformLocation(directionalLightShader, "gDiffuse"), 2);
 	glUniform1i(glGetUniformLocation(directionalLightShader, "gSpecularExp"), 3);
 
+	// Shadow map stuff
+	glActiveTexture(GL_TEXTURE4);
+	glBindTexture(GL_TEXTURE_2D, depthMap);
+	glUniform1i(glGetUniformLocation(directionalLightShader, "depthMap"), 4);
+	glUniformMatrix4fv(glGetUniformLocation(directionalLightShader, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
+
 	uniCamPos = glGetUniformLocation(directionalLightShader, "camPos");
 	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
@@ -649,11 +738,17 @@ void RendererSystem::DrawTransparent() {
 		GLint uniCamPos = glGetUniformLocation(transparentToDraw[0].shaderProgram, "camPos");
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
-		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "dirLightDir");
+		// Directional light
+		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightDir");
 		glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
-
-		GLint lightCol = glGetUniformLocation(transparentToDraw[0].shaderProgram, "dirLightCol");
+		GLint lightCol = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightCol");
 		glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
+
+		// Shadow map stuff
+		glActiveTexture(GL_TEXTURE0 + 8);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glUniform1i(glGetUniformLocation(transparentToDraw[0].shaderProgram, "depthMap"), 8);
+		glUniformMatrix4fv(glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
 	}
 
 	// For each of our transparent objects, set up its shader
@@ -759,8 +854,6 @@ void RendererSystem::DrawTransparent() {
 	glDisable(GL_BLEND);
 
 }
-
-void RendererSystem::DrawShadows() {}
 
 void RendererSystem::PostProcess() {}
 

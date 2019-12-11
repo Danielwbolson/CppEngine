@@ -33,10 +33,10 @@ if (UNIX AND NOT APPLE)
 elseif (APPLE)
   find_package( SDL2 REQUIRED component main)
 elseif(MSVC)
-  link_directories( ${DESKTOP_SDL}lib/x64 )
-  set(SDL2_INCLUDE_DIRS ${DESKTOP_SDL}include )
-  #link_directories( ${LAPTOP_SDL}lib/x64)
-  #set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)
+  #link_directories( ${DESKTOP_SDL}lib/x64 )
+  #set(SDL2_INCLUDE_DIRS ${DESKTOP_SDL}include )
+  link_directories( ${LAPTOP_SDL}lib/x64)
+  set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)
   
   #find_file(SDL2_INCLUDE_DIR NAME SDL.h HINTS SDL2)
   #find_library(SDL2_LIBRARY NAME SDL2)
@@ -183,6 +183,8 @@ set(SHADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPhong.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/Phong.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/Phong.frag
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.frag
 )
 
 set(INCS

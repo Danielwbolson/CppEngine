@@ -35,7 +35,7 @@ int addPointLight(const float& r, const float& g, const float& b, const float& x
 }
 
 int addDirectionalLight(const float& r, const float& g, const float& b, const float& dx, const float& dy, const float& dz) {
-	mainScene->lights.push_back(new DirectionalLight(glm::vec4(r, g, b, 1), glm::vec4(dx, dy, dz, 1)));
+	mainScene->lights.push_back(new DirectionalLight(glm::vec4(r, g, b, 1), glm::vec4(glm::normalize(glm::vec3(dx, dy, dz)), 1)));
 	return static_cast<int>(mainScene->lights.size() - 1);
 }
 
