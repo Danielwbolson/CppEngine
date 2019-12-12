@@ -675,6 +675,9 @@ void RendererSystem::DeferredLighting() {
 		}
 	}
 
+	// Switch back culling after point lights
+	glCullFace(GL_BACK);
+
 	// Directional Light (Sun)
 	{
 		glUseProgram(directionalLightShader);
@@ -711,11 +714,9 @@ void RendererSystem::DeferredLighting() {
 		glDrawArrays(GL_TRIANGLES, 0, 6); //Number of vertices
 	}
 
-
-	glCullFace(GL_BACK);
 	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND);
 	glDepthMask(GL_TRUE);
+	glDisable(GL_BLEND);
 }
 
 void RendererSystem::DrawTransparent() {
@@ -852,9 +853,6 @@ void RendererSystem::DrawTransparent() {
 			}
 			glUniform1i(m->uniAlphaTex, 7);
 		}
-
-		// Indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, transparentToDraw[i].indexVbo);
 
 		totalTriangles += static_cast<int>(transparentToDraw[i].mesh->indices.size()) / 3;
 
