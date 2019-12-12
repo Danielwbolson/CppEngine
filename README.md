@@ -2,7 +2,7 @@
 
 ### A multi-pass Rendering engine using deferred shading. Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects and interact with the sun.
 
-## Engine Features:
+## Engine Features:  
 - Entity-Component-Systems Architecture
 - Deferred Shading
 - Point Light Volumes
@@ -12,7 +12,7 @@
 - Material and texturing support
 
 
-## To clone, build, and run:
+## To clone, build, and run:  
 ```
 git clone --recurse-submodules https://github.com/Danielwbolson/CppEngine.git
 ```
@@ -26,11 +26,11 @@ Make sure you configure `CppEngine/CppEngine/CMakeLists.txt` to the appropriate 
 `38 | #link_directories( ${LAPTOP_SDL}lib/x64)`  
 `39 | #set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)`  
 <br/>
-Navigate to the root directory. You should see src/, materials/, etc.
+Navigate to the root directory. You should see src/, materials/, etc.  
 ```
 ./build/Release/CppEngine.exe games/<gameFolder>/
 ```
-On Windows, you can also run from within Visual Studio:
-Add `games/<gameFolder>/` to CppEngine->Properties->Debugging->Command Arguments
+On Windows, you can also run from within Visual Studio:  
+Add `games/<gameFolder>/` to `CppEngine->Properties->Debugging->Command Arguments`
 
 I recommend running with `games/sponza/` to see a demo of the popular Sponza model featuring hundreds of point light volumes and a  dynamic directional light.
