@@ -33,9 +33,9 @@ end
 
 function keyInput(keys)
 	if keys.one then
-		rotateSunX(sun, 0.01);		
+		rotateSunX(sun, 0.004);		
 	elseif keys.two then
-		rotateSunX(sun, -0.01);	
+		rotateSunX(sun, -0.004);	
 	end
 	
 end

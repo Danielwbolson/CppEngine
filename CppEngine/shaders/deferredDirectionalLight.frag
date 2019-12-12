@@ -63,7 +63,7 @@ float calculateShadow(vec4 fragPosLightSpace) {
 			float y = projCoords.y + span * (j - 2);
 			float textureDepth = texture(depthMap, vec2(x, y)).r;
 
-			shadow += textureDepth < projCoords.z - 0.001 ? 1.0 : 0.0;
+			shadow += textureDepth < projCoords.z - 0.00001 ? 1.0 : 0.0;
 		}
 	}
 

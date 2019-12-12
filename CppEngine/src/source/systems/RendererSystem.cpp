@@ -379,10 +379,7 @@ void RendererSystem::Render() {
 
 	// Next, calculate our shadow map using our directional light only
 	// We do this every frame because we are assuming the directional light will move
-	// Swapping culling helps get more accurate shadows
-	//glCullFace(GL_FRONT);
 	DrawShadows();
-	//glCullFace(GL_BACK);
 
 	view = mainCamera->view;
 	proj = mainCamera->proj;
@@ -392,10 +389,7 @@ void RendererSystem::Render() {
 	DeferredLighting();
 
 	// Next, draw our transparent items in a forward rendering pass
-	// Culling disabled for chains
-	glDisable(GL_CULL_FACE);
 	DrawTransparent();
-	glEnable(GL_CULL_FACE);
 
 	// Next, do post processing effects on final image.
 	PostProcess();
@@ -486,7 +480,8 @@ void RendererSystem::DrawShadows() {
 	// Create matrices to simulate drawing from our directional light's perspective
 	proj = glm::ortho(-30.0f, 10.0f, -15.0f, 40.0f, 0.01f, 1000.0f);
 	glm::vec3 pos = glm::vec3(sun->direction) * -100.0f;
-	view = glm::lookAt(pos, pos + glm::vec3(sun->direction), glm::vec3(1.0f, 0.0f, 0.0f));
+	glm::vec3 up = glm::cross(glm::vec3(sun->direction), glm::vec3(0, 0, -1));
+	view = glm::lookAt(pos, pos + glm::vec3(sun->direction), glm::normalize(up));
 	lightProjView = proj * view;
 	glUniformMatrix4fv(glGetUniformLocation(shadowMapShader, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
 
@@ -496,9 +491,6 @@ void RendererSystem::DrawShadows() {
 		glBindVertexArray(meshesToDraw[i].vao);
 
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(meshesToDraw[i].model));
-
-		// Indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshesToDraw[i].indexVbo);
 
 		totalTriangles += static_cast<int>(meshesToDraw[i].mesh->indices.size()) / 3;
 
@@ -510,9 +502,6 @@ void RendererSystem::DrawShadows() {
 		glBindVertexArray(transparentToDraw[i].vao);
 
 		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(transparentToDraw[i].model));
-
-		// Indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, transparentToDraw[i].indexVbo);
 
 		totalTriangles += static_cast<int>(transparentToDraw[i].mesh->indices.size()) / 3;
 
