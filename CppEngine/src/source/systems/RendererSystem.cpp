@@ -587,9 +587,6 @@ void RendererSystem::DeferredToTexture() {
 			// No alpha texture for deferred shading
 		}
 
-		// Indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshesToDraw[i].indexVbo);
-
 		totalTriangles += static_cast<int>(meshesToDraw[i].mesh->indices.size()) / 3;
 
 		// Use our shader and draw our program
@@ -636,8 +633,6 @@ void RendererSystem::DeferredLighting() {
 		GLint lightPos = glGetUniformLocation(lightVolumeShader, "lightPos");
 		GLint lightCol = glGetUniformLocation(lightVolumeShader, "lightCol");
 		GLint lightLum = glGetUniformLocation(lightVolumeShader, "lightLum");
-
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolumeIBO);
 
 		// instead of drawing arrays, draw spheres at each light position
 		// Tiled deferred rendering has a huge boost over deferred with light volumes in densely
