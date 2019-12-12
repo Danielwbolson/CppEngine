@@ -26,14 +26,14 @@ struct GBuffer {
     GLuint specular;
 };
 
-const GLfloat quadVerts[12] = {
-    -1, 1,
-    -1, -1,
-    1, -1,
+const float quadVerts[12] = {
+    -0.5f, 0.5f,
+    -0.5f, -0.5f,
+	0.5f, -0.5f,
 
-    -1, 1,
-    1, -1,
-    1, 1
+    0.5f, -0.5f,
+	0.5f, 0.5f,
+	-0.5f, 0.5f
 };
 
 struct MeshToDraw {

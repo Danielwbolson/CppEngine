@@ -6,6 +6,7 @@ uniform sampler2D gDiffuse;
 uniform sampler2D gSpecularExp;
 
 uniform sampler2D depthMap;
+const float span = 1.0 / 4096.0;
 
 uniform vec3 lightDir;
 uniform vec3 lightCol;
@@ -16,40 +17,41 @@ uniform vec3 camPos;
 in vec2 UV;
 out vec4 finalColor;
 
-const float span = 1.0 / 4096.0;
-
 
 float calculateShadow(vec4);
 
 void main() {
 
-    vec3 fragPos      = texture(gPosition, UV).rgb;
-    vec3 normal       = normalize(texture(gNormal, UV).rgb);
-    vec3 diffuseColor = texture(gDiffuse, UV).rgb;
-    vec4 specExp      = texture(gSpecularExp, UV);
+	finalColor = vec4(1.0, 0.0, 0.0, 1.0);
 
-	vec4 fragPosLightSpace = (lightProjView * vec4(fragPos, 1.0));
+//    vec3 fragPos      = texture(gPosition, UV).rgb;
+//    vec3 normal       = normalize(texture(gNormal, UV).rgb);
+//    vec3 diffuseColor = texture(gDiffuse, UV).rgb;
+//    vec4 specExp      = texture(gSpecularExp, UV);
+//    
+//    // eye
+//    vec3 eye = normalize(camPos-fragPos);
+//    vec3 outColor = vec3(0, 0, 0);
+//
+//	vec4 fragPosLightSpace = (lightProjView * vec4(fragPos, 1.0));
+//
+//    float ndotL = max(dot(normal, -lightDir), 0.0);
+//    if (ndotL > 0.0) {
+//        // diffuse
+//        vec3 diffuse = lightCol * diffuseColor * ndotL;
+//
+//        // specular
+//        vec3 h = normalize(-lightDir + eye);
+//        float spec = pow(max(dot(h, normal), 0.0), specExp.a);
+//        vec3 specular = specExp.rgb * spec;
+//
+//		float shadow = calculateShadow(fragPosLightSpace);
+//        outColor = (1.0 - shadow) * (diffuse + specular); // diffuse
+//    }
     
-    // eye
-    vec3 eye = normalize(camPos-fragPos);
-    vec3 outColor = vec3(0, 0, 0);
-
-    float ndotL = max(dot(normal, -lightDir), 0.0);
-    if (ndotL > 0.0) {
-        // diffuse
-        vec3 diffuse = lightCol * diffuseColor * ndotL;
-
-        // specular
-        vec3 h = normalize(-lightDir + eye);
-        float spec = pow(max(dot(h, normal), 0.0), specExp.a);
-        vec3 specular = specExp.rgb * spec;
-
-		float shadow = calculateShadow(fragPosLightSpace);
-        outColor = (1.0 - shadow) * (diffuse + specular); // diffuse
-    }
-    
-    finalColor.rgb = outColor;
-    finalColor.a   = 1.0;
+    //finalColor = vec4(outColor, 1.0);
+	//finalColor = fragPosLightSpace;
+	//finalColor = vec4(fragPos, 1.0);
 }
 
 float calculateShadow(vec4 fragPosLightSpace) {

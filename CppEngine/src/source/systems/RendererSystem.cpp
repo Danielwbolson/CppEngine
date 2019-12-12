@@ -175,9 +175,11 @@ void RendererSystem::Setup() {
 
 		glGenBuffers(1, &quadVBO);
 		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
-		glEnableVertexAttribArray(glGetAttribLocation(directionalLightShader, "inPos"));
-		glVertexAttribPointer(glGetAttribLocation(directionalLightShader, "inPos"), 2, GL_FLOAT, GL_FALSE, 0, 0);
+		glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(float), quadVerts, GL_STATIC_DRAW);
+
+		GLint posAttrib = glGetAttribLocation(directionalLightShader, "inPos");
+		glEnableVertexAttribArray(posAttrib);
+		glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
 		// Also uses GBuffer stuff
 	}
@@ -606,99 +608,113 @@ void RendererSystem::DeferredLighting() {
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 
-	glUseProgram(lightVolumeShader);
-	glBindVertexArray(lightVolumeVAO);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
-	glUniform1i(glGetUniformLocation(lightVolumeShader, "gPosition"), 0);
-	glUniform1i(glGetUniformLocation(lightVolumeShader, "gNormal"), 1);
-	glUniform1i(glGetUniformLocation(lightVolumeShader, "gDiffuse"), 2);
-	glUniform1i(glGetUniformLocation(lightVolumeShader, "gSpecularExp"), 3);
-
 	glm::vec3 camPos = mainCamera->transform->position;
-	GLint uniCamPos = glGetUniformLocation(lightVolumeShader, "camPos");
-	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
-
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolumeIBO);
-
-	GLint pvm = glGetUniformLocation(lightVolumeShader, "pvm");
-	GLint lightPos = glGetUniformLocation(lightVolumeShader, "lightPos");
-	GLint lightCol = glGetUniformLocation(lightVolumeShader, "lightCol");
-	GLint lightLum = glGetUniformLocation(lightVolumeShader, "lightLum");
-
-	// instead of drawing arrays, draw spheres at each light position
-	// Tiled deferred rendering has a huge boost over deferred with light volumes in densely
-	// populated lights (like my demo). However, it performs (slightly?) worse with sparsely
-	// populated lights
-	// Assuming I want to keep deferred/light-volumes due to performing better in more realistic
-	// scenarios, how can I boost performance?
-
-	// Right now we loop through every single pixel for every single light --> WASTE
-	// We want to get that to looping through every pixel for every meaningful light
-	// - BVH --> Would be similar to frustum planes. Would need to figure out bounds of object and which bvh sections it fits in
-	// - 
-	// - Tiled-deferred
 
 
-	// Point Lights
-	for (int i = 0; i < pointLightsToDraw.size(); i++) {
+	// Point lights
+	{
+		glUseProgram(lightVolumeShader);
+		glBindVertexArray(lightVolumeVAO);
 
-		glm::mat4 pvmMatrix = proj * view * pointLightsToDraw[i].model;
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gPosition"), 0);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gNormal"), 1);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gDiffuse"), 2);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gSpecularExp"), 3);
 
-		// Switch culling if inside light volume
-		// float cubeRadius = sqrt(pointLightsToDraw[i].radius * pointLightsToDraw[i].radius + pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
-		if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < pointLightsToDraw[i].radius) {
-			glCullFace(GL_FRONT);
-		} else {
-			glCullFace(GL_BACK);
+		GLint uniCamPos = glGetUniformLocation(lightVolumeShader, "camPos");
+		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+
+		GLint pvm = glGetUniformLocation(lightVolumeShader, "pvm");
+		GLint lightPos = glGetUniformLocation(lightVolumeShader, "lightPos");
+		GLint lightCol = glGetUniformLocation(lightVolumeShader, "lightCol");
+		GLint lightLum = glGetUniformLocation(lightVolumeShader, "lightLum");
+
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolumeIBO);
+
+		// instead of drawing arrays, draw spheres at each light position
+		// Tiled deferred rendering has a huge boost over deferred with light volumes in densely
+		// populated lights (like my demo). However, it performs (slightly?) worse with sparsely
+		// populated lights
+		// Assuming I want to keep deferred/light-volumes due to performing better in more realistic
+		// scenarios, how can I boost performance?
+
+		// Right now we loop through every single pixel for every single light --> WASTE
+		// We want to get that to looping through every pixel for every meaningful light
+		// - BVH --> Would be similar to frustum planes. Would need to figure out bounds of object and which bvh sections it fits in
+		// - 
+		// - Tiled-deferred
+
+
+		// Point Lights
+		for (int i = 0; i < pointLightsToDraw.size(); i++) {
+
+			glm::mat4 pvmMatrix = proj * view * pointLightsToDraw[i].model;
+
+			// Switch culling if inside light volume
+			// float cubeRadius = sqrt(pointLightsToDraw[i].radius * pointLightsToDraw[i].radius + pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
+			if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < pointLightsToDraw[i].radius) {
+				glCullFace(GL_FRONT);
+			} else {
+				glCullFace(GL_BACK);
+			}
+
+
+			glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
+			glUniform1f(lightLum, pointLightsToDraw[i].luminance);
+			glUniform3f(lightPos, pointLightsToDraw[i].position.x, pointLightsToDraw[i].position.y, pointLightsToDraw[i].position.z);
+			glUniform3f(lightCol, pointLightsToDraw[i].color.r, pointLightsToDraw[i].color.g, pointLightsToDraw[i].color.b);
+
+
+			totalTriangles += static_cast<int>(lightVolume->indices.size()) / 3;
+
+			// User our shader and draw our program
+			glDrawElements(GL_TRIANGLES, static_cast<int>(lightVolume->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 		}
-
-
-		glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
-		glUniform1f(lightLum, pointLightsToDraw[i].luminance);
-		glUniform3f(lightPos, pointLightsToDraw[i].position.x, pointLightsToDraw[i].position.y, pointLightsToDraw[i].position.z);
-		glUniform3f(lightCol, pointLightsToDraw[i].color.r, pointLightsToDraw[i].color.g, pointLightsToDraw[i].color.b);
-
-
-		totalTriangles += static_cast<int>(lightVolume->indices.size()) / 3;
-
-		// User our shader and draw our program
-		glDrawElements(GL_TRIANGLES, static_cast<int>(lightVolume->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 	}
 
 	// Directional Light (Sun)
-	glUseProgram(directionalLightShader);
-	glBindVertexArray(quadVAO);
+	{
+		glUseProgram(directionalLightShader);
+		glBindVertexArray(quadVAO);
 
-	glUniform1i(glGetUniformLocation(directionalLightShader, "gPosition"), 0);
-	glUniform1i(glGetUniformLocation(directionalLightShader, "gNormal"), 1);
-	glUniform1i(glGetUniformLocation(directionalLightShader, "gDiffuse"), 2);
-	glUniform1i(glGetUniformLocation(directionalLightShader, "gSpecularExp"), 3);
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gPosition"), 0);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gNormal"), 1);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gDiffuse"), 2);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gSpecularExp"), 3);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "depthMap"), 4);
 
-	// Shadow map stuff
-	glActiveTexture(GL_TEXTURE4);
-	glBindTexture(GL_TEXTURE_2D, depthMap);
-	glUniform1i(glGetUniformLocation(directionalLightShader, "depthMap"), 4);
-	glUniformMatrix4fv(glGetUniformLocation(directionalLightShader, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
+		GLint uniLightMat = glGetUniformLocation(directionalLightShader, "lightProjView");
+		glUniformMatrix4fv(uniLightMat, 1, GL_FALSE, glm::value_ptr(lightProjView));
 
-	uniCamPos = glGetUniformLocation(directionalLightShader, "camPos");
-	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+		GLint uniCamPos = glGetUniformLocation(directionalLightShader, "camPos");
+		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
-	GLint lightDir = glGetUniformLocation(directionalLightShader, "lightDir");
-	glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
+		GLint lightDir = glGetUniformLocation(directionalLightShader, "lightDir");
+		glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
 
-	lightCol = glGetUniformLocation(directionalLightShader, "lightCol");
-	glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
+		GLint lightCol = glGetUniformLocation(directionalLightShader, "lightCol");
+		glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
 
-	glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-	glDrawArrays(GL_TRIANGLES, 0, 12); //Number of vertices
+		glDrawArrays(GL_TRIANGLES, 0, 6); //Number of vertices
+	}
 
 
 	glCullFace(GL_BACK);
