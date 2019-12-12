@@ -1,5 +1,7 @@
 #version 450 core
 
+layout (location = 0) out vec4 finalColor;
+
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gDiffuse;
@@ -8,10 +10,10 @@ uniform sampler2D gSpecularExp;
 uniform vec3 lightPos;
 uniform vec3 lightCol;
 uniform float lightLum;
+
 uniform vec3 camPos;
 
 in vec4 outPos;
-out vec4 finalColor;
 
 void main() {
     vec3 normalizedFragPos = outPos.xyz / outPos.w;

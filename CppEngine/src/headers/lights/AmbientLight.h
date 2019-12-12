@@ -10,6 +10,10 @@
 struct AmbientLight : public Light {
     glm::vec4 color;
 
-    AmbientLight(const glm::vec4& c) : color(c) {}
+    AmbientLight(const glm::vec4& c) : color(c) {
+		type = "ambient";
+
+		lum = .6f * color.g + .3f * color.r + .1f * color.b;
+	}
 };
 #endif

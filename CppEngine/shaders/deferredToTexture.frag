@@ -12,16 +12,13 @@ uniform sampler2D specularHighLightTex;
 uniform sampler2D bumpTex;
 uniform sampler2D normalTex;
 uniform sampler2D dispTex;
-uniform sampler2D alphaTex;
 
-uniform bool usingBump;
 uniform bool usingNormal;
 
 uniform vec3 ambient;
 uniform vec3 diffuse;
 uniform vec3 specular;
 uniform float specularExp;
-uniform float opacity;
 
 in vec3 fragNorm;
 in vec3 fragPos;
@@ -43,7 +40,6 @@ void main() {
 
 	vec4 a = texture(ambientTex, fragUV) * 0.001 * vec4(ambient, 1);
 	vec4 d = texture(diffuseTex, fragUV) * vec4(diffuse, 1);
-	float o = texture(alphaTex, fragUV).r;
 
 	gDiffuse = vec3(a.xyz + d.xyz);
 

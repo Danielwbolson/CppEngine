@@ -14,9 +14,12 @@ struct SpotLight : public Light {
     float theta;
     float phi;
 
-    SpotLight(const glm::vec4& c, const glm::vec4& pos, const glm::vec4& d,
-        const float& t, const float& p) : 
-        color(c), position(pos), direction(d), theta(t), phi(p) { }
+    SpotLight(const glm::vec4& c, const glm::vec4& pos, const glm::vec4& d, const float& t, const float& p) : 
+        color(c), position(pos), direction(d), theta(t), phi(p) {
+		type = "spotLight";
+
+		lum = .6f * color.g + .3f * color.r + .1f * color.b;
+	}
 };
 
 #endif

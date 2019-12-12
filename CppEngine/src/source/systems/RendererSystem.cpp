@@ -28,15 +28,15 @@ RendererSystem::RendererSystem(const int& sW, const int& sH) {
 	pointLightsToGPU = std::vector<PointLightToGPU>();
 
 	// We know that this is a mesh, not a model
-    lightVolume = (assetManager->tinyLoadObj("cube"))->meshes[0];
+    lightVolume = (assetManager->tinyLoadObj("sphere"))->meshes[0];
 }
 
 RendererSystem::~RendererSystem() {
-    glDeleteProgram(combinedShader);
+    glDeleteProgram(lightVolumeShader);
 
-	glDeleteBuffers(1, &lightVolume_Ibo);
-	glDeleteBuffers(1, &lightVolume_Vbo);
-	glDeleteVertexArrays(1, &lightVolume_Vao);
+	glDeleteBuffers(1, &lightVolumeIBO);
+	glDeleteBuffers(1, &lightVolumeVBO);
+	glDeleteVertexArrays(1, &lightVolumeVAO);
 	
 	glDeleteFramebuffers(1, &gBuffer.id);
 	glDeleteTextures(1, &gBuffer.positions);
@@ -54,14 +54,23 @@ RendererSystem::~RendererSystem() {
 	}
 	pointLights.clear();
 
+	sun = nullptr;
+
 	meshesToDraw.clear();
 	transparentToDraw.clear();
 }
 
 void RendererSystem::Setup() {
+
+	// Get all of our lights
     for (int i = 0; i < mainScene->lights.size(); i++) {
-        PointLight* p = (PointLight*)mainScene->lights[i];
-        pointLights.push_back(p);
+
+		if (mainScene->lights[i]->GetType() == "pointLight") {
+			pointLights.push_back((PointLight*)mainScene->lights[i]);
+		} else if (mainScene->lights[i]->GetType() == "directionalLight") {
+			sun = (DirectionalLight*)mainScene->lights[i];
+		}
+
     }
 
     // Get our list of related components, in this case MeshRenderers
@@ -73,107 +82,166 @@ void RendererSystem::Setup() {
         }
     }
 
+	// Set up debugging support
 	glEnable(GL_DEBUG_OUTPUT);
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(util::DebugMessageCallback, 0);
 	GLuint unusedIds = 0;
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, &unusedIds, true);
 
+	// Enable/Disable macros
     glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
-    // Set up our shader for rendering to the texture
-    combinedShader = util::initShaderFromFiles("deferredLightVolumes.vert", "deferredLightVolumes.frag");
 
-    glGenVertexArrays(1, &lightVolume_Vao);
-    glBindVertexArray(lightVolume_Vao);
+    // Set up our light volume shader
+	{
+		lightVolumeShader = util::initShaderFromFiles("deferredLightVolumes.vert", "deferredLightVolumes.frag");
 
-    glGenBuffers(1, &lightVolume_Vbo);
-    glBindBuffer(GL_ARRAY_BUFFER, lightVolume_Vbo);
-    glBufferData(GL_ARRAY_BUFFER, lightVolume->positions.size() * 3 * sizeof(float), &(lightVolume->positions[0]), GL_STATIC_DRAW);
-    glEnableVertexAttribArray(glGetAttribLocation(combinedShader, "inPos"));
-    glVertexAttribPointer(glGetAttribLocation(combinedShader, "inPos"), 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-    // index buffer for sphere
-    glGenBuffers(1, &lightVolume_Ibo);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightVolume->indices.size() * sizeof(GL_UNSIGNED_INT), &(lightVolume->indices[0]), GL_STATIC_DRAW);
-    glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		// Set up light volume mesh
+		glGenVertexArrays(1, &lightVolumeVAO);
+		glBindVertexArray(lightVolumeVAO);
 
-    /*glGenVertexArrays(1, &quadVao);
-    glBindVertexArray(quadVao);
+		glGenBuffers(1, &lightVolumeVBO);
+		glBindBuffer(GL_ARRAY_BUFFER, lightVolumeVBO);
+		glBufferData(GL_ARRAY_BUFFER, lightVolume->positions.size() * 3 * sizeof(float), &(lightVolume->positions[0]), GL_STATIC_DRAW);
+		glEnableVertexAttribArray(glGetAttribLocation(lightVolumeShader, "inPos"));
+		glVertexAttribPointer(glGetAttribLocation(lightVolumeShader, "inPos"), 3, GL_FLOAT, GL_FALSE, 0, 0);
 
-    glGenBuffers(1, &quadVbo);
-    glBindBuffer(GL_ARRAY_BUFFER, quadVbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(quadVerts), quadVerts, GL_STATIC_DRAW);
-    glEnableVertexAttribArray(glGetAttribLocation(combinedShader, "inVertex"));
-    glVertexAttribPointer(glGetAttribLocation(combinedShader, "inVertex"), 2, GL_FLOAT, GL_FALSE, 0, 0);*/
+		// index buffer for sphere
+		glGenBuffers(1, &lightVolumeIBO);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolumeIBO);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightVolume->indices.size() * sizeof(GL_UNSIGNED_INT), &(lightVolume->indices[0]), GL_STATIC_DRAW);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
-    glGenFramebuffers(1, &(gBuffer.id));
-    glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 
-    // - position color buffer
-    glGenTextures(1, &(gBuffer.positions));
-    glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.positions, 0);
+		// Set up textures
+		glGenFramebuffers(1, &(gBuffer.id));
+		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 
-    // - normal color buffer
-    glGenTextures(1, &(gBuffer.normals));
-    glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.normals, 0);
+		// - position color buffer
+		glGenTextures(1, &(gBuffer.positions));
+		glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.positions, 0);
 
-    // diffuse color
-    glGenTextures(1, &(gBuffer.diffuse));
-    glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBuffer.diffuse, 0);
+		// - normal color buffer
+		glGenTextures(1, &(gBuffer.normals));
+		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.normals, 0);
 
-    // specular color
-    glGenTextures(1, &(gBuffer.specular));
-    glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gBuffer.specular, 0);
+		// diffuse color
+		glGenTextures(1, &(gBuffer.diffuse));
+		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBuffer.diffuse, 0);
 
-    // - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
-    GLuint attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
-    glDrawBuffers(4, attachments);
+		// specular color
+		glGenTextures(1, &(gBuffer.specular));
+		glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gBuffer.specular, 0);
 
-    //// Lights
-    //glGenBuffers(1, &lightUBO);
-    //glBindBuffer(GL_UNIFORM_BUFFER, lightUBO);
-    //glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLight) * numLights, &(pointLights[0]), GL_STATIC_DRAW);
-    //glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		// - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
+		GLuint attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+		glDrawBuffers(4, attachments);
 
-    //glBindBufferRange(GL_UNIFORM_BUFFER, 0, lightUBO, 0, sizeof(PointLight) * numLights);
+		GLuint rboDepth;
+		glGenRenderbuffers(1, &rboDepth);
+		glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
 
-    //GLuint uniformBlockPointLights = glGetUniformBlockIndex(combinedShader, "pointLightBlock");
-    //glBindBufferBase(GL_UNIFORM_BUFFER, 0, lightUBO);
-    //glUniformBlockBinding(combinedShader, 0, uniformBlockPointLights);
+	}
 
-    //glBindBuffer(GL_UNIFORM_BUFFER, lightUBO);
-    //GLvoid* p = glMapBuffer(GL_UNIFORM_BUFFER, GL_WRITE_ONLY);
-    //memcpy(p, &(pointLights[0]), sizeof(PointLight) * numLights);
-    //glUnmapBuffer(GL_UNIFORM_BUFFER);
+	// Set up our directional light shader
+	{
+		directionalLightShader = util::initShaderFromFiles("deferredDirectionalLight.vert", "deferredDirectionalLight.frag");
 
-    GLuint rboDepth;
-    glGenRenderbuffers(1, &rboDepth);
-    glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-    if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        std::cout << "frame buffer incomplete" << std::endl;
 
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+		// Set up quad mesh
+		glGenVertexArrays(1, &quadVAO);
+		glBindVertexArray(quadVAO);
+
+		glGenBuffers(1, &quadVBO);
+		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
+		glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(float), quadVerts, GL_STATIC_DRAW);
+
+		GLint posAttrib = glGetAttribLocation(directionalLightShader, "inPos");
+		glEnableVertexAttribArray(posAttrib);
+		glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
+		// Also uses GBuffer stuff
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// Create depth buffer and map for shadow maps from directional light
+	{
+		shadowMapShader = util::initShaderFromFiles("shadowMap.vert", "shadowMap.frag");
+
+		glGenFramebuffers(1, &depthMapFBO);
+		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+
+		// Set up our depth texture
+		glGenTextures(1, &depthMap);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, shadowWidth, shadowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+		// Set up our depth framebuffer
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+		glDrawBuffer(GL_NONE);
+		glReadBuffer(GL_NONE);
+	}
+
+	// Create our framebufferobject and final render texture
+	{
+		finalQuadShader = util::initShaderFromFiles("finalQuad.vert", "finalQuad.frag");
+
+		glGenFramebuffers(1, &finalQuadFBO);
+		glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+
+		glGenTextures(1, &finalQuadRender);
+		glBindTexture(GL_TEXTURE_2D, finalQuadRender);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, windowWidth, windowHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		float borderColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, finalQuadRender, 0);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+		GLuint rboDepth;
+		glGenRenderbuffers(1, &rboDepth);
+		glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+
+		GLint posAttrib = glGetAttribLocation(finalQuadShader, "inPos");
+		glEnableVertexAttribArray(posAttrib);
+		glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 }
 
@@ -258,12 +326,12 @@ void RendererSystem::Register(const Component* c) {
 
 		// Set up SSBO for forward rendering for our transparent objects
 		// Only do this once as our transparent objects are all in same shader
-		if (mat->isTransparent && pointLights_Ssbo == 0) {
-			glGenBuffers(1, &pointLights_Ssbo);
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
+		if (mat->isTransparent && pointLightsSSBO == 0) {
+			glGenBuffers(1, &pointLightsSSBO);
+			glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightsSSBO);
 			pointLightsToGPU.reserve(pointLights.size());
 			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * pointLights.size(), pointLightsToGPU.data(), GL_DYNAMIC_DRAW);
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLights_Ssbo);
+			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLightsSSBO);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		}
 
@@ -302,55 +370,41 @@ void RendererSystem::Register(const Component* c) {
 	}
 }
 
-bool RendererSystem::ShouldFrustumCull(const Mesh* mesh, const glm::mat4& model) const {
-
-	// Not dereferencing and caching bounds moved my ModelRendererSystem::Render call from 10.11% 
-	// of total time used to 8.66%. Insignificant change, could be randomness or difference in view
-	glm::vec3 maxPoint = mesh->bounds->Max(model);
-	glm::vec3 minPoint = mesh->bounds->Min(model);
-
-	/* https://fgiesen.wordpress.com/2010/10/17/view-frustum-culling/
-	* Method 4
-		Switched to this method instead of checking each bounding box point
-		because I ran into issues with large meshes. I would be looking
-		directly at the mesh and all of its bounds points are ouside the
-		frustum. So even though it is right in front of me, it is culled
-		due to only checking it's extremes.
-
-		Checks if every plane can "see" the most likely point. If every plane can see
-		at least one point that means our mesh is at least partially visible.
-	*/
-	std::vector<glm::vec4> planes = mainCamera->frustumPlanes;
-
-	int success = 0;
-	for (int j = 0; j < 6; j++) {
-		float val = fmax(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)
-			+ fmax(minPoint.y * planes[j].y, maxPoint.y * planes[j].y)
-			+ fmax(minPoint.z * planes[j].z, maxPoint.z * planes[j].z)
-			+ planes[j].w;
-		success += (val > 0);
-	}
-
-	if (success == 6) {
-		return false;
-	}
-
-	return true;
-}
-
 void RendererSystem::Render() {
-
-	// C++ here is actually incredibly small proportion of actual code runtime
-	// Only 8-9% of actual bottleneck. Almost everything is in SwapBuffers with queued OpenGL commands
-	// Which means, the place to optimize is still in this function and it is how I am queueing up OpenGL
-	// commands or the amount of them and amount of context switches
-		// Bind our deferred texture buffer
 
 	totalTriangles = 0;
 
-    glm::mat4 view = mainCamera->view;
-    glm::mat4 proj = mainCamera->proj;
+	// First, cull out unwanted geometry. Currently, only Frustum Culling is supported
+	CullScene();
 
+	// Next, calculate our shadow map using our directional light only
+	// We do this every frame because we are assuming the directional light will move
+	// Swapping culling helps get more accurate shadows
+	//glCullFace(GL_FRONT);
+	DrawShadows();
+	//glCullFace(GL_BACK);
+
+	view = mainCamera->view;
+	proj = mainCamera->proj;
+
+	// Next, draw our opaque geometry to our buffers for deferred shading and then calculate lighting for our deferred objects
+	DeferredToTexture();
+	DeferredLighting();
+
+	// Next, draw our transparent items in a forward rendering pass
+	// Culling disabled for chains
+	glDisable(GL_CULL_FACE);
+	DrawTransparent();
+	glEnable(GL_CULL_FACE);
+
+	// Next, do post processing effects on final image.
+	PostProcess();
+
+	// Finally, render final image to 2D quad that is the size of the screen
+	DrawQuad();
+}
+
+void RendererSystem::CullScene() {
 
 	// Get all of our meshes that are not frustum culled. These will be used for later drawing
 	meshesToDraw.clear();
@@ -360,7 +414,7 @@ void RendererSystem::Render() {
 		for (int j = 0; j < modelRenderers[i]->numMeshes; j++) {
 
 			if (!ShouldFrustumCull(modelRenderers[i]->model->meshes[j], model)) {
-				
+
 				MeshToDraw m = MeshToDraw{
 					m.mesh = modelRenderers[i]->model->meshes[j],
 					m.material = modelRenderers[i]->model->materials[j],
@@ -388,17 +442,8 @@ void RendererSystem::Render() {
 	for (int i = 0; i < pointLights.size(); i++) {
 		glm::vec4 pos = pointLights[i]->position;
 		glm::vec3 color = pointLights[i]->color;
-
-		float lum = .6f * color.g + .3f * color.r + .1f * color.b;
-
-		// Calculate radius of volume using luminence and wanted cutoff value of 0.004f
-		// 0.004 = lum / (1 + 2 * radius + 2 * radius * radius);
-		float a = 2;
-		float b = 1;
-		float c = 0.01f / lum;
-		c = 1.0f / c;
-		c = 1 - c; // Now on right side of equation
-		float radius = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+		float radius = pointLights[i]->radius;
+		float lum = pointLights[i]->lum;
 
 		glm::mat4 model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
@@ -424,27 +469,70 @@ void RendererSystem::Render() {
 		}
 	}
 
+}
+
+void RendererSystem::DrawShadows() {
+
+	// Set our viewport for our shadow map and link our depth FBO
+	glViewport(0, 0, shadowWidth, shadowHeight);
+	glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+
+	// Clear our depth bit as we are going to overwrite it with our new shadow map
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	// Actually draw to our depth buffer
+	glUseProgram(shadowMapShader);
+
+	// Create matrices to simulate drawing from our directional light's perspective
+	proj = glm::ortho(-30.0f, 10.0f, -15.0f, 40.0f, 0.01f, 1000.0f);
+	glm::vec3 pos = glm::vec3(sun->direction) * -100.0f;
+	view = glm::lookAt(pos, pos + glm::vec3(sun->direction), glm::vec3(1.0f, 0.0f, 0.0f));
+	lightProjView = proj * view;
+	glUniformMatrix4fv(glGetUniformLocation(shadowMapShader, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
+
+	GLint uniModel = glGetUniformLocation(shadowMapShader, "model");
+
+	for (int i = 0; i < meshesToDraw.size(); i++) {
+		glBindVertexArray(meshesToDraw[i].vao);
+
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(meshesToDraw[i].model));
+
+		// Indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshesToDraw[i].indexVbo);
+
+		totalTriangles += static_cast<int>(meshesToDraw[i].mesh->indices.size()) / 3;
+
+		// Use our shader and draw our program
+		glDrawElements(GL_TRIANGLES, static_cast<int>(meshesToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
+	}
+
+	for (int i = 0; i < transparentToDraw.size(); i++) {
+		glBindVertexArray(transparentToDraw[i].vao);
+
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(transparentToDraw[i].model));
+
+		// Indices
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, transparentToDraw[i].indexVbo);
+
+		totalTriangles += static_cast<int>(transparentToDraw[i].mesh->indices.size()) / 3;
+
+		// Use our shader and draw our program
+		glDrawElements(GL_TRIANGLES, static_cast<int>(transparentToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+}
+
+void RendererSystem::DeferredToTexture() {
+
+	glViewport(0, 0, windowWidth, windowHeight);
 
 	// Bind the output framebuffer from our deferred shading
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 	// Clear the buffer to default color
 	glClearColor(0, 0, 0, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	// First deferred rendering pass with all of our non-transparent model renderers
-	DeferredPass(proj, view);
-
-	// Save all of our depth information from deferred pass for use in forward pass
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	// Next, draw our transparent items in a forward rendering pass
-	ForwardPass(proj, view);
-}
-
-void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view) {
 
 	// All opaque meshes use same shader
 	if (meshesToDraw.size() > 0) {
@@ -466,9 +554,7 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view) 
 		glUniform3f(m->uniDiffuse, m->diffuse.r, m->diffuse.g, m->diffuse.b);
 		glUniform3f(m->uniSpecular, m->specular.r, m->specular.g, m->specular.b);
 		glUniform1f(m->uniSpecularExp, m->specularExponent);
-		glUniform1f(m->uniOpacity, m->opacity);
 
-		glUniform1i(m->uniUsingBump, m->usingBump);
 		glUniform1i(m->uniUsingNormal, m->usingNormal);
 
 
@@ -533,17 +619,8 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view) 
 			}
 			glUniform1i(m->uniDisplacementTex, 6);
 
-			glActiveTexture(GL_TEXTURE0 + 7);
-			if (m->alphaTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->alphaTextures[m->alphaIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniAlphaTex, 7);
+			// No alpha texture for deferred shading
 		}
-
-		// Indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, meshesToDraw[i].indexVbo);
 
 		totalTriangles += static_cast<int>(meshesToDraw[i].mesh->indices.size()) / 3;
 
@@ -552,7 +629,10 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view) 
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0, screenWidth, screenHeight);
+
+}
+
+void RendererSystem::DeferredLighting() {
 
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
@@ -560,79 +640,133 @@ void RendererSystem::DeferredPass(const glm::mat4& proj, const glm::mat4& view) 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_ONE, GL_ONE);
 
-	glUseProgram(combinedShader);
-	glBindVertexArray(lightVolume_Vao);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
-	glActiveTexture(GL_TEXTURE3);
-	glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
-	glUniform1i(glGetUniformLocation(combinedShader, "gPosition"), 0);
-	glUniform1i(glGetUniformLocation(combinedShader, "gNormal"), 1);
-	glUniform1i(glGetUniformLocation(combinedShader, "gDiffuse"), 2);
-	glUniform1i(glGetUniformLocation(combinedShader, "gSpecularExp"), 3);
-
 	glm::vec3 camPos = mainCamera->transform->position;
-	GLint uniCamPos = glGetUniformLocation(combinedShader, "camPos");
-	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolume_Ibo);
+	// Bind the output framebuffer from our deferred shading
+	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+	// Clear the buffer to default color
+	glClearColor(0, 0, 0, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 
-	GLint pvm = glGetUniformLocation(combinedShader, "pvm");
-	GLint lightPos = glGetUniformLocation(combinedShader, "lightPos");
-	GLint lightCol = glGetUniformLocation(combinedShader, "lightCol");
-	GLint lightLum = glGetUniformLocation(combinedShader, "lightLum");
+	// Point lights
+	{
+		glUseProgram(lightVolumeShader);
+		glBindVertexArray(lightVolumeVAO);
 
-	// instead of drawing arrays, draw spheres at each light position
-	// Tiled deferred rendering has a huge boost over deferred with light volumes in densely
-	// populated lights (like my demo). However, it performs (slightly?) worse with sparsely
-	// populated lights
-	// Assuming I want to keep deferred/light-volumes due to performing better in more realistic
-	// scenarios, how can I boost performance?
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gPosition"), 0);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gNormal"), 1);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gDiffuse"), 2);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gSpecularExp"), 3);
 
-	// Right now we loop through every single pixel for every single light --> WASTE
-	// We want to get that to looping through every pixel for every meaningful light
-	// - BVH --> Would be similar to frustum planes. Would need to figure out bounds of object and which bvh sections it fits in
-	// - 
-	// - Tiled-deferred
+		GLint uniCamPos = glGetUniformLocation(lightVolumeShader, "camPos");
+		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
-	for (int i = 0; i < pointLightsToDraw.size(); i++) {
+		GLint pvm = glGetUniformLocation(lightVolumeShader, "pvm");
+		GLint lightPos = glGetUniformLocation(lightVolumeShader, "lightPos");
+		GLint lightCol = glGetUniformLocation(lightVolumeShader, "lightCol");
+		GLint lightLum = glGetUniformLocation(lightVolumeShader, "lightLum");
 
-		glm::mat4 pvmMatrix = proj * view * pointLightsToDraw[i].model;
+		// instead of drawing arrays, draw spheres at each light position
+		// Tiled deferred rendering has a huge boost over deferred with light volumes in densely
+		// populated lights (like my demo). However, it performs (slightly?) worse with sparsely
+		// populated lights
+		// Assuming I want to keep deferred/light-volumes due to performing better in more realistic
+		// scenarios, how can I boost performance?
 
-		// Switch culling if inside light volume
-		float cubeRadius = sqrt(pointLightsToDraw[i].radius * pointLightsToDraw[i].radius + pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
-		
-		if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < cubeRadius) {
-			glCullFace(GL_FRONT);
-		} else {
-			glCullFace(GL_BACK);
+		// Right now we loop through every single pixel for every single light --> WASTE
+		// We want to get that to looping through every pixel for every meaningful light
+		// - BVH --> Would be similar to frustum planes. Would need to figure out bounds of object and which bvh sections it fits in
+		// - 
+		// - Tiled-deferred
+
+
+		// Point Lights
+		for (int i = 0; i < pointLightsToDraw.size(); i++) {
+
+			glm::mat4 pvmMatrix = proj * view * pointLightsToDraw[i].model;
+
+			// Switch culling if inside light volume
+			// float cubeRadius = sqrt(pointLightsToDraw[i].radius * pointLightsToDraw[i].radius + pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
+			if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < pointLightsToDraw[i].radius) {
+				glCullFace(GL_FRONT);
+			} else {
+				glCullFace(GL_BACK);
+			}
+
+
+			glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
+			glUniform1f(lightLum, pointLightsToDraw[i].luminance);
+			glUniform3f(lightPos, pointLightsToDraw[i].position.x, pointLightsToDraw[i].position.y, pointLightsToDraw[i].position.z);
+			glUniform3f(lightCol, pointLightsToDraw[i].color.r, pointLightsToDraw[i].color.g, pointLightsToDraw[i].color.b);
+
+
+			totalTriangles += static_cast<int>(lightVolume->indices.size()) / 3;
+
+			// User our shader and draw our program
+			glDrawElements(GL_TRIANGLES, static_cast<int>(lightVolume->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 		}
-
-
-		glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
-		glUniform1f(lightLum, pointLightsToDraw[i].luminance);
-		glUniform3f(lightPos, pointLightsToDraw[i].position.x, pointLightsToDraw[i].position.y, pointLightsToDraw[i].position.z);
-		glUniform3f(lightCol, pointLightsToDraw[i].color.r, pointLightsToDraw[i].color.g, pointLightsToDraw[i].color.b);
-
-
-		totalTriangles += static_cast<int>(lightVolume->indices.size()) / 3;
-
-		// User our shader and draw our program
-		glDrawElements(GL_TRIANGLES, static_cast<int>(lightVolume->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 	}
 
+	// Switch back culling after point lights
 	glCullFace(GL_BACK);
+
+	// Directional Light (Sun)
+	{
+		glUseProgram(directionalLightShader);
+		glBindVertexArray(quadVAO);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+		glActiveTexture(GL_TEXTURE2);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gPosition"), 0);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gNormal"), 1);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gDiffuse"), 2);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gSpecularExp"), 3);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "depthMap"), 4);
+
+		GLint uniLightMat = glGetUniformLocation(directionalLightShader, "lightProjView");
+		glUniformMatrix4fv(uniLightMat, 1, GL_FALSE, glm::value_ptr(lightProjView));
+
+		GLint uniCamPos = glGetUniformLocation(directionalLightShader, "camPos");
+		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+
+		GLint lightDir = glGetUniformLocation(directionalLightShader, "lightDir");
+		glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
+
+		GLint lightCol = glGetUniformLocation(directionalLightShader, "lightCol");
+		glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
+
+		glDrawArrays(GL_TRIANGLES, 0, 6); //Number of vertices
+	}
+
 	glEnable(GL_DEPTH_TEST);
-	glDisable(GL_BLEND);
 	glDepthMask(GL_TRUE);
+	glDisable(GL_BLEND);
 }
 
-void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view) {
+void RendererSystem::DrawTransparent() {
+
+	// Save all of our depth information from deferred pass for use in forward pass
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, finalQuadFBO);
+	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -640,17 +774,15 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view) {
 
 	// Not worth sorting transparent objects for sponza as each transparent model is not separate. 1 obj has transparent models in multiple locations
 	// But will sort anyways to deal with other models
-	std::sort(transparentToDraw.begin(), transparentToDraw.end(), [camPos]
-		(const MeshToDraw& a, const MeshToDraw& b) {
-			return glm::length(a.position - camPos) > glm::length(b.position - camPos);
-		}
-	);
+	std::sort(transparentToDraw.begin(), transparentToDraw.end(), [camPos](const MeshToDraw& a, const MeshToDraw& b) {
+		return glm::length(a.position - camPos) > glm::length(b.position - camPos);
+	});
 
 	// all transparent objects use same shader
 	if (transparentToDraw.size() > 0) {
 		glUseProgram(transparentToDraw[0].shaderProgram);
 
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLights_Ssbo);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightsSSBO);
 		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data());
 
 		GLint uniNumLights = glGetUniformLocation(transparentToDraw[0].shaderProgram, "numLights");
@@ -658,6 +790,18 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view) {
 
 		GLint uniCamPos = glGetUniformLocation(transparentToDraw[0].shaderProgram, "camPos");
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+
+		// Directional light
+		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightDir");
+		glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
+		GLint lightCol = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightCol");
+		glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
+
+		// Shadow map stuff
+		glActiveTexture(GL_TEXTURE0 + 8);
+		glBindTexture(GL_TEXTURE_2D, depthMap);
+		glUniform1i(glGetUniformLocation(transparentToDraw[0].shaderProgram, "depthMap"), 8);
+		glUniformMatrix4fv(glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
 	}
 
 	// For each of our transparent objects, set up its shader
@@ -751,18 +895,72 @@ void RendererSystem::ForwardPass(const glm::mat4& proj, const glm::mat4& view) {
 			glUniform1i(m->uniAlphaTex, 7);
 		}
 
-		// Indices
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, transparentToDraw[i].indexVbo);
-
 		totalTriangles += static_cast<int>(transparentToDraw[i].mesh->indices.size()) / 3;
 
 		// Use our shader and draw our program
 		glDrawElements(GL_TRIANGLES, static_cast<int>(transparentToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 	}
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	glDisable(GL_BLEND);
+
 }
 
-void RendererSystem::DrawShadows() {}
+void RendererSystem::PostProcess() {
 
-void RendererSystem::PostProcess() {}
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, finalQuadFBO);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glUseProgram(finalQuadShader);
+	glBindVertexArray(quadVAO);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, finalQuadRender);
+	glUniform1i(glGetUniformLocation(finalQuadShader, "finalQuadRender"), 0);
+
+	glUniform1f(glGetUniformLocation(finalQuadShader, "xSpan"), 1.0f / windowWidth);
+	glUniform1f(glGetUniformLocation(finalQuadShader, "ySpan"), 1.0f / windowHeight);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6); //Number of vertices
+}
+
+void RendererSystem::DrawQuad() {}
+
+bool RendererSystem::ShouldFrustumCull(const Mesh* mesh, const glm::mat4& model) const {
+
+	// Not dereferencing and caching bounds moved my ModelRendererSystem::Render call from 10.11% 
+	// of total time used to 8.66%. Insignificant change, could be randomness or difference in view
+	glm::vec3 maxPoint = mesh->bounds->Max(model);
+	glm::vec3 minPoint = mesh->bounds->Min(model);
+
+	/* https://fgiesen.wordpress.com/2010/10/17/view-frustum-culling/
+	* Method 4
+		Switched to this method instead of checking each bounding box point
+		because I ran into issues with large meshes. I would be looking
+		directly at the mesh and all of its bounds points are ouside the
+		frustum. So even though it is right in front of me, it is culled
+		due to only checking it's extremes.
+
+		Checks if every plane can "see" the most likely point. If every plane can see
+		at least one point that means our mesh is at least partially visible.
+	*/
+	std::vector<glm::vec4> planes = mainCamera->frustumPlanes;
+
+	int success = 0;
+	for (int j = 0; j < 6; j++) {
+		float val = fmax(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)
+			+ fmax(minPoint.y * planes[j].y, maxPoint.y * planes[j].y)
+			+ fmax(minPoint.z * planes[j].z, maxPoint.z * planes[j].z)
+			+ planes[j].w;
+		success += (val > 0);
+	}
+
+	if (success == 6) {
+		return false;
+	}
+
+	return true;
+}

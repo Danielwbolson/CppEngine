@@ -11,6 +11,7 @@
 #include "GameObject.h"
 #include "ModelRenderer.h"
 #include "PointLight.h"
+#include "DirectionalLight.h"
 #include "Model.h"
 #include "Mesh.h"
 #include "Texture.h"
@@ -25,14 +26,14 @@ struct GBuffer {
     GLuint specular;
 };
 
-const GLfloat quadVerts[12] = {
-    -1, 1,
-    -1, -1,
-    1, -1,
+const float quadVerts[12] = {
+    -1.0f, 1.0f,
+    -1.0f, -1.0f,
+	1.0f, -1.0f,
 
-    -1, 1,
-    1, -1,
-    1, 1
+    1.0f, -1.0f,
+	1.0f, 1.0f,
+	-1.0f, 1.0f
 };
 
 struct MeshToDraw {
@@ -73,17 +74,39 @@ private:
 
 	// TODO: Need to add lights to the asset manager
     std::vector<PointLight*> pointLights;
+	DirectionalLight* sun;
 	std::vector<PointLightToDraw> pointLightsToDraw;
 
 	GLubyte dummyData[4] = { 255, 255, 255, 255 };
 
     int screenWidth; int screenHeight;
-    GBuffer gBuffer;
-    GLuint lightVolume_Vao; GLuint lightVolume_Vbo; GLuint lightVolume_Ibo;
-    GLuint combinedShader;
-	GLuint pointLights_Ssbo = 0;
+	glm::mat4 proj; glm::mat4 view;
 
+	// Deferred
+    GBuffer gBuffer;
+
+	// Quad vert info
+	GLuint quadVAO; GLuint quadVBO;
+	
+	// Directional Light quad
+	GLuint directionalLightShader;
+	glm::mat4 lightProjView;
+
+	// Light volumes
     Mesh* lightVolume;
+	GLuint lightVolumeVAO; GLuint lightVolumeVBO; GLuint lightVolumeIBO;
+	GLuint lightVolumeShader;
+	GLuint pointLightsSSBO = 0;
+
+	// Shadows
+	GLuint shadowMapShader;
+	GLuint depthMapFBO; GLuint depthMap;
+	const int shadowWidth = 4096; const int shadowHeight = 4096;
+
+	// Post processing
+	GLuint finalQuadFBO; GLuint finalQuadRender;
+	GLuint finalQuadShader;
+
 
 public:
 	int totalTriangles = 0;
@@ -95,14 +118,15 @@ public:
     void Register(const Component*);
 
     void Update(const float&) {}
-
     void Render();
 
-	void DeferredPass(const glm::mat4&, const glm::mat4&);
-	void ForwardPass(const glm::mat4&, const glm::mat4&);
-
+	void CullScene();
 	void DrawShadows();
+	void DeferredToTexture();
+	void DeferredLighting();
+	void DrawTransparent();
 	void PostProcess();
+	void DrawQuad();
 
 	bool ShouldFrustumCull(const Mesh*, const glm::mat4&) const;
 };
