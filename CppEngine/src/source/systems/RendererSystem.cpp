@@ -219,7 +219,7 @@ void RendererSystem::Setup() {
 
 		glGenTextures(1, &finalQuadRender);
 		glBindTexture(GL_TEXTURE_2D, finalQuadRender);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, windowWidth, windowHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, windowWidth, windowHeight, 0, GL_RGB, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -380,9 +380,9 @@ void RendererSystem::Render() {
 	// Next, calculate our shadow map using our directional light only
 	// We do this every frame because we are assuming the directional light will move
 	// Swapping culling helps get more accurate shadows
-	glCullFace(GL_FRONT);
+	//glCullFace(GL_FRONT);
 	DrawShadows();
-	glCullFace(GL_BACK);
+	//glCullFace(GL_BACK);
 
 	view = mainCamera->view;
 	proj = mainCamera->proj;

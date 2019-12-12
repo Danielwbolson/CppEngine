@@ -6,9 +6,10 @@ uniform float xSpan;
 uniform float ySpan;
 
 in vec2 UV;
-out vec4 finalColor;
+out vec3 finalColor;
 
 
 void main() {
-	finalColor = texture(finalQuadRender, UV);
+	// gamma correction
+	finalColor = pow(texture(finalQuadRender, UV).rgb, vec3(1.0 / 2.2));
 }

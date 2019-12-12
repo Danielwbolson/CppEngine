@@ -19,8 +19,6 @@ int addInstance(const std::string&);
 int placeInstance(const int&, const float&, const float&, const float&);
 int scaleInstance(const int&, const float&, const float&, const float&);
 int rotateInstance(const int&, const float&, const float&);
-int changeColor(const int&, const float&, const float&, const float&);
-int disableTextures(const int&);
-int enableTextures(const int&);
+int rotateSunX(const int&, const float&);
 
 #endif // LUA_SUPPORT_H_

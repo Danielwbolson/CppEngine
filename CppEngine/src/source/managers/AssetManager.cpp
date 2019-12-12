@@ -968,12 +968,12 @@ void AssetManager::LoadTextureToGPU(const std::string texType, const int vecInde
 		glGenTextures(1, &ambientTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, ambientTextures[vecIndex]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "diffuse") {
 		glGenTextures(1, &diffuseTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, diffuseTextures[vecIndex]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
 	} else if (texType == "specular") {
 		glGenTextures(1, &specularTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
