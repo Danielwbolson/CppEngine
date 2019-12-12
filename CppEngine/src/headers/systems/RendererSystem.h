@@ -80,23 +80,33 @@ private:
 	GLubyte dummyData[4] = { 255, 255, 255, 255 };
 
     int screenWidth; int screenHeight;
+	glm::mat4 proj; glm::mat4 view;
+
+	// Deferred
     GBuffer gBuffer;
-	GLuint lightVolumeShader;
-	
+
+	// Quad vert info
 	GLuint quadVAO; GLuint quadVBO;
+	
+	// Directional Light quad
 	GLuint directionalLightShader;
 	glm::mat4 lightProjView;
 
+	// Light volumes
     Mesh* lightVolume;
 	GLuint lightVolumeVAO; GLuint lightVolumeVBO; GLuint lightVolumeIBO;
+	GLuint lightVolumeShader;
+	GLuint pointLightsSSBO = 0;
 
+	// Shadows
 	GLuint shadowMapShader;
 	GLuint depthMapFBO; GLuint depthMap;
 	const int shadowWidth = 4096; const int shadowHeight = 4096;
 
-	glm::mat4 proj; glm::mat4 view;
+	// Post processing
+	GLuint finalQuadFBO; GLuint finalQuadRender;
+	GLuint finalQuadShader;
 
-	GLuint pointLightsSSBO = 0;
 
 public:
 	int totalTriangles = 0;

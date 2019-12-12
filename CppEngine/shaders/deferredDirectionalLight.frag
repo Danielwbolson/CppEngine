@@ -1,5 +1,7 @@
 #version 450 core
 
+layout (location = 0) out vec4 finalColor;
+
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
 uniform sampler2D gDiffuse;
@@ -15,7 +17,6 @@ uniform mat4 lightProjView;
 uniform vec3 camPos;
 
 in vec2 UV;
-out vec4 finalColor;
 
 
 float calculateShadow(vec4);
@@ -57,8 +58,8 @@ float calculateShadow(vec4 fragPosLightSpace) {
 	
 	float shadow = 0;
 	for (int i = 0; i < 5; i++) {
+		float x = projCoords.x + span * (i - 2);
 		for (int j = 0; j < 5; j++) {
-			float x = projCoords.x + span * (i - 2);
 			float y = projCoords.y + span * (j - 2);
 			float textureDepth = texture(depthMap, vec2(x, y)).r;
 

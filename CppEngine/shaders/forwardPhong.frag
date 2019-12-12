@@ -1,5 +1,7 @@
 #version 450 core
 
+layout (location = 0) out vec4 finalColor;
+
 uniform sampler2D ambientTex;
 uniform sampler2D diffuseTex;
 uniform sampler2D specularTex;
@@ -42,8 +44,6 @@ in vec3 fragNorm;
 in vec3 fragPos;
 in vec2 fragUV;
 in mat3 tbn;
-
-out vec4 finalColor;
 
 vec3 calculatePointLights(vec3, vec3, vec4, vec3, float);
 vec3 calculateDirectionalLight(vec3, vec3, vec4, vec3, float);
@@ -146,8 +146,8 @@ float calculateShadow(vec4 fragPosLightSpace) {
 	
 	float shadow = 0;
 	for (int i = 0; i < 5; i++) {
+		float x = projCoords.x + span * (i - 2);
 		for (int j = 0; j < 5; j++) {
-			float x = projCoords.x + span * (i - 2);
 			float y = projCoords.y + span * (j - 2);
 			float textureDepth = texture(depthMap, vec2(x, y)).r;
 

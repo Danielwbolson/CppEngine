@@ -210,6 +210,37 @@ void RendererSystem::Setup() {
 		glReadBuffer(GL_NONE);
 	}
 
+	// Create our framebufferobject and final render texture
+	{
+		finalQuadShader = util::initShaderFromFiles("finalQuad.vert", "finalQuad.frag");
+
+		glGenFramebuffers(1, &finalQuadFBO);
+		glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+
+		glGenTextures(1, &finalQuadRender);
+		glBindTexture(GL_TEXTURE_2D, finalQuadRender);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, windowWidth, windowHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+		float borderColor[] = { 0.0f, 0.0f, 0.0f, 1.0f };
+		glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, finalQuadRender, 0);
+		glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+		GLuint rboDepth;
+		glGenRenderbuffers(1, &rboDepth);
+		glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
+
+		GLint posAttrib = glGetAttribLocation(finalQuadShader, "inPos");
+		glEnableVertexAttribArray(posAttrib);
+		glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	}
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 }
@@ -348,6 +379,7 @@ void RendererSystem::Render() {
 
 	// Next, calculate our shadow map using our directional light only
 	// We do this every frame because we are assuming the directional light will move
+	// Swapping culling helps get more accurate shadows
 	glCullFace(GL_FRONT);
 	DrawShadows();
 	glCullFace(GL_BACK);
@@ -360,9 +392,12 @@ void RendererSystem::Render() {
 	DeferredLighting();
 
 	// Next, draw our transparent items in a forward rendering pass
+	// Culling disabled for chains
+	glDisable(GL_CULL_FACE);
 	DrawTransparent();
+	glEnable(GL_CULL_FACE);
 
-	// Next, do post processngn effect on final image.
+	// Next, do post processing effects on final image.
 	PostProcess();
 
 	// Finally, render final image to 2D quad that is the size of the screen
@@ -607,6 +642,11 @@ void RendererSystem::DeferredLighting() {
 
 	glm::vec3 camPos = mainCamera->transform->position;
 
+	// Bind the output framebuffer from our deferred shading
+	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+	// Clear the buffer to default color
+	glClearColor(0, 0, 0, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	// Point lights
 	{
@@ -723,9 +763,10 @@ void RendererSystem::DrawTransparent() {
 
 	// Save all of our depth information from deferred pass for use in forward pass
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, finalQuadFBO);
 	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -860,11 +901,31 @@ void RendererSystem::DrawTransparent() {
 		glDrawElements(GL_TRIANGLES, static_cast<int>(transparentToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
 	}
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	glDisable(GL_BLEND);
 
 }
 
-void RendererSystem::PostProcess() {}
+void RendererSystem::PostProcess() {
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, finalQuadFBO);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	glUseProgram(finalQuadShader);
+	glBindVertexArray(quadVAO);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, finalQuadRender);
+	glUniform1i(glGetUniformLocation(finalQuadShader, "finalQuadRender"), 0);
+
+	glUniform1f(glGetUniformLocation(finalQuadShader, "xSpan"), 1.0f / windowWidth);
+	glUniform1f(glGetUniformLocation(finalQuadShader, "ySpan"), 1.0f / windowHeight);
+
+	glDrawArrays(GL_TRIANGLES, 0, 6); //Number of vertices
+}
 
 void RendererSystem::DrawQuad() {}
 

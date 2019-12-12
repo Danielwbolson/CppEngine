@@ -179,10 +179,10 @@ set(SHADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredLightvolumes.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredToTexture.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredToTexture.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/finalQuad.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/finalQuad.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPhong.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPhong.frag
-	${CMAKE_CURRENT_SOURCE_DIR}/shaders/Phong.vert
-	${CMAKE_CURRENT_SOURCE_DIR}/shaders/Phong.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.frag
 )
