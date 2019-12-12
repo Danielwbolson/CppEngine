@@ -1,7 +1,8 @@
 # CppEngine
 
-A multi-pass Rendering engine using deferred shading. Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects and interact with the sun.
-Engine Features:
+### A multi-pass Rendering engine using deferred shading. Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects and interact with the sun.
+
+## Engine Features:
 - Entity-Component-Systems Architecture
 - Deferred Shading
 - Point Light Volumes
@@ -10,22 +11,26 @@ Engine Features:
 - Post-processing step (currently just gamma correction)
 - Material and texturing support
 
-To clone, run:
+
+## To clone, build, and run:
 ```
 git clone --recurse-submodules https://github.com/Danielwbolson/CppEngine.git
 ```
-<br/>
-Make sure you change CMakeLists.txt lines 36-40 to the appropriate location of your SDL download.
-<br/>
-<br/>
-<br/>
-To run, navigate to the root directory. You should see src/, materials/, etc.
+Make sure you configure `CppEngine/CppEngine/CMakeLists.txt` to the appropriate location of your SDL download:  
 
-Run:
+`26 | set(LAPTOP_SDL D:/SDL2-2.0.10/)`  
+`27 | set(DESKTOP_SDL E:/SDL2-2.0.10/)`  
+`...`  
+`36 | link_directories( ${DESKTOP_SDL}lib/x64 )`  
+`37 | set(SDL2_INCLUDE_DIRS ${DESKTOP_SDL}include )`  
+`38 | #link_directories( ${LAPTOP_SDL}lib/x64)`  
+`39 | #set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)`  
+<br/>
+Navigate to the root directory. You should see src/, materials/, etc.
 ```
 ./build/Release/CppEngine.exe games/<gameFolder>/
 ```
 On Windows, you can also run from within Visual Studio:
 Add `games/<gameFolder>/` to CppEngine->Properties->Debugging->Command Arguments
 
-I recommend running with games/sponza/ to see a demo of the popular Sponza model featuring hundreds of point light volumes and a  dynamic directional light.
+I recommend running with `games/sponza/` to see a demo of the popular Sponza model featuring hundreds of point light volumes and a  dynamic directional light.
