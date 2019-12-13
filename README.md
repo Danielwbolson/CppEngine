@@ -40,4 +40,4 @@ Build CppEngine in your editor and finally you can call the following command fr
 On Windows, you can also run from within Visual Studio:  
 Add `games/<gameFolder>/` to `CppEngine->Properties->Debugging->Command Arguments`
 
-I recommend running with `games/sponza/` to see a demo of the popular Sponza model featuring hundreds of point light volumes and a  dynamic directional light.
+I recommend running with `games/sponza/` to see a demo of the popular Sponza model featuring hundreds of point light volumes and a  dynamic directional light. That directional light can be dynamically shifted using the `1` and `2` keys.
