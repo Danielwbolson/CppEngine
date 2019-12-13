@@ -1,6 +1,7 @@
 
 #include "RendererSystem.h"
 
+#include <chrono>
 #include <cmath>
 #include "glm/gtc/type_ptr.hpp"
 
@@ -379,10 +380,10 @@ void RendererSystem::Render() {
 	totalTriangles = 0;
 
 	// First, cull out unwanted geometry. Currently, only Frustum Culling is supported
-	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
+	auto startTime = std::chrono::high_resolution_clock::now();
 	CullScene();
-	glEndQuery(GL_TIME_ELAPSED);
-	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &cullTime);
+	auto endTime = std::chrono::high_resolution_clock::now();
+	cullTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
 
 	// Next, calculate our shadow map using our directional light only
 	// We do this every frame because we are assuming the directional light will move
@@ -437,7 +438,6 @@ void RendererSystem::CullScene() {
 					m.material = modelRenderers[i]->model->materials[j],
 					m.model = model,
 					m.vao = modelRenderers[i]->vaos[j],
-					m.indexVbo = modelRenderers[i]->vbos[j][3],
 					m.shaderProgram = modelRenderers[i]->model->materials[j]->shader->shaderProgram,
 					m.position = modelRenderers[i]->gameObject->transform->position
 				};

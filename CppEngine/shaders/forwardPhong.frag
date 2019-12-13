@@ -67,7 +67,7 @@ void main() {
 	}
 
 	// diffuse and opacity
-	vec4 a = texture(ambientTex, fragUV) * 0.1 * vec4(ambient, 1);
+	vec4 a = texture(ambientTex, fragUV) * 0.3 * vec4(ambient, 1);
 	vec4 d = texture(diffuseTex, fragUV) * vec4(diffuse, 1);
 
 	// specular

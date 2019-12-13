@@ -38,7 +38,7 @@ void main() {
 		gNormal = normalize(fragNorm);
 	}
 
-	vec4 a = texture(ambientTex, fragUV) * 0.001 * vec4(ambient, 1);
+	vec4 a = texture(ambientTex, fragUV) * 0.3 * vec4(ambient, 1);
 	vec4 d = texture(diffuseTex, fragUV) * vec4(diffuse, 1);
 
 	gDiffuse = vec3(a.xyz + d.xyz);

@@ -41,7 +41,6 @@ struct MeshToDraw {
 	Material* material; 
 	glm::mat4 model;
 	GLuint vao;
-	GLuint indexVbo;
 	GLuint shaderProgram;
 	glm::vec3 position;
 
