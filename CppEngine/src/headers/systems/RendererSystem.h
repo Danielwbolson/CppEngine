@@ -19,19 +19,19 @@
 #include <vector>
 
 struct GBuffer {
-    GLuint id;
-    GLuint positions;
-    GLuint normals;
-    GLuint diffuse;
-    GLuint specular;
+	GLuint id;
+	GLuint positions;
+	GLuint normals;
+	GLuint diffuse;
+	GLuint specular;
 };
 
 const float quadVerts[12] = {
-    -1.0f, 1.0f,
-    -1.0f, -1.0f,
+	-1.0f, 1.0f,
+	-1.0f, -1.0f,
 	1.0f, -1.0f,
 
-    1.0f, -1.0f,
+	1.0f, -1.0f,
 	1.0f, 1.0f,
 	-1.0f, 1.0f
 };
@@ -66,23 +66,23 @@ struct PointLightToGPU {
 
 class RendererSystem : public Systems {
 private:
-    std::vector<ModelRenderer*> modelRenderers;
+	std::vector<ModelRenderer*> modelRenderers;
 	std::vector<MeshToDraw> meshesToDraw;
 	std::vector<MeshToDraw> transparentToDraw;
 	std::vector<PointLightToGPU> pointLightsToGPU;
 
 	// TODO: Need to add lights to the asset manager
-    std::vector<PointLight*> pointLights;
+	std::vector<PointLight*> pointLights;
 	DirectionalLight* sun;
 	std::vector<PointLightToDraw> pointLightsToDraw;
 
 	GLubyte dummyData[4] = { 255, 255, 255, 255 };
 
-    int screenWidth; int screenHeight;
+	int screenWidth; int screenHeight;
 	glm::mat4 proj; glm::mat4 view;
 
 	// Deferred
-    GBuffer gBuffer;
+	GBuffer gBuffer;
 
 	// Quad vert info
 	GLuint quadVAO; GLuint quadVBO;
@@ -92,7 +92,7 @@ private:
 	glm::mat4 lightProjView;
 
 	// Light volumes
-    Mesh* lightVolume;
+	Mesh* lightVolume;
 	GLuint lightVolumeVAO; GLuint lightVolumeVBO; GLuint lightVolumeIBO;
 	GLuint lightVolumeShader;
 	GLuint pointLightsSSBO = 0;
@@ -116,13 +116,13 @@ public:
 	long long transparentTime; long long postFXXTime;
 
 	RendererSystem(const int&, const int&);
-    ~RendererSystem();
+	~RendererSystem();
 
-    void Setup();
-    void Register(const Component*);
+	void Setup();
+	void Register(const Component*);
 
-    void Update(const float&) {}
-    void Render();
+	void Update(const float&) {}
+	void Render();
 
 	void CullScene();
 	void DrawShadows();

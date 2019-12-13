@@ -19,23 +19,23 @@
 
 
 RendererSystem::RendererSystem(const int& sW, const int& sH) {
-    screenWidth = sW;
-    screenHeight = sH;
+	screenWidth = sW;
+	screenHeight = sH;
 
-    modelRenderers = std::vector<ModelRenderer*>();
+	modelRenderers = std::vector<ModelRenderer*>();
 	meshesToDraw = std::vector<MeshToDraw>();
 	transparentToDraw = std::vector<MeshToDraw>();
 
-    pointLights = std::vector<PointLight*>();
+	pointLights = std::vector<PointLight*>();
 	pointLightsToDraw = std::vector<PointLightToDraw>();
 	pointLightsToGPU = std::vector<PointLightToGPU>();
 
 	// We know that this is a mesh, not a model
-    lightVolume = (assetManager->tinyLoadObj("sphere"))->meshes[0];
+	lightVolume = (assetManager->tinyLoadObj("sphere"))->meshes[0];
 }
 
 RendererSystem::~RendererSystem() {
-    glDeleteProgram(lightVolumeShader);
+	glDeleteProgram(lightVolumeShader);
 
 	glDeleteBuffers(1, &lightVolumeIBO);
 	glDeleteBuffers(1, &lightVolumeVBO);
@@ -66,7 +66,7 @@ RendererSystem::~RendererSystem() {
 void RendererSystem::Setup() {
 
 	// Get all of our lights
-    for (int i = 0; i < mainScene->lights.size(); i++) {
+	for (int i = 0; i < mainScene->lights.size(); i++) {
 
 		if (mainScene->lights[i]->GetType() == "pointLight") {
 			pointLights.push_back((PointLight*)mainScene->lights[i]);
@@ -74,16 +74,16 @@ void RendererSystem::Setup() {
 			sun = (DirectionalLight*)mainScene->lights[i];
 		}
 
-    }
+	}
 
-    // Get our list of related components, in this case MeshRenderers
-    for (int i = 0; i < mainScene->instances.size(); i++) {
-        ModelRenderer* mr = (ModelRenderer*)mainScene->instances[i]->GetComponent("modelRenderer");
-        if (mr) {
+	// Get our list of related components, in this case MeshRenderers
+	for (int i = 0; i < mainScene->instances.size(); i++) {
+		ModelRenderer* mr = (ModelRenderer*)mainScene->instances[i]->GetComponent("modelRenderer");
+		if (mr) {
 			modelRenderers.push_back(mr);
-            Register(mr);
-        }
-    }
+			Register(mr);
+		}
+	}
 
 	// Set up debugging support
 	glEnable(GL_DEBUG_OUTPUT);
@@ -95,11 +95,11 @@ void RendererSystem::Setup() {
 	glGenQueries(1, &timeQuery);
 
 	// Enable/Disable macros
-    glEnable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
 
 
-    // Set up our light volume shader
+	// Set up our light volume shader
 	{
 		lightVolumeShader = util::initShaderFromFiles("deferredLightVolumes.vert", "deferredLightVolumes.frag");
 
@@ -251,8 +251,8 @@ void RendererSystem::Setup() {
 }
 
 void RendererSystem::Register(const Component* c) {
-    // Quick reference
-    ModelRenderer* mr = (ModelRenderer*)c;
+	// Quick reference
+	ModelRenderer* mr = (ModelRenderer*)c;
 
 	// run through every mesh/material for our model
 	for (int i = 0; i < mr->numMeshes; i++) {
