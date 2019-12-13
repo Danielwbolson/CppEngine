@@ -27,7 +27,7 @@ namespace SDL_Input {
 	extern KeyState keyState;
 
     static int SDLInit(SDL_Window** window, SDL_GLContext* context, int screenWidth, int screenHeight) {
-        SDL_Init(SDL_INIT_VIDEO);  //Initialize Graphics (for OpenGL)
+        SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER);  //Initialize Graphics (for OpenGL)
     
         //Print the version of SDL we are using
         SDL_version comp; SDL_version linked;

@@ -107,9 +107,14 @@ private:
 	GLuint finalQuadFBO; GLuint finalQuadRender;
 	GLuint finalQuadShader;
 
-
 public:
 	int totalTriangles = 0;
+
+	// Timings
+	GLuint timeQuery;
+	long long cullTime; long long shadowTime;
+	long long deferredToTexTime; long long deferredLightsTime;
+	long long transparentTime; long long postFXXTime;
 
 	RendererSystem(const int&, const int&);
     ~RendererSystem();
@@ -126,7 +131,6 @@ public:
 	void DeferredLighting();
 	void DrawTransparent();
 	void PostProcess();
-	void DrawQuad();
 
 	bool ShouldFrustumCull(const Mesh*, const glm::mat4&) const;
 };

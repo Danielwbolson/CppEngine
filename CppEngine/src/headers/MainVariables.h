@@ -2,6 +2,7 @@
 // Holds main function variables and include statements
 
 #include <SDL.h>
+#include <chrono>
 #include "glad/glad.h"
 #include "SDL_Static_Helper.h"
 

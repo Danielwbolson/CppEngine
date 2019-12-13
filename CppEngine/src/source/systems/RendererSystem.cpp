@@ -1,5 +1,9 @@
 
 #include "RendererSystem.h"
+
+#include <cmath>
+#include "glm/gtc/type_ptr.hpp"
+
 #include "Utility.h"
 #include "Configuration.h"
 #include "Scene.h"
@@ -11,9 +15,7 @@
 #include "Material.h"
 #include "Shader.h"
 
-#include <cmath>
 
-#include "glm/gtc/type_ptr.hpp"
 
 RendererSystem::RendererSystem(const int& sW, const int& sH) {
     screenWidth = sW;
@@ -88,6 +90,8 @@ void RendererSystem::Setup() {
 	glDebugMessageCallback(util::DebugMessageCallback, 0);
 	GLuint unusedIds = 0;
 	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, &unusedIds, true);
+
+	glGenQueries(1, &timeQuery);
 
 	// Enable/Disable macros
     glEnable(GL_DEPTH_TEST);
@@ -375,27 +379,46 @@ void RendererSystem::Render() {
 	totalTriangles = 0;
 
 	// First, cull out unwanted geometry. Currently, only Frustum Culling is supported
+	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
 	CullScene();
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &cullTime);
 
 	// Next, calculate our shadow map using our directional light only
 	// We do this every frame because we are assuming the directional light will move
+	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
 	DrawShadows();
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &shadowTime);
 
 	view = mainCamera->view;
 	proj = mainCamera->proj;
 
 	// Next, draw our opaque geometry to our buffers for deferred shading and then calculate lighting for our deferred objects
+	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
 	DeferredToTexture();
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &deferredToTexTime);
+
+	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
 	DeferredLighting();
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &deferredLightsTime);
 
 	// Next, draw our transparent items in a forward rendering pass
+	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
 	DrawTransparent();
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &transparentTime);
 
 	// Next, do post processing effects on final image.
+	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
 	PostProcess();
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &postFXXTime);
 
 	// Finally, render final image to 2D quad that is the size of the screen
-	DrawQuad();
+	//DrawQuad();
 }
 
 void RendererSystem::CullScene() {
@@ -915,8 +938,6 @@ void RendererSystem::PostProcess() {
 
 	glDrawArrays(GL_TRIANGLES, 0, 6); //Number of vertices
 }
-
-void RendererSystem::DrawQuad() {}
 
 bool RendererSystem::ShouldFrustumCull(const Mesh* mesh, const glm::mat4& model) const {
 
