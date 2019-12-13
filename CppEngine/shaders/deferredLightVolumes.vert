@@ -1,8 +1,6 @@
 #version 450 core
 
 in vec3 inPos;
-
-out vec2 UV;
 out vec4 outPos;
 
 uniform mat4 pvm;
