@@ -26,7 +26,14 @@ Make sure you configure `CppEngine/CppEngine/CMakeLists.txt` to the appropriate 
 `38 | #link_directories( ${LAPTOP_SDL}lib/x64)`  
 `39 | #set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)`  
 <br/>
-Navigate to the root directory. You should see src/, materials/, etc.  
+Navigate to the root directory. You should see src/, materials/, etc and perform the following commands:
+```
+mkdir build
+cd build
+cmake-gui ..
+```
+Configure CMake to your system.  
+Build CppEngine in your editor and finally you can call the following command from the terminal to test out the engine:
 ```
 ./build/Release/CppEngine.exe games/<gameFolder>/
 ```
