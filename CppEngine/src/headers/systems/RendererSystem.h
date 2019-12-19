@@ -20,10 +20,9 @@
 
 struct GBuffer {
 	GLuint id;
-	GLuint positions;
 	GLuint normals;
-	GLuint diffuse;
-	GLuint specular;
+	GLuint diffuseSpec;
+	GLuint depth;
 };
 
 const float quadVerts[12] = {

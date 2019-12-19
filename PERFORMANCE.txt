@@ -1,0 +1,65 @@
+GTX 970M
+Test is initial start-up scene for Sponza, no moving of mouse
+500 point lights
+Seed = 0
+Averaged values over a couple seconds
+
+
+12/19
+Release: Render Pass Pipeline, v1.0
+
+Triangles drawn: 985334
+
+Bits per pixel for deferred texturing:
+RGB is not supported on my GPU which then converts them to RGBA
+Position : RGB32F
+- RGBA32F is 128 bits
+Normal : RGB16F
+- RGBA16f is 64 bits
+Diffuse : RGB8
+- RGBA8 is 32 bits
+Specular : RGBA8
+- RGBA8 is 32 bits
+Depth : GL_DEPTH_COMPONENT
+- Looks like this is probably 16bit
+
+Total : 272 bits per pixel
+
+Timings (microseconds):
+FPS - 24.25368
+Triangles: 982454
+Frustum culling - 274.4117647
+Shadow Map - 496.4818824
+Deferred To Texture - 1158.057647
+Deferred Lighting - 28563.24118
+Transparent Time - 7845.497059
+Post Process - 191.1284706
+
+Total time : 38528.818 (38.5ms)
+
+======================================
+12/19
+Triangles drawn: 985334
+
+Bits per pixel for deferred texturing:
+RGB is not supported on my GPU which then converts them to RGBA
+Normal : RGB16F
+- RGBA16f is 64 bits
+Diffuse/Specular/SpecEXP : RGBA16UI
+- RGBA16 is 64 bits
+Depth : GL_DEPTH_COMPONENT32
+- 32bit
+
+Total : 160 bits
+
+Timings (microseconds):
+FPS - 32.93074615
+Triangles: 982454
+Frustum culling - 246.2307692
+Shadow Map - 498.0504615
+Deferred To Texture - 657.4695385
+Deferred Lighting - 17941.93077
+Transparent Time - 7852.306923
+Post Process - 195.5569231
+
+Total time : 27391.54538 (27.4ms)

@@ -1,4 +1,5 @@
-math.randomseed(os.time())
+--math.randomseed(os.time())
+math.randomseed(0)
 
 id = addInstance("sponza")
 placeInstance(id, 10, 0, -10)

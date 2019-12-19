@@ -2,7 +2,7 @@
 // Holds main function variables and include statements
 
 #include <SDL.h>
-#include <chrono>
+#include <ostream>
 #include "glad/glad.h"
 #include "SDL_Static_Helper.h"
 
@@ -27,6 +27,8 @@ const std::string sceneFile = "scene.txt";
 const std::string gameObjectsFile = "gameObjects.txt";
 std::string luaMain = "main.lua";
 std::string gameFolder = "";
+
+std::ofstream performanceStream;
 
 sol::state lua;
 sol::function frameUpdate;

@@ -42,10 +42,9 @@ RendererSystem::~RendererSystem() {
 	glDeleteVertexArrays(1, &lightVolumeVAO);
 	
 	glDeleteFramebuffers(1, &gBuffer.id);
-	glDeleteTextures(1, &gBuffer.positions);
 	glDeleteTextures(1, &gBuffer.normals);
-	glDeleteTextures(1, &gBuffer.diffuse);
-	glDeleteTextures(1, &gBuffer.specular);
+	glDeleteTextures(1, &gBuffer.diffuseSpec);
+	glDeleteTextures(1, &gBuffer.depth);
 
 	for (int i = 0; i < modelRenderers.size(); i++) {
 		modelRenderers[i] = nullptr;
@@ -125,49 +124,36 @@ void RendererSystem::Setup() {
 		glGenFramebuffers(1, &(gBuffer.id));
 		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
 
-		// - position color buffer
-		glGenTextures(1, &(gBuffer.positions));
-		glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.positions, 0);
-
-		// - normal color buffer
+		// normal color buffer
 		glGenTextures(1, &(gBuffer.normals));
 		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.normals, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.normals, 0);
 
 		// diffuse color
-		glGenTextures(1, &(gBuffer.diffuse));
-		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, screenWidth, screenHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+		glGenTextures(1, &(gBuffer.diffuseSpec));
+		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuseSpec);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16UI, screenWidth, screenHeight, 0, GL_RGBA_INTEGER, GL_UNSIGNED_INT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gBuffer.diffuse, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.diffuseSpec, 0);
 
-		// specular color
-		glGenTextures(1, &(gBuffer.specular));
-		glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, screenWidth, screenHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		// depth
+		glGenTextures(1, &(gBuffer.depth));
+		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gBuffer.specular, 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 
-		// - tell OpenGL which color attachments we'll use (of this framebuffer) for rendering 
-		GLuint attachments[4] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
-		glDrawBuffers(4, attachments);
-
-		GLuint rboDepth;
-		glGenRenderbuffers(1, &rboDepth);
-		glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-
+		// - tell OpenGL which attachments we'll use (of this framebuffer) for rendering 
+		GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+		glDrawBuffers(2, attachments);
 	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// Set up our directional light shader
 	{
@@ -186,10 +172,7 @@ void RendererSystem::Setup() {
 		glEnableVertexAttribArray(posAttrib);
 		glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
-		// Also uses GBuffer stuff
 	}
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// Create depth buffer and map for shadow maps from directional light
 	{
@@ -666,20 +649,22 @@ void RendererSystem::DeferredLighting() {
 		glBindVertexArray(lightVolumeVAO);
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
-		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuseSpec);
 		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
-		glUniform1i(glGetUniformLocation(lightVolumeShader, "gPosition"), 0);
-		glUniform1i(glGetUniformLocation(lightVolumeShader, "gNormal"), 1);
-		glUniform1i(glGetUniformLocation(lightVolumeShader, "gDiffuse"), 2);
-		glUniform1i(glGetUniformLocation(lightVolumeShader, "gSpecularExp"), 3);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gNormal"), 0);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gDiffuseSpec"), 1);
+		glUniform1i(glGetUniformLocation(lightVolumeShader, "gDepth"), 2);
 
 		GLint uniCamPos = glGetUniformLocation(lightVolumeShader, "camPos");
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+
+		GLint uniProj = glGetUniformLocation(lightVolumeShader, "invProj");
+		glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(glm::inverse(proj)));
+		GLint uniView = glGetUniformLocation(lightVolumeShader, "invView");
+		glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
 
 		GLint pvm = glGetUniformLocation(lightVolumeShader, "pvm");
 		GLint lightPos = glGetUniformLocation(lightVolumeShader, "lightPos");
@@ -736,23 +721,25 @@ void RendererSystem::DeferredLighting() {
 		glBindVertexArray(quadVAO);
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, gBuffer.positions);
-		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuseSpec);
 		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuse);
+		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
 		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D, gBuffer.specular);
-		glActiveTexture(GL_TEXTURE4);
 		glBindTexture(GL_TEXTURE_2D, depthMap);
-		glUniform1i(glGetUniformLocation(directionalLightShader, "gPosition"), 0);
-		glUniform1i(glGetUniformLocation(directionalLightShader, "gNormal"), 1);
-		glUniform1i(glGetUniformLocation(directionalLightShader, "gDiffuse"), 2);
-		glUniform1i(glGetUniformLocation(directionalLightShader, "gSpecularExp"), 3);
-		glUniform1i(glGetUniformLocation(directionalLightShader, "depthMap"), 4);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gNormal"), 0);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gDiffuseSpec"), 1);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gDepth"), 2);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "depthMap"), 3);
 
 		GLint uniLightMat = glGetUniformLocation(directionalLightShader, "lightProjView");
 		glUniformMatrix4fv(uniLightMat, 1, GL_FALSE, glm::value_ptr(lightProjView));
+
+		GLint uniProj = glGetUniformLocation(directionalLightShader, "invProj");
+		glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(glm::inverse(proj)));
+		GLint uniView = glGetUniformLocation(directionalLightShader, "invView");
+		glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
 
 		GLint uniCamPos = glGetUniformLocation(directionalLightShader, "camPos");
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);

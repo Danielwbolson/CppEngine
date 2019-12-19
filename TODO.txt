@@ -1,0 +1,8 @@
+Rendering:
+- Cutouts render with deferred rendering rather than transparent
+- Optimization of deferred lighting
+
+Engine:
+- Physics
+- Collisions
+- Animation (FBX) support
