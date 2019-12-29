@@ -4,7 +4,7 @@ Test is initial start-up scene for Sponza, no moving of mouse
 Seed = 0
 Averaged values over a couple seconds
 
-
+====================================
 12/19
 Release: Render Pass Pipeline, v1.0
 
@@ -63,3 +63,16 @@ Transparent Time - 7852.306923
 Post Process - 195.5569231
 
 Total time : 27391.54538 (27.4ms)
+
+======================================
+12/29
+
+Bits per pixel for deferred texturing:
+Normal : R11G11B10
+- This is 32 bits and there is no forced Alpha channel
+Diffuse/Specular/SpecEXP : RGBA16UI
+- RGBA16 is 64 bits
+Depth : GL_DEPTH_COMPONENT24
+- 32 bits (24 + alpha 8) so that we can do a stencil buffer eventually
+
+Total bits: 128
