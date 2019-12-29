@@ -780,7 +780,6 @@ void RendererSystem::DrawTransparent() {
 		// Directional light
 		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightDir");
 		glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
-		fprintf(stderr, "dir light: %f %f %f\n", sun->direction.x, sun->direction.y, sun->direction.z);
 		GLint lightCol = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightCol");
 		glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
 

@@ -76,7 +76,7 @@ void main() {
         outColor += specular * attenuation; // specular
     }
     
-    finalColor.rgb = vec3(0, 0, 0);//outColor;
+    finalColor.rgb = outColor;
     finalColor.a   = 1.0;
 }
 

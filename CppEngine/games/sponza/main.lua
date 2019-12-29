@@ -7,7 +7,7 @@ scaleInstance(id, 0.01, 0.01, 0.01)
 
 
 --sun = addDirectionalLight(0.945, 0.9, 0.8, -0.5, -1.2, -0.7)
-sun = addDirectionalLight(2.945, 2.9, 2.8, 0, -1, 0)
+sun = addDirectionalLight(.945 * 1.5, .9 * 1.5, .8 * 1.5, 0, -1, 0)
 
 
 pointLightArray = {}

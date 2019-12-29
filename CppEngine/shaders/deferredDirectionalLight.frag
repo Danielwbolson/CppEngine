@@ -71,12 +71,11 @@ void main() {
 		specularColor.z = float(diffuseSpec.z >> 8) / 255.0;
         vec3 specular = specularColor * spec;
 
-		float shadow = 0;//calculateShadow(fragPosLightSpace);
+		float shadow = calculateShadow(fragPosLightSpace);
         outColor = (1.0 - shadow) * (diffuse + specular); // diffuse
     }
     
     finalColor = vec4(outColor, 1.0);
-    //finalColor = vec4(ndotL * 10, 0, 0, 1.0);
 }
 
 float calculateShadow(vec4 fragPosLightSpace) {
@@ -114,8 +113,8 @@ vec2 signNotZero(vec2 v) {
 vec2 float8x3_to_oct(vec3 v) {
 	v *= 255.0;
 	v.y *= (1.0 / 16.0);
-
-	vec2 oct = vec2(v.x * 16.0 + floor(v.y), fract(v.y) * (16.0 * 256.0) + v.z);
+	vec2 oct = vec2(v.x * 16.0 + floor(v.y), 
+					fract(v.y) * (16.0 * 256.0) + v.z);
 
 	return clamp(oct * (1.0 / 2047.0) - 1.0, vec2(-1.0), vec2(1.0));
 }

@@ -36,7 +36,8 @@ void main() {
 	if (usingNormal) {
 		// https://learnopengl.com/Advanced-Lighting/Normal-Mapping
 		// Normal map
-		normal = normalize(tbn * texture(normalTex, fragUV).rgb * 2.0 - 1.0);
+		vec3 n = texture(normalTex, fragUV).rgb * 2.0 - 1.0;
+		normal = normalize(tbn * n);
 	} else {
 		normal = normalize(fragNorm);
 	}
