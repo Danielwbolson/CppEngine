@@ -487,7 +487,7 @@ void RendererSystem::DrawShadows() {
 	proj = glm::ortho(-30.0f, 10.0f, -15.0f, 40.0f, 0.01f, 1000.0f);
 	glm::vec3 pos = glm::vec3(sun->direction) * -100.0f;
 	glm::vec3 up = glm::cross(glm::vec3(sun->direction), glm::vec3(0, 0, -1));
-	view = glm::lookAt(pos, pos + glm::vec3(sun->direction), glm::normalize(up));
+	view = glm::lookAt(pos, pos + 100.0f * glm::vec3(sun->direction), glm::normalize(up));
 	lightProjView = proj * view;
 	glUniformMatrix4fv(glGetUniformLocation(shadowMapShader, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
 
@@ -556,66 +556,54 @@ void RendererSystem::DeferredToTexture() {
 		// How could I change the following IF statements to avoid last second state changes?
 		// Could I call specific functions?
 
-		if (m->useTextures) {
-			// Textures and booleans
-			glActiveTexture(GL_TEXTURE0);
-			if (m->ambientTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->ambientTextures[m->ambientIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniAmbientTex, 0);
-
-			glActiveTexture(GL_TEXTURE0 + 1);
-			if (m->diffuseTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniDiffuseTex, 1);
-
-			glActiveTexture(GL_TEXTURE0 + 2);
-			if (m->specularTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniSpecularTex, 2);
-
-			glActiveTexture(GL_TEXTURE0 + 3);
-			if (m->specularHighLightTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniSpecularHighLightTex, 3);
-
-			glActiveTexture(GL_TEXTURE0 + 4);
-			if (m->bumpTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniBumpTex, 4);
-
-			glActiveTexture(GL_TEXTURE0 + 5);
-			if (m->normalTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->normalTextures[m->normalIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniNormalTex, 5);
-
-			glActiveTexture(GL_TEXTURE0 + 6);
-			if (m->displacementTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniDisplacementTex, 6);
-
-			// No alpha texture for deferred shading
+		glActiveTexture(GL_TEXTURE0 + 0);
+		if (m->diffuseTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 		}
+		glUniform1i(m->uniDiffuseTex, 0);
+
+		glActiveTexture(GL_TEXTURE0 + 1);
+		if (m->specularTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniSpecularTex, 1);
+
+		glActiveTexture(GL_TEXTURE0 + 2);
+		if (m->specularHighLightTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniSpecularHighLightTex, 2);
+
+		glActiveTexture(GL_TEXTURE0 + 3);
+		if (m->bumpTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniBumpTex, 3);
+
+		glActiveTexture(GL_TEXTURE0 + 4);
+		if (m->normalTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->normalTextures[m->normalIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniNormalTex, 4);
+
+		glActiveTexture(GL_TEXTURE0 + 5);
+		if (m->displacementTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniDisplacementTex, 5);
+
 
 		totalTriangles += static_cast<int>(meshesToDraw[i].mesh->indices.size()) / 3;
 
@@ -746,7 +734,6 @@ void RendererSystem::DeferredLighting() {
 
 		GLint lightDir = glGetUniformLocation(directionalLightShader, "lightDir");
 		glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
-
 		GLint lightCol = glGetUniformLocation(directionalLightShader, "lightCol");
 		glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
 
@@ -793,6 +780,7 @@ void RendererSystem::DrawTransparent() {
 		// Directional light
 		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightDir");
 		glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
+		fprintf(stderr, "dir light: %f %f %f\n", sun->direction.x, sun->direction.y, sun->direction.z);
 		GLint lightCol = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightCol");
 		glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
 
@@ -827,72 +815,62 @@ void RendererSystem::DrawTransparent() {
 		// How could I change the following IF statements to avoid last second state changes?
 		// Could I call specific functions?
 
-		if (m->useTextures) {
-			// Textures and booleans
-			glActiveTexture(GL_TEXTURE0);
-			if (m->ambientTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->ambientTextures[m->ambientIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniAmbientTex, 0);
-
-			glActiveTexture(GL_TEXTURE0 + 1);
-			if (m->diffuseTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniDiffuseTex, 1);
-
-			glActiveTexture(GL_TEXTURE0 + 2);
-			if (m->specularTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniSpecularTex, 2);
-
-			glActiveTexture(GL_TEXTURE0 + 3);
-			if (m->specularHighLightTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniSpecularHighLightTex, 3);
-
-			glActiveTexture(GL_TEXTURE0 + 4);
-			if (m->bumpTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniBumpTex, 4);
-
-			glActiveTexture(GL_TEXTURE0 + 5);
-			if (m->normalTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->normalTextures[m->normalIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniNormalTex, 5);
-
-			glActiveTexture(GL_TEXTURE0 + 6);
-			if (m->displacementTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniDisplacementTex, 6);
-
-			glActiveTexture(GL_TEXTURE0 + 7);
-			if (m->alphaTexture != nullptr) {
-				glBindTexture(GL_TEXTURE_2D, assetManager->alphaTextures[m->alphaIndex]);
-			} else {
-				glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
-			}
-			glUniform1i(m->uniAlphaTex, 7);
+		glActiveTexture(GL_TEXTURE0 + 0);
+		if (m->diffuseTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
 		}
+		glUniform1i(m->uniDiffuseTex, 0);
+
+		glActiveTexture(GL_TEXTURE0 + 1);
+		if (m->specularTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniSpecularTex, 1);
+
+		glActiveTexture(GL_TEXTURE0 + 2);
+		if (m->specularHighLightTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniSpecularHighLightTex, 2);
+
+		glActiveTexture(GL_TEXTURE0 + 3);
+		if (m->bumpTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniBumpTex, 3);
+
+		glActiveTexture(GL_TEXTURE0 + 4);
+		if (m->normalTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->normalTextures[m->normalIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniNormalTex, 4);
+
+		glActiveTexture(GL_TEXTURE0 + 5);
+		if (m->displacementTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniDisplacementTex, 5);
+
+		glActiveTexture(GL_TEXTURE0 + 6);
+		if (m->alphaTexture != nullptr) {
+			glBindTexture(GL_TEXTURE_2D, assetManager->alphaTextures[m->alphaIndex]);
+		} else {
+			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+		}
+		glUniform1i(m->uniAlphaTex, 6);
+
 
 		totalTriangles += static_cast<int>(transparentToDraw[i].mesh->indices.size()) / 3;
 
@@ -916,6 +894,7 @@ void RendererSystem::PostProcess() {
 	glUseProgram(finalQuadShader);
 	glBindVertexArray(quadVAO);
 
+	// Final quad
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, finalQuadRender);
 	glUniform1i(glGetUniformLocation(finalQuadShader, "finalQuadRender"), 0);

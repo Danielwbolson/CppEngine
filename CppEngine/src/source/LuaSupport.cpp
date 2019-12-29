@@ -73,6 +73,6 @@ int rotateInstance(const int& index, const float& xRot, const float& yRot) {
 
 int rotateSunX(const int& index, const float& angle) {
 	DirectionalLight* sun = (DirectionalLight*)mainScene->lights[index];
-	sun->direction = glm::vec4(glm::rotate(glm::vec3(sun->direction), angle, glm::vec3(1, 0, 0)), 0);
+	sun->direction = glm::normalize(glm::vec4(glm::rotate(glm::vec3(sun->direction), angle, glm::vec3(1, 0, 0)), 0));
 	return 1;
 }

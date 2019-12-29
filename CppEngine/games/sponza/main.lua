@@ -7,7 +7,7 @@ scaleInstance(id, 0.01, 0.01, 0.01)
 
 
 --sun = addDirectionalLight(0.945, 0.9, 0.8, -0.5, -1.2, -0.7)
-sun = addDirectionalLight(0.945, 0.9, 0.8, 0, -1, 0)
+sun = addDirectionalLight(2.945, 2.9, 2.8, 0, -1, 0)
 
 
 pointLightArray = {}
@@ -34,9 +34,9 @@ end
 
 function keyInput(keys)
 	if keys.one then
-		rotateSunX(sun, 0.004);		
+		rotateSunX(sun, -0.004);		
 	elseif keys.two then
-		rotateSunX(sun, -0.004);	
+		rotateSunX(sun, 0.004);	
 	end
 	
 end

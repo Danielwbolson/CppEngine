@@ -3,7 +3,6 @@
 layout (location = 0) out vec3 gNormal;
 layout (location = 1) out uvec4 gDiffuseSpec;
 
-uniform sampler2D ambientTex;
 uniform sampler2D diffuseTex;
 uniform sampler2D specularTex;
 uniform sampler2D specularHighLightTex;
@@ -13,7 +12,6 @@ uniform sampler2D dispTex;
 
 uniform bool usingNormal;
 
-uniform vec3 ambient;
 uniform vec3 diffuse;
 uniform vec3 specular;
 uniform float specularExp;
@@ -29,7 +27,7 @@ in mat3 tbn;
 // in later work (ambient occlusion, stencil)
 vec3 octahedronCompress(vec3);
 vec2 signNotZero(vec2);
-vec2 float32x3_to_oct(in vec3);
+vec2 float32x3_to_oct(vec3);
 vec3 oct_to_float8x3(vec2);
 
 void main() {
@@ -46,7 +44,6 @@ void main() {
 
 
 	// Pack our two 8bit diffuse/ambient and specular into 1 16bit value
-	vec4 a = texture(ambientTex, fragUV) * 0.3 * vec4(ambient, 1);
 	vec4 d = texture(diffuseTex, fragUV) * vec4(diffuse, 1);
 	uint dx = uint(floor(255.0 * d.x));
 	uint dy = uint(floor(255.0 * d.y));
@@ -75,7 +72,7 @@ vec2 signNotZero(vec2 v) {
 }
 
 // Assume normalized input.  Output is on [-1, 1] for each component.
-vec2 float32x3_to_oct(in vec3 v) {
+vec2 float32x3_to_oct(vec3 v) {
 	//Project the sphere onto the octahedron, and then onto the xy plane
 	vec2 projVec = v.xy * (1.0 / (abs(v.x) + abs(v.y) + abs(v.z)));
 	
@@ -88,5 +85,7 @@ vec3 oct_to_float8x3(vec2 v) {
 	vec2 oct_2x12 = vec2(round(clamp(v, -1.0, 1.0) * 2047 + 2047));
 	float t = floor(oct_2x12.y / 256.0);
 	
-	return floor(vec3(oct_2x12.x / 16.0, fract(oct_2x12.x / 16.0) * 256.0 + t, oct_2x12.y - t * 256.0)) / 255.0;
+	return floor(vec3(oct_2x12.x / 16.0, 
+					  fract(oct_2x12.x / 16.0) * 256.0 + t, 
+					  oct_2x12.y - t * 256.0)) / 255.0;
 }

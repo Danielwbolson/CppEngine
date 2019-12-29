@@ -2,7 +2,6 @@
 
 layout (location = 0) out vec4 finalColor;
 
-uniform sampler2D ambientTex;
 uniform sampler2D diffuseTex;
 uniform sampler2D specularTex;
 uniform sampler2D specularHighLightTex;
@@ -66,8 +65,7 @@ void main() {
 		n = normalize(fragNorm);
 	}
 
-	// diffuse and opacity
-	vec4 a = texture(ambientTex, fragUV) * 0.3 * vec4(ambient, 1);
+	// diffuse 
 	vec4 d = texture(diffuseTex, fragUV) * vec4(diffuse, 1);
 
 	// specular
@@ -84,7 +82,7 @@ void main() {
 	float shadow = calculateShadow(fragPosLightSpace);
 	vec3 directionalLightCol = (1.0 - shadow) * calculateDirectionalLight(eye, n, d, spec, specExp);
 
-    finalColor = vec4(pointLightCol + directionalLightCol + a.xyz, o);
+    finalColor = vec4(pointLightCol + directionalLightCol, o);
 }
 
 vec3 calculatePointLights(vec3 eye, vec3 n, vec4 d, vec3 spec, float specExp) {

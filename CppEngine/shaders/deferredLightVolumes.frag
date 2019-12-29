@@ -30,7 +30,8 @@ void main() {
     vec3 normalizedFragPos = outPos.xyz / outPos.w;
     vec2 UV = 0.5 * (normalizedFragPos.xy + vec2(1.0));
 
-    vec3 normal       = octahedronDecompress(normalize(texture(gNormal, UV).rgb));
+	// Don't normalize normal or we will ruin the encoding
+    vec3 normal       = octahedronDecompress(texture(gNormal, UV).rgb);
     uvec4 diffuseSpec = texture(gDiffuseSpec, UV);
     float depth       = texture(gDepth, UV).r;
 
@@ -62,9 +63,9 @@ void main() {
         vec3 h = normalize(lightDir + eye);
         float spec = pow(max(dot(h, normal), 0.0), diffuseSpec.a);
 
-		specularColor.x = float(uint(diffuseSpec.x) >> 8) / 255.0;
-		specularColor.y = float(uint(diffuseSpec.y) >> 8) / 255.0;
-		specularColor.z = float(uint(diffuseSpec.z) >> 8) / 255.0;
+		specularColor.x = float(diffuseSpec.x >> 8) / 255.0;
+		specularColor.y = float(diffuseSpec.y >> 8) / 255.0;
+		specularColor.z = float(diffuseSpec.z >> 8) / 255.0;
         vec3 specular = specularColor * spec;
 
         // attenuation
@@ -75,7 +76,7 @@ void main() {
         outColor += specular * attenuation; // specular
     }
     
-    finalColor.rgb = outColor;
+    finalColor.rgb = vec3(0, 0, 0);//outColor;
     finalColor.a   = 1.0;
 }
 
@@ -92,10 +93,10 @@ vec2 signNotZero(vec2 v) {
 
 // Convert our rgb texture normal into a octohedron encoded 2x12
 vec2 float8x3_to_oct(vec3 v) {
-	v*= 255.0;
-	v.y*= (1.0 / 16.0);
-
-	vec2 oct = vec2(v.x * 16.0 + floor(v.y), fract(v.y) * (16.0 * 256.0) + v.z);
+	v *= 255.0;
+	v.y *= (1.0 / 16.0);
+	vec2 oct = vec2(v.x * 16.0 + floor(v.y), 
+					fract(v.y) * (16.0 * 256.0) + v.z);
 
 	return clamp(oct * (1.0 / 2047.0) - 1.0, vec2(-1.0), vec2(1.0));
 }

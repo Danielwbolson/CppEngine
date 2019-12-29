@@ -52,7 +52,6 @@ std::vector<Material*> AssetManager::materials = std::vector<Material*>();
 std::vector<Texture*> AssetManager::textures = std::vector<Texture*>();
 std::vector<Shader*> AssetManager::shaders = std::vector<Shader*>();
 
-std::vector<GLuint> AssetManager::ambientTextures = std::vector<GLuint>();
 std::vector<GLuint> AssetManager::diffuseTextures = std::vector<GLuint>();
 std::vector<GLuint> AssetManager::specularTextures = std::vector<GLuint>();
 std::vector<GLuint> AssetManager::specularHighLightTextures = std::vector<GLuint>();
@@ -101,11 +100,6 @@ AssetManager::~AssetManager() {
 		glDeleteProgram(shaders[i]->shaderProgram);
 	}
 	shaders.clear();
-
-	for (int i = 0; i < ambientTextures.size(); i++) {
-		glDeleteTextures(1, &ambientTextures[i]);
-	}
-	ambientTextures.clear();
 
 	for (int i = 0; i < diffuseTextures.size(); i++) {
 		glDeleteTextures(1, &diffuseTextures[i]);
@@ -410,14 +404,6 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const s
 	int numChannels;
 
 	Texture* t;
-	if (mat.ambient_texname != "") {
-		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.ambient_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
-		t = new Texture(w, h, numChannels, pixels);
-		textures.push_back(t);
-		ambientTextures.resize(ambientTextures.size() + 1);
-		m->ambientTexture = t;
-		m->ambientIndex = static_cast<int>(ambientTextures.size() - 1);
-	}
 
 	if (mat.diffuse_texname != "") {
 		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.diffuse_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
@@ -590,24 +576,6 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 				&illum);
 
 			m->illum = illum;
-		} else if (strcmp(command, "map_Ka") == 0) {
-			char filename[1024];
-
-			sscanf(line, "map_Ka %s",
-				&filename);
-
-			int w;
-			int h;
-			int numChannels;
-			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
-
-			Texture* t = new Texture(w, h, numChannels, pixels);
-
-			textures.push_back(t);
-			ambientTextures.resize(ambientTextures.size() + 1);
-
-			m->ambientTexture = t;
-			m->ambientIndex = static_cast<int>(ambientTextures.size() - 1);
 		} else if (strcmp(command, "map_Kd") == 0) {
 			char filename[1024];
 
@@ -964,12 +932,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 
 void AssetManager::LoadTextureToGPU(const std::string texType, const int vecIndex, const int texIndex, Texture* tex) {
 
-	if (texType == "ambient") {
-		glGenTextures(1, &ambientTextures[vecIndex]);
-		glActiveTexture(GL_TEXTURE0 + texIndex);
-		glBindTexture(GL_TEXTURE_2D, ambientTextures[vecIndex]);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
-	} else if (texType == "diffuse") {
+	if (texType == "diffuse") {
 		glGenTextures(1, &diffuseTextures[vecIndex]);
 		glActiveTexture(GL_TEXTURE0 + texIndex);
 		glBindTexture(GL_TEXTURE_2D, diffuseTextures[vecIndex]);

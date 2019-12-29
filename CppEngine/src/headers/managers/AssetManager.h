@@ -33,7 +33,6 @@ public:
 	static std::vector<Texture*> textures;
 	static std::vector<Shader*> shaders;
 
-	static std::vector<GLuint> ambientTextures;
 	static std::vector<GLuint> diffuseTextures;
 	static std::vector<GLuint> specularTextures;
 	static std::vector<GLuint> specularHighLightTextures;

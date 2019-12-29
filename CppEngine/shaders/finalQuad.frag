@@ -11,5 +11,5 @@ out vec3 finalColor;
 
 void main() {
 	// gamma correction
-	finalColor = pow(texture(finalQuadRender, UV).rgb, vec3(1.0 / 2.2));
+	finalColor += pow(texture(finalQuadRender, UV).rgb, vec3(1.0 / 2.2));
 }

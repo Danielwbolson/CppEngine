@@ -34,7 +34,8 @@ vec3 oct_to_float32x3(vec2);
 
 void main() {
 
-    vec3 normal       = octahedronDecompress(normalize(texture(gNormal, UV).rgb));
+	// Don't normalize normal or we will ruin the encoding
+    vec3 normal       = octahedronDecompress(texture(gNormal, UV).rgb);
     uvec4 diffuseSpec = texture(gDiffuseSpec, UV);
     float depth       = texture(gDepth, UV).r;
 
@@ -56,25 +57,26 @@ void main() {
     float ndotL = max(dot(normal, -lightDir), 0.0);
     if (ndotL > 0.0) {
         // diffuse
-		diffuseColor.x = float(uint(diffuseSpec.x) & 0xFF) / 255.0;
-		diffuseColor.y = float(uint(diffuseSpec.y) & 0xFF) / 255.0;
-		diffuseColor.z = float(uint(diffuseSpec.z) & 0xFF) / 255.0;
+		diffuseColor.x = float(diffuseSpec.x & 0xFF) / 255.0;
+		diffuseColor.y = float(diffuseSpec.y & 0xFF) / 255.0;
+		diffuseColor.z = float(diffuseSpec.z & 0xFF) / 255.0;
         vec3 diffuse = lightCol * diffuseColor * ndotL;
 
         // specular
-        vec3 h = normalize(lightDir + eye);
+        vec3 h = normalize(-lightDir + eye);
         float spec = pow(max(dot(h, normal), 0.0), diffuseSpec.a);
 		
-		specularColor.x = float(uint(diffuseSpec.x) >> 8) / 255.0;
-		specularColor.y = float(uint(diffuseSpec.y) >> 8) / 255.0;
-		specularColor.z = float(uint(diffuseSpec.z) >> 8) / 255.0;
+		specularColor.x = float(diffuseSpec.x >> 8) / 255.0;
+		specularColor.y = float(diffuseSpec.y >> 8) / 255.0;
+		specularColor.z = float(diffuseSpec.z >> 8) / 255.0;
         vec3 specular = specularColor * spec;
 
-		float shadow = calculateShadow(fragPosLightSpace);
+		float shadow = 0;//calculateShadow(fragPosLightSpace);
         outColor = (1.0 - shadow) * (diffuse + specular); // diffuse
     }
     
     finalColor = vec4(outColor, 1.0);
+    //finalColor = vec4(ndotL * 10, 0, 0, 1.0);
 }
 
 float calculateShadow(vec4 fragPosLightSpace) {
@@ -89,7 +91,7 @@ float calculateShadow(vec4 fragPosLightSpace) {
 			float y = projCoords.y + span * (j - 2);
 			float textureDepth = texture(depthMap, vec2(x, y)).r;
 
-			shadow += textureDepth < projCoords.z - 0.00001 ? 1.0 : 0.0;
+			shadow += textureDepth < projCoords.z - 0.0001 ? 1.0 : 0.0;
 		}
 	}
 

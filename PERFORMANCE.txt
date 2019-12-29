@@ -39,6 +39,8 @@ Total time : 38528.818 (38.5ms)
 
 ======================================
 12/19
+Getting rid of position texture (calculating using depth instead) and combining
+diffuse and specular into 1 texture using bit offsets
 Triangles drawn: 985334
 
 Bits per pixel for deferred texturing:
@@ -54,7 +56,7 @@ Total : 160 bits
 
 Timings (microseconds):
 FPS - 32.93074615
-Triangles: 982454
+Triangles: 985334
 Frustum culling - 246.2307692
 Shadow Map - 498.0504615
 Deferred To Texture - 657.4695385
@@ -66,13 +68,27 @@ Total time : 27391.54538 (27.4ms)
 
 ======================================
 12/29
+Implementing octahedron encoding to optimize normals
+Triangles drawn: 982454
 
 Bits per pixel for deferred texturing:
-Normal : R11G11B10
-- This is 32 bits and there is no forced Alpha channel
+Normal : RGB8
+- This is 32 bits with the forced alpha
 Diffuse/Specular/SpecEXP : RGBA16UI
 - RGBA16 is 64 bits
 Depth : GL_DEPTH_COMPONENT24
 - 32 bits (24 + alpha 8) so that we can do a stencil buffer eventually
 
 Total bits: 128
+
+Timings (microseconds):
+FPS - 33.67545714
+Triangles: 982454
+Frustum culling - 277.2380952
+Shadow Map - 494.4761905
+Deferred To Texture - 576.2407619
+Deferred Lighting - 17376.44762
+Transparent Time - 7845.277143
+Post Process - 192.5302857
+
+Total time : 26762.2101 (26.8ms)
