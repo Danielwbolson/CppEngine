@@ -44,9 +44,6 @@ public:
 	static GLuint nullTexture;
 	static GLubyte nullData[4];
 
-	static ofbx::IScene* iscene;
-
-	static void LoadFBX(const std::string fileName);
 	static Model* tinyLoadObj(const std::string fileName, bool useTinyMats = false);
 	static Scene* LoadScene(const std::string fileName);
 	static void LoadGameObjects(const std::string fileName, Scene* scene);

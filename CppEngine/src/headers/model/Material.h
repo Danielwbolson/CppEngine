@@ -83,9 +83,6 @@ public:
     Material(const std::string& filename);
 
 	void InitUniforms();
-
-    Material operator=(const Material&);
-	bool operator==(const Material&) const;
 };
 
 #endif
