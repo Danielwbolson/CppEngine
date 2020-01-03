@@ -8,17 +8,17 @@ Scene::Scene() : windowWidth(640), windowHeight(480), background{ glm::vec3(0, 0
 
 Scene::~Scene() {
 	for (int i = 0; i < gameObjects.size(); i++) {
-		delete gameObjects[i];
+		memoryManager->Free(gameObjects[i]);
 	}
 	gameObjects.clear();
 
 	for (int i = 0; i < instances.size(); i++) {
-		delete instances[i];
+		memoryManager->Free(instances[i]);
 	}
 	instances.clear();
 
 	for (int i = 0; i < lights.size(); i++) {
-		delete lights[i];
+		memoryManager->Free(lights[i]);
 	}
 	lights.clear();
 }
@@ -48,7 +48,7 @@ GameObject* Scene::FindInstance(const std::string& name) {
 void Scene::Update(const float dt) {
     for (int i = 0; i < instances.size(); i++) {
         if (instances[i]->dead) {
-            delete instances[i];
+			memoryManager->Free(instances[i]);
             instances[i] = NULL;
             instances.erase(instances.begin() + (i--));
         }

@@ -9,6 +9,7 @@
 #include "Light.h"
 #include "PointLight.h"
 #include "DirectionalLight.h"
+#include "GameObject.h"
 #include "ModelRenderer.h"
 #include "Model.h"
 #include "Material.h"
@@ -32,12 +33,19 @@ void luaSetup(sol::state& L) {
 // output functionName(lua_State* luaState) {}
 
 int addPointLight(const float& r, const float& g, const float& b, const float& x , const float& y, const float& z) {
-	mainScene->lights.push_back(new PointLight(glm::vec3(r, g, b), glm::vec4(x, y, z, 1)));
+	mainScene->lights.push_back(memoryManager->Allocate<PointLight>(
+		glm::vec3(r, g, b), 
+		glm::vec4(x, y, z, 1))
+	);
+
 	return static_cast<int>(mainScene->lights.size() - 1);
 }
 
 int addDirectionalLight(const float& r, const float& g, const float& b, const float& dx, const float& dy, const float& dz) {
-	mainScene->lights.push_back(new DirectionalLight(glm::vec4(r, g, b, 1), glm::vec4(glm::normalize(glm::vec3(dx, dy, dz)), 1)));
+	mainScene->lights.push_back(memoryManager->Allocate<DirectionalLight>(
+		glm::vec4(r, g, b, 1),
+		glm::vec4(glm::normalize(glm::vec3(dx, dy, dz)), 1))
+	);
 	return static_cast<int>(mainScene->lights.size() - 1);
 }
 
@@ -46,13 +54,13 @@ int addModel() {
 }
 
 int addInstance(const std::string& gameObjectName) {
-	mainScene->instances.push_back(new GameObject(*(mainScene->FindGameObject(gameObjectName))));
-
-	int index = static_cast<int>(mainScene->instances.size() - 1);
-	GameObject* g = mainScene->instances[index];
+	GameObject* g = memoryManager->Allocate<GameObject>(*(mainScene->FindGameObject(gameObjectName)));
 	for (int i = 0; i < g->components.size(); i++) {
 		g->components[i]->gameObject = g;
 	}
+
+	mainScene->instances.push_back(g);
+
 	return static_cast<int>(mainScene->instances.size() - 1);
 }
 

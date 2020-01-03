@@ -2,10 +2,11 @@
 #ifndef GLOBALS_H_
 #define GLOBALS_H_
 
+#include "MemoryManager.h"
+
 class Camera;
 class Scene;
 class AssetManager;
-class MemoryManager;
 
 
 extern Camera* mainCamera;

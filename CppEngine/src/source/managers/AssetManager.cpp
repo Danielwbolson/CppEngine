@@ -38,7 +38,6 @@
 
 #include "Configuration.h"
 
-#include "MemoryManager.h"
 #include "Globals.h"
 #include "Camera.h"
 #include "Scene.h"
@@ -70,11 +69,8 @@ AssetManager::AssetManager() {
 	glBindTexture(GL_TEXTURE_2D, nullTexture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullData);
 
-	Shader* deferredToTexture = (Shader*)memoryManager->Allocate(sizeof(Shader));
-	*deferredToTexture = Shader("deferredToTexture.vert", "deferredToTexture.frag");
-
-	Shader* forwardPhong = (Shader*)memoryManager->Allocate(sizeof(Shader));
-	*forwardPhong = Shader("forwardPhong.vert", "forwardPhong.frag");
+	Shader* deferredToTexture = memoryManager->Allocate<Shader>("deferredToTexture.vert", "deferredToTexture.frag");
+	Shader* forwardPhong = memoryManager->Allocate<Shader>("forwardPhong.vert", "forwardPhong.frag");
 
 	shaders.push_back(deferredToTexture);
 	shaders.push_back(forwardPhong);
@@ -86,17 +82,17 @@ AssetManager::AssetManager() {
 
 AssetManager::~AssetManager() {
 	for (int i = 0; i < models.size(); i++) {
-		delete models[i];
+		memoryManager->Free(models[i]);
 	}
 	models.clear();
 
 	for (int i = 0; i < materials.size(); i++) {
-		delete materials[i];
+		memoryManager->Free(materials[i]);
 	}
 	materials.clear();
 
 	for (int i = 0; i < textures.size(); i++) {
-		delete textures[i];
+		memoryManager->Free(textures[i]);
 	}
 	textures.clear();
 
@@ -172,8 +168,7 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 
 	bool ret = tinyobj::LoadObj(&attrib, &shapes, &mats, &warn, &err, fullFile.c_str(), std::string((VK_ROOT_DIR"materials/")).c_str());
 
-	Model* model = (Model*)memoryManager->Allocate(sizeof(Model));
-	*model = Model();
+	Model* model = memoryManager->Allocate<Model>();
 
 	// For calculating bounds
 	float minx = INFINITY;
@@ -191,11 +186,8 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 
 		std::vector<Mesh*> tinyMeshes = std::vector<Mesh*>(mats.size());
 		for (int i = 0; i < mats.size(); i++) {
-			tinyMeshes[i] = (Mesh*)memoryManager->Allocate(sizeof(Mesh));
-			*tinyMeshes[i] = Mesh();
-
-			tinyMeshes[i]->bounds = (Bounds*)memoryManager->Allocate(sizeof(Bounds));
-			*tinyMeshes[i]->bounds = Bounds();
+			tinyMeshes[i] = memoryManager->Allocate<Mesh>();
+			tinyMeshes[i]->bounds = memoryManager->Allocate<Bounds>();
 
 			model->meshes.push_back(tinyMeshes[i]);
 		}
@@ -289,8 +281,7 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 
 		std::unordered_map<vertex, unsigned int> vertices = {};
 
-		Mesh* mesh = (Mesh*)memoryManager->Allocate(sizeof(Mesh));
-		*mesh = Mesh();
+		Mesh* mesh = memoryManager->Allocate<Mesh>();
 
 		for (const auto& shape : shapes) {
 
@@ -356,8 +347,7 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 			}
 		}
 
-		mesh->bounds = (Bounds*)memoryManager->Allocate(sizeof(Bounds));
-		*mesh->bounds = Bounds(minx, miny, minz, maxx, maxy, maxz);
+		mesh->bounds = memoryManager->Allocate<Bounds>(minx, miny, minz, maxx, maxy, maxz);
 
 		model->meshes.push_back(mesh);
 		vertices.clear();
@@ -367,8 +357,7 @@ Model* AssetManager::tinyLoadObj(const std::string fileName, bool useTinyMats) {
 }
 
 Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const std::string& name) {
-	Material* m = (Material*)memoryManager->Allocate(sizeof(Material));
-	*m = Material(mat.name);
+	Material* m = memoryManager->Allocate<Material>(mat.name);
 
 	m->ambient = glm::vec3(mat.ambient[0], mat.ambient[1], mat.ambient[2]);
 	m->diffuse = glm::vec3(mat.diffuse[0], mat.diffuse[1], mat.diffuse[2]);
@@ -391,8 +380,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const s
 	if (mat.diffuse_texname != "") {
 		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.diffuse_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 
-		t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-		*t = Texture(w, h, numChannels, pixels);
+		t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 		textures.push_back(t);
 		diffuseTextures.resize(diffuseTextures.size() + 1);
@@ -403,8 +391,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const s
 	if (mat.specular_texname != "") {
 		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.specular_texname)).c_str(), &w, &h, &numChannels, STBI_rgb);
 
-		t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-		*t = Texture(w, h, numChannels, pixels);
+		t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 		textures.push_back(t);
 		specularTextures.resize(specularTextures.size() + 1);
@@ -414,9 +401,8 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const s
 
 	if (mat.specular_highlight_texname != "") {
 		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.specular_highlight_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
-
-		t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-		*t = Texture(w, h, numChannels, pixels);
+		
+		t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 		textures.push_back(t);
 		specularHighLightTextures.resize(specularHighLightTextures.size() + 1);
@@ -433,8 +419,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const s
 			pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.bump_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
 			bumpTextures.resize(bumpTextures.size() + 1);
 
-			t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-			*t = Texture(w, h, numChannels, pixels);
+			t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 			textures.push_back(t);
 			m->bumpTexture = t;
@@ -442,8 +427,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const s
 		} else { // normal maps
 			normalTextures.resize(normalTextures.size() + 1);
 
-			t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-			*t = Texture(w, h, numChannels, pixels);
+			t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 			textures.push_back(t);
 			m->normalTexture = t;
@@ -454,8 +438,7 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const s
 	if (mat.displacement_texname != "") {
 		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.displacement_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
 
-		t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-		*t = Texture(w, h, numChannels, pixels);
+		t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 		textures.push_back(t);
 		displacementTextures.resize(displacementTextures.size() + 1);
@@ -465,9 +448,8 @@ Material* AssetManager::tinyLoadMaterial(const tinyobj::material_t& mat, const s
 
 	if (mat.alpha_texname != "") {
 		GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + name + "/" + std::string(mat.alpha_texname)).c_str(), &w, &h, &numChannels, STBI_grey);
-
-		t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-		*t = Texture(w, h, numChannels, pixels);
+		
+		t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 		textures.push_back(t);
 		alphaTextures.resize(alphaTextures.size() + 1);
@@ -491,8 +473,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 		}
 	}
 
-	Material* m = (Material*)memoryManager->Allocate(sizeof(Material));
-	*m = Material(fileName);
+	Material* m = memoryManager->Allocate<Material>(fileName);
 
 	FILE *fp;
 	char line[1024]; //Assumes no line is longer than 1024 characters!
@@ -590,8 +571,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 			int numChannels;
 			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
-			Texture* t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-			*t = Texture(w, h, numChannels, pixels);
+			Texture* t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 			textures.push_back(t);
 			diffuseTextures.resize(diffuseTextures.size() + 1);
@@ -609,8 +589,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 			int numChannels;
 			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
-			Texture* t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-			*t = Texture(w, h, numChannels, pixels);
+			Texture* t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 			textures.push_back(t);
 			specularTextures.resize(specularTextures.size() + 1);
@@ -627,9 +606,8 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 			int h;
 			int numChannels;
 			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
-
-			Texture* t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-			*t = Texture(w, h, numChannels, pixels);
+			
+			Texture* t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 			textures.push_back(t);
 			specularHighLightTextures.resize(specularHighLightTextures.size() + 1);
@@ -647,8 +625,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 			int numChannels;
 			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
-			Texture* t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-			*t = Texture(w, h, numChannels, pixels);
+			Texture* t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 			textures.push_back(t);
 			alphaTextures.resize(alphaTextures.size() + 1);
@@ -665,9 +642,8 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 			int h;
 			int numChannels;
 			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
-
-			Texture* t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-			*t = Texture(w, h, numChannels, pixels);
+			
+			Texture* t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 			textures.push_back(t);
 			bumpTextures.resize(bumpTextures.size() + 1);
@@ -685,8 +661,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 			int numChannels;
 			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
-			Texture* t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-			*t = Texture(w, h, numChannels, pixels);
+			Texture* t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 			textures.push_back(t);
 			bumpTextures.resize(bumpTextures.size() + 1);
@@ -704,8 +679,7 @@ Material* AssetManager::LoadMaterial(const std::string& fileName) {
 			int numChannels;
 			GLubyte* pixels = stbi_load((VK_ROOT_DIR"textures/" + std::string(filename)).c_str(), &w, &h, &numChannels, STBI_rgb_alpha);
 
-			Texture* t = (Texture*)memoryManager->Allocate(sizeof(Texture));
-			*t = Texture(w, h, numChannels, pixels);
+			Texture* t = memoryManager->Allocate<Texture>(w, h, numChannels, pixels);
 
 			textures.push_back(t);
 			displacementTextures.resize(displacementTextures.size() + 1);
@@ -737,8 +711,7 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 		exit(1);
 	}
 
-	Scene* scene = (Scene*)memoryManager->Allocate(sizeof(Scene));
-	*scene = Scene();
+	Scene* scene = memoryManager->Allocate<Scene>();
 
 	//Loop through reading each line
 	while (fgets(line, 1024, fp)) { //Assumes no line is longer than 1024 characters!
@@ -764,23 +737,22 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 			sscanf(line, "camera %f %f %f %f %f %f %f %f %f %f %f %f",
 				&px, &py, &pz, &fx, &fy, &fz, &ux, &uy, &uz, &fov, &np, &fp);
 
-			mainCamera = (Camera*)memoryManager->Allocate(sizeof(Camera));
-			*mainCamera = Camera(
+			mainCamera = memoryManager->Allocate<Camera>(
 				glm::vec3(px, py, pz),
 				glm::vec3(fx, fy, fz),
 				glm::vec3(ux, uy, uz),
 				fov, np, fp);
+
 
 		} else if (strcmp(command, "directional_light") == 0) { // If the command is a directional light
 			float r, g, b, a, dx, dy, dz, dw;
 			sscanf(line, "directional_light %f %f %f %f %f %f %f %f",
 				&r, &g, &b, &a, &dx, &dy, &dz, &dw);
 
-			DirectionalLight* d = (DirectionalLight*)memoryManager->Allocate(sizeof(DirectionalLight));
-			*d = DirectionalLight{
+			DirectionalLight* d = memoryManager->Allocate<DirectionalLight>(
 				glm::vec4(r, g, b, a),
 				glm::normalize(glm::vec4(dx, dy, dz, dw))
-			};
+			);
 
 			scene->lights.push_back(d);
 		} else if (strcmp(command, "spot_light") == 0) { // If the command is a point_light
@@ -791,14 +763,13 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 			sscanf(line, "spot_light %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
 				&r, &g, &b, &a, &px, &py, &pz, &pw, &dx, &dy, &dz, &dw, &angle1, &angle2);
 
-			SpotLight* s = (SpotLight*)memoryManager->Allocate(sizeof(SpotLight));
-			*s = SpotLight{
+			SpotLight* s = memoryManager->Allocate<SpotLight>(
 				glm::vec4(r, g, b, a),
 				glm::vec4(px, py, pz, pw),
 				glm::normalize(glm::vec4(dx, dy, dz, dw)),
 				angle1,
 				angle2
-			};
+			);
 
 			scene->lights.push_back(s);
 		} else if (strcmp(command, "point_light") == 0) { // If the command is a spot_light
@@ -806,11 +777,10 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 			sscanf(line, "point_light %f %f %f %f %f %f %f %f",
 				&r, &g, &b, &a, &x, &y, &z, &w);
 
-			PointLight* p = (PointLight*)memoryManager->Allocate(sizeof(PointLight));
-			*p = PointLight{
+			PointLight* p = memoryManager->Allocate<PointLight>(
 				glm::vec4(r, g, b, a),
 				glm::vec4(x, y, z, w)
-			};
+			);
 
 			scene->lights.push_back(p);
 		} else if (strcmp(command, "ambient_light") == 0) { // If the command is a ambient_light
@@ -818,10 +788,9 @@ Scene* AssetManager::LoadScene(const std::string fileName) {
 			sscanf(line, "ambient_light %f %f %f %f", &r, &g, &b, &a);
 
 
-			AmbientLight* amb = (AmbientLight*)memoryManager->Allocate(sizeof(AmbientLight));
-			*amb = AmbientLight{
+			AmbientLight* amb = memoryManager->Allocate<AmbientLight>(
 				glm::vec4(r, g, b, a)
-			};
+			);
 
 			scene->lights.push_back(amb);
 		} else {
@@ -871,8 +840,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 				scene->gameObjects.push_back(currGameObject);
 			}
 
-			currGameObject = (GameObject*)memoryManager->Allocate(sizeof(GameObject));
-			*currGameObject = GameObject();
+			currGameObject = memoryManager->Allocate<GameObject>();
 			char name[1024];
 
 			sscanf(line, "gameObject %s", name);
@@ -894,8 +862,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 					&pos.x, &pos.y, &pos.z, &width, &height, &dynamic);
 
 				if (currGameObject) {
-					BoxCollider* bc = (BoxCollider*)memoryManager->Allocate(sizeof(BoxCollider));
-					*bc = BoxCollider(pos, width, height, dynamic);
+					BoxCollider* bc = memoryManager->Allocate<BoxCollider>(pos, width, height, dynamic);
 					currGameObject->AddComponent(bc);
 
 					bc = nullptr;
@@ -910,8 +877,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 					&pos.x, &pos.y, &pos.z, &radius, &dynamic);
 
 				if (currGameObject) {
-					SphereCollider* sc = (SphereCollider*)memoryManager->Allocate(sizeof(SphereCollider));
-					*sc = SphereCollider(pos, radius, dynamic);
+					SphereCollider* sc = memoryManager->Allocate<SphereCollider>(pos, radius, dynamic);
 					currGameObject->AddComponent(sc);
 
 					sc = nullptr;
@@ -920,8 +886,7 @@ void AssetManager::LoadGameObjects(const std::string fileName, Scene* scene) {
 			} else if (strcmp(type, "modelRenderer") == 0) {
 
 				if (currGameObject) {
-					ModelRenderer* mr = (ModelRenderer*)memoryManager->Allocate(sizeof(ModelRenderer));
-					*mr = ModelRenderer(currModel);
+					ModelRenderer* mr = memoryManager->Allocate<ModelRenderer>(currModel);
 					currGameObject->AddComponent(mr);
 
 					mr = nullptr;

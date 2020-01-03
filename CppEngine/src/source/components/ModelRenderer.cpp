@@ -29,9 +29,9 @@ ModelRenderer::~ModelRenderer() {
 	vaos.clear();
 	vbos.clear();
 
-	delete model;
+	memoryManager->Free(model);
 }
 
 ModelRenderer* ModelRenderer::clone() const {
-    return new ModelRenderer(*this);
+	return memoryManager->Allocate<ModelRenderer>(*this);
 }
