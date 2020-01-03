@@ -7,6 +7,7 @@
 - Deferred Shading
 - Point Light Volumes
 - Dynamic Directional light shadow map
+- Basic manual dynamic memory allocation (no 'new') to optimize cache performance
 - Transparency (Sorted back-to-front on CPU)
 - Post-processing step (currently just gamma correction)
 - Material and texturing support
