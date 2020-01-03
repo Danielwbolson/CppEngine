@@ -25,7 +25,11 @@ class MemoryManager {
 public:
 	MemoryManager();
 
+
 private:
+	// Sort and merge possible free memory chunks for later use
+	void SortAndMerge();
+
 	// 100mb buffers on heap
 	std::vector<unsigned char*> memoryArrays;
 	std::list<MemoryChunk> freeChunks;
@@ -54,16 +58,17 @@ public:
 			// Run through our block of memory looking for a useable chunk
 			for (auto& chunk = freeChunks.begin(); chunk != freeChunks.end(); chunk++) {
 
-				if (chunk->size == size + 1) {
-					memoryArrays[0][chunk->leftIndex] = size;
-					ptr = &memoryArrays[0][chunk->leftIndex + 1];
+				// Allot 4 bytes for the size
+				if (chunk->size == size + 4) {
+					*((unsigned int*)(&memoryArrays[0][chunk->leftIndex])) = size;
+					ptr = &memoryArrays[0][chunk->leftIndex + 4];
 					freeChunks.erase(chunk);
 					return new (ptr) T(std::forward<Args>(args)...);
-				} else if (chunk->size > size + 1) {
-					memoryArrays[0][chunk->leftIndex] = size;
-					ptr = &memoryArrays[0][chunk->leftIndex + 1];
-					chunk->leftIndex += size + 1;
-					chunk->size -= size + 1;
+				} else if (chunk->size > size + 4) {
+					*((unsigned int*)(&memoryArrays[0][chunk->leftIndex])) = size;
+					ptr = &memoryArrays[0][chunk->leftIndex + 4];
+					chunk->leftIndex += size + 4;
+					chunk->size -= size + 4;
 					return new (ptr) T(std::forward<Args>(args)...);
 				}
 			}
@@ -76,16 +81,17 @@ public:
 			// Run through our block of memory looking for a useable chunk
 			for (auto& chunk = freeChunks.rbegin(); chunk != freeChunks.rend(); chunk++) {
 
-				if (chunk->size == size + 1) {
-					memoryArrays[0][chunk->rightIndex - size - 1] = size;
+				// Allot 4 bytes for the size
+				if (chunk->size == size + 4) {
+					*((unsigned int*)(&memoryArrays[0][chunk->rightIndex - size - 4])) = size;
 					ptr = &memoryArrays[0][chunk->rightIndex - size];
 					freeChunks.erase(std::next(chunk).base());
 					return new (ptr) T(std::forward<Args>(args)...);
-				} else if (chunk->size > size + 1) {
-					memoryArrays[0][chunk->rightIndex - size - 1] = size;
+				} else if (chunk->size > size + 4) {
+					*((unsigned int*)(&memoryArrays[0][chunk->rightIndex - size - 4])) = size;
 					ptr = &memoryArrays[0][chunk->rightIndex - size];
-					chunk->rightIndex -= size + 1;
-					chunk->size -= size + 1;
+					chunk->rightIndex -= size + 4;
+					chunk->size -= size + 4;
 					return new (ptr) T(std::forward<Args>(args)...);
 				}
 			}
@@ -97,11 +103,30 @@ public:
 
 	template <class T>
 	void* Free(T* t) {
+		// Call destructor for recursive deletion
 		t->~T();
 
+		// Mark memory used by incoming pointer available for use
 
+		// Memory size is always stored 4 bytes before actual memory
+		unsigned int size = *((unsigned char *)t - 4);
 
-		freeChunks.sort();
+		for (int i = 0; i < memoryArrays.size(); i++) {
+			int64_t dist = (unsigned char *)t - &memoryArrays[i][0];
+
+			// If we are inside of this memory block
+			if (dist < memBlockSize) {
+				MemoryChunk m = {
+					static_cast<unsigned int>(dist) - 4,
+					static_cast<unsigned int>(dist) + size,
+					size
+				};
+				freeChunks.push_back(m);
+			}
+		}
+
+		SortAndMerge();
+
 		return nullptr;
 	}
 };
