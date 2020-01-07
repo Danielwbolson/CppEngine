@@ -30,11 +30,13 @@ private:
 	// Sort and merge possible free memory chunks for later use
 	void SortAndMerge();
 
-	// 100mb buffers on heap
+	// 10mb buffers on heap
 	std::vector<unsigned char*> memoryArrays;
-	std::list<MemoryChunk> freeChunks;
+	std::vector<std::list<MemoryChunk> > freeChunks;
 
-	const unsigned int memBlockSize = 104857600;
+	// 10mbs
+	const unsigned int memBlockSize = 10485760;
+	// If you are bigger than 1kb...
 	const unsigned int margin = 1024;
 	int leftIndex = 0;
 	int rightIndex = memBlockSize - 1;
@@ -49,55 +51,102 @@ public:
 	template <class T, typename... Args>
 	T* Allocate(Args&&... args) {
 
+		// Get size and make sure it is 4 byte aligned
 		unsigned int size = sizeof(T);
+		unsigned int remainder = size % 4;
+		size += 4 - remainder;
+
 		void* ptr;
 
 		// Big chunks increment from left side of buffer
 		if (size > margin) {
 
-			// Run through our block of memory looking for a useable chunk
-			for (auto& chunk = freeChunks.begin(); chunk != freeChunks.end(); chunk++) {
+			// Run through our free memory chunk arrays
+			for (int i = 0; i < freeChunks.size(); i++) {
 
-				// Allot 4 bytes for the size
-				if (chunk->size == size + 4) {
-					*((unsigned int*)(&memoryArrays[0][chunk->leftIndex])) = size;
-					ptr = &memoryArrays[0][chunk->leftIndex + 4];
-					freeChunks.erase(chunk);
-					return new (ptr) T(std::forward<Args>(args)...);
-				} else if (chunk->size > size + 4) {
-					*((unsigned int*)(&memoryArrays[0][chunk->leftIndex])) = size;
-					ptr = &memoryArrays[0][chunk->leftIndex + 4];
-					chunk->leftIndex += size + 4;
-					chunk->size -= size + 4;
-					return new (ptr) T(std::forward<Args>(args)...);
+				// Run through our blocks of available memory looking for a useable chunk
+				for (auto& chunk = freeChunks[i].begin(); chunk != freeChunks[i].end(); chunk++) {
+
+					// Allot 4 bytes for the size
+					if (chunk->size == size + 4) {
+						*((unsigned int*)(&memoryArrays[i][chunk->leftIndex])) = size;
+						ptr = &memoryArrays[i][chunk->leftIndex + 4];
+						freeChunks[i].erase(chunk);
+						return new (ptr) T(std::forward<Args>(args)...);
+					} else if (chunk->size > size + 4) {
+						*((unsigned int*)(&memoryArrays[i][chunk->leftIndex])) = size;
+						ptr = &memoryArrays[i][chunk->leftIndex + 4];
+						chunk->leftIndex += size + 4;
+						chunk->size -= size + 4;
+						return new (ptr) T(std::forward<Args>(args)...);
+					}
+
 				}
+
+				// If we are at the end of our free chunks and had no luck finding space, make a new array, 
+				// a new freeChunks array and add our new free chunk
+				if (i == freeChunks.size() - 1) {
+					fprintf(stderr, "Making another memory block\n");
+					memoryArrays.push_back(new unsigned char[memBlockSize]());
+					freeChunks.push_back(std::list<MemoryChunk>());
+
+					MemoryChunk m = {
+						0, memBlockSize - 1, memBlockSize
+					};
+					freeChunks[i+1].push_back(m);
+				}
+
 			}
 
-			fprintf(stderr, "ERROR: No room found for dynamic memory in Memory Manager\n");
+			// Impossible to make it here?
+			fprintf(stderr, "Failed to allocate memory\n");
 			exit(-1);
 
 		} else { // Smaller chunks increment from right side of buffer
 
-			// Run through our block of memory looking for a useable chunk
-			for (auto& chunk = freeChunks.rbegin(); chunk != freeChunks.rend(); chunk++) {
+			// Run through our free memory chunk arrays
+			for (int i = 0; i < freeChunks.size(); i++) {
 
-				// Allot 4 bytes for the size
-				if (chunk->size == size + 4) {
-					*((unsigned int*)(&memoryArrays[0][chunk->rightIndex - size - 4])) = size;
-					ptr = &memoryArrays[0][chunk->rightIndex - size];
-					freeChunks.erase(std::next(chunk).base());
-					return new (ptr) T(std::forward<Args>(args)...);
-				} else if (chunk->size > size + 4) {
-					*((unsigned int*)(&memoryArrays[0][chunk->rightIndex - size - 4])) = size;
-					ptr = &memoryArrays[0][chunk->rightIndex - size];
-					chunk->rightIndex -= size + 4;
-					chunk->size -= size + 4;
-					return new (ptr) T(std::forward<Args>(args)...);
+				// Run through our block of memory looking for a useable chunk
+				for (auto& chunk = freeChunks[i].rbegin(); chunk != freeChunks[i].rend(); chunk++) {
+
+					// Allot 4 bytes for the size
+					if (chunk->size == size + 4) {
+						// We subtract three here instead of 4 because we need to +1 to cancel the fact that the right index
+						// is 1 back from leftIndex + size
+						*((unsigned int*)(&memoryArrays[i][chunk->rightIndex - size - 3])) = size;
+						ptr = &memoryArrays[i][chunk->rightIndex - size];
+						freeChunks[i].erase(std::next(chunk).base());
+						return new (ptr) T(std::forward<Args>(args)...);
+					} else if (chunk->size > size + 4) {
+						*((unsigned int*)(&memoryArrays[i][chunk->rightIndex - size - 3])) = size;
+						ptr = &memoryArrays[i][chunk->rightIndex - size];
+						chunk->rightIndex -= size + 4;
+						chunk->size -= size + 4;
+						return new (ptr) T(std::forward<Args>(args)...);
+					}
+
 				}
+
+				// If we are at the end of our free chunks and have no luck, make a new array, 
+				// a new freeChunks array and add our new free chunk
+				if (i == freeChunks.size() - 1) {
+					fprintf(stderr, "Making another memory block\n");
+					memoryArrays.push_back(new unsigned char[memBlockSize]());
+					freeChunks.push_back(std::list<MemoryChunk>());
+
+					MemoryChunk m = {
+						0, memBlockSize - 1, memBlockSize
+					};
+					freeChunks[i + 1].push_back(m);
+				}
+
 			}
 
-			fprintf(stderr, "ERROR: No room found for dynamic memory in Memory Manager\n");
+			// Impossible to make it here?
+			fprintf(stderr, "Failed to allocate memory\n");
 			exit(-1);
+
 		}
 	}
 
@@ -121,7 +170,10 @@ public:
 					static_cast<unsigned int>(dist) + size,
 					size
 				};
-				freeChunks.push_back(m);
+				freeChunks[i].push_back(m);
+
+				// No need to look in other chunks if we found the pointer already
+				break;
 			}
 		}
 
