@@ -15,20 +15,116 @@ struct MemoryChunk {
 		return leftIndex < m2.leftIndex;
 	}
 };
+
 	/*
 	 * Memory Manager:
 	 *		The goal of this class is to optimize cache performance and avoid the usage of 'new'
 	 *		outside of this class. Currently has 100mb buffers and cannot switch to a new buffer
 	 *		when full.
 	*/
+template <class T>
 class MemoryManager {
+
+	// Allocator information
 public:
-	MemoryManager();
+	// www.josuttis.com/libbook/memory/myalloc.hpp.html
+	typedef T value_type;
+	typedef T* pointer;
+	typedef const T* const_pointer;
+	typedef T& reference;
+	typedef const T& const_reference;
+	typedef size_t size_type;
+	typedef ptrdiff_t difference_type;
+
+	template <class U>
+	struct rebind { typedef MemoryManager<U> other; };
+
+	pointer address(reference value) const { return &value; }
+	const_pointer address(const_reference value) const { return &value; }
+
+	template <class U>
+	operator=(const MemoryManager<U>&) {}
+
+
+	// Constructors/Destructors
+	MemoryManager() throw() {
+		memoryArrays.push_back(new unsigned char[memBlockSize]());
+		freeChunks.push_back(std::list<MemoryChunk>());
+
+		MemoryChunk m = {
+			0, memBlockSize - 1, memBlockSize
+		};
+		freeChunks[0].push_back(m);
+	}
+
+	MemoryManager(const MemoryManager&) throw() {}
+
+	template <class U>
+	MemoryManager(const MemoryManager<U>&) throw() {}
+
+	~MemoryManager() throw() {
+		for (int i = 0; i < memoryArrays.size; i++) {
+			delete memoryArrays[];
+		}
+		memoryArrays.clear();
+
+		for (int i = 0; i < freeChunks.size(); i++) {
+			freeChunks[i].clear();
+		}
+		freeChunks.clear();
+	}
+
+
+	// Functions
+	size_type max_size() const throw() {
+		return static_cast<size_type>(memBlockSize);
+	}
+
+	pointer allocate(size_type num, const void* = 0) {}
+
+	void construct(pointer p, const T& value) {}
+
+	void destroy(pointer p) { 
+		p->~T(); 
+	}
+
+	void deallocate(pointer p, size_type num) {}
 
 
 private:
 	// Sort and merge possible free memory chunks for later use
-	void SortAndMerge();
+	void SortAndMerge() {
+
+		for (int i = 0; i < freeChunks.size(); i++) {
+			freeChunks[i].sort();
+
+			// chunk2's initialization fails with an empty list
+			// https://stackoverflow.com/questions/37016845/c-iterator-access-next-element-for-comparison
+			if (freeChunks[i].empty()) return;
+
+			auto chunk1 = freeChunks[i].begin();
+			auto chunk2 = ++freeChunks[i].begin();
+
+			while (chunk2 != freeChunks[i].end()) {
+
+				// If we are merging an element
+				if (chunk1->rightIndex >= chunk2->leftIndex - 1) {
+					unsigned int newSize = chunk2->rightIndex - chunk1->leftIndex + 1;
+
+					chunk2->leftIndex = chunk1->leftIndex;
+					chunk2->size = newSize;
+
+					chunk1 = freeChunks[i].erase(chunk1);
+					chunk2++;
+
+				} else {
+					chunk1++;
+					chunk2++;
+				}
+
+			}
+		}
+	}
 
 	// 10mb buffers on heap
 	std::vector<unsigned char*> memoryArrays;
@@ -42,17 +138,19 @@ private:
 	int rightIndex = memBlockSize - 1;
 
 
-	// Template Allocation function
+
+
+	// Templated Allocation/Free functions for non-vector types
 public:
 	// Allocate memory of the specified size and return the pointer (that must be cast)
 	// Keeps all memory smaller than 'margin' on the right side and all larger chunks on the left
 	// Stores array size right before pointer returned
 	// https://eli.thegreenplace.net/2014/perfect-forwarding-and-universal-references-in-c
-	template <class T, typename... Args>
-	T* Allocate(Args&&... args) {
+	template <class U, typename... Args>
+	U* Allocate(Args&&... args) {
 
 		// Get size and make sure it is 4 byte aligned
-		unsigned int size = sizeof(T);
+		unsigned int size = sizeof(U);
 		unsigned int remainder = size % 4;
 		size += 4 - remainder;
 
@@ -72,13 +170,13 @@ public:
 						*((unsigned int*)(&memoryArrays[i][chunk->leftIndex])) = size;
 						ptr = &memoryArrays[i][chunk->leftIndex + 4];
 						freeChunks[i].erase(chunk);
-						return new (ptr) T(std::forward<Args>(args)...);
+						return new (ptr) U(std::forward<Args>(args)...);
 					} else if (chunk->size > size + 4) {
 						*((unsigned int*)(&memoryArrays[i][chunk->leftIndex])) = size;
 						ptr = &memoryArrays[i][chunk->leftIndex + 4];
 						chunk->leftIndex += size + 4;
 						chunk->size -= size + 4;
-						return new (ptr) T(std::forward<Args>(args)...);
+						return new (ptr) U(std::forward<Args>(args)...);
 					}
 
 				}
@@ -117,13 +215,13 @@ public:
 						*((unsigned int*)(&memoryArrays[i][chunk->rightIndex - size - 3])) = size;
 						ptr = &memoryArrays[i][chunk->rightIndex - size];
 						freeChunks[i].erase(std::next(chunk).base());
-						return new (ptr) T(std::forward<Args>(args)...);
+						return new (ptr) U(std::forward<Args>(args)...);
 					} else if (chunk->size > size + 4) {
 						*((unsigned int*)(&memoryArrays[i][chunk->rightIndex - size - 3])) = size;
 						ptr = &memoryArrays[i][chunk->rightIndex - size];
 						chunk->rightIndex -= size + 4;
 						chunk->size -= size + 4;
-						return new (ptr) T(std::forward<Args>(args)...);
+						return new (ptr) U(std::forward<Args>(args)...);
 					}
 
 				}
@@ -150,18 +248,18 @@ public:
 		}
 	}
 
-	template <class T>
-	void* Free(T* t) {
+	template <class U>
+	void* Free(U* u) {
 		// Call destructor for recursive deletion
-		t->~T();
+		u->~U();
 
 		// Mark memory used by incoming pointer available for use
 
 		// Memory size is always stored 4 bytes before actual memory
-		unsigned int size = *((unsigned char *)t - 4);
+		unsigned int size = *((unsigned char *)u - 4);
 
 		for (int i = 0; i < memoryArrays.size(); i++) {
-			int64_t dist = (unsigned char *)t - &memoryArrays[i][0];
+			int64_t dist = (unsigned char *)u - &memoryArrays[i][0];
 
 			// If we are inside of this memory block
 			if (dist < memBlockSize) {

@@ -22,7 +22,7 @@ RendererSystem::RendererSystem(const int& sW, const int& sH) {
 	screenWidth = sW;
 	screenHeight = sH;
 
-	modelRenderers = std::vector<ModelRenderer*>();
+	modelRenderers = std::vector<ModelRenderer*, >();
 	meshesToDraw = std::vector<MeshToDraw>();
 	transparentToDraw = std::vector<MeshToDraw>();
 
