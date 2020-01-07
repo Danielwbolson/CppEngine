@@ -1,5 +1,6 @@
 
 #include "Bounds.h"
+#include "Globals.h"
 
 Bounds::Bounds() : 
 	minX(0), minY(0), minZ(0), 
@@ -38,7 +39,7 @@ Bounds::Bounds(const Bounds& b) {
 }
 
 Bounds* Bounds::clone() const {
-	return new Bounds(*this);
+	return memoryManager->Allocate<Bounds>(*this);
 }
 
 Bounds& Bounds::operator=(const Bounds& b) {

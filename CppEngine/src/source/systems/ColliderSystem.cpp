@@ -7,7 +7,7 @@ ColliderSystem::ColliderSystem() {
 
 ColliderSystem::~ColliderSystem() {
 	for (int i = 0; i < colliders.size(); i++) {
-		delete colliders[i];
+		memoryManager->Free(colliders[i]);
 	}
 }
 

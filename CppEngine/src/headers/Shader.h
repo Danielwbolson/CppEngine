@@ -11,7 +11,9 @@ class Shader {
 public:
 	GLuint shaderProgram;
 
+	Shader() {}
 	Shader(const std::string& vert, const std::string& frag);
+
 };
 
 #endif // SHADER_H_

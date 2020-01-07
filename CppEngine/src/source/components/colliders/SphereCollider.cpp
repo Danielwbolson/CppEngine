@@ -11,7 +11,7 @@ SphereCollider::SphereCollider(const glm::vec3& p, const float& r, const bool& d
 }
 
 SphereCollider* SphereCollider::clone() const {
-    return new SphereCollider(*this);
+	return memoryManager->Allocate<SphereCollider>(*this);
 }
 
 void SphereCollider::Update(const float& dt) {

@@ -48,7 +48,7 @@ Transform::Transform(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3
 }
 
 Transform* Transform::clone() const {
-    return new Transform(*this);
+	return memoryManager->Allocate<Transform>(*this);
 }
 
 Transform::Transform(const Transform& t) {

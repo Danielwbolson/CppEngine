@@ -4,18 +4,18 @@
 #include "Globals.h"
 
 Camera::Camera() {
-    transform = new Transform();
+    transform = memoryManager->Allocate<Transform>();
 	frustumPlanes = std::vector<glm::vec4>(6);
 }
 
 Camera::~Camera() {
-	delete transform;
+	memoryManager->Free(transform);
 }
 
 Camera::Camera(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& up, 
 	const float& f, const float& np, const float& fp) {
 
-	transform = new Transform(pos, glm::normalize(dir), glm::normalize(up));
+	transform = memoryManager->Allocate<Transform>(pos, glm::normalize(dir), glm::normalize(up));
 
     fov = f;
     near_plane = np;

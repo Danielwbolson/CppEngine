@@ -24,7 +24,7 @@ BoxCollider::BoxCollider(const BoxCollider& rhs) {
 }
 
 BoxCollider* BoxCollider::clone() const {
-    return new BoxCollider(*this);
+	return memoryManager->Allocate<BoxCollider>(*this);
 }
 
 BoxCollider BoxCollider::operator=(const BoxCollider& rhs) {

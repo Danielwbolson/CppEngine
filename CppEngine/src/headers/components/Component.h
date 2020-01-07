@@ -3,6 +3,7 @@
 #define COMPONENT_H_
 
 #include <string>
+#include "Globals.h"
 
 class GameObject;
 
