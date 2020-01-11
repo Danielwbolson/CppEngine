@@ -3,16 +3,15 @@
 #define GLOBALS_H_
 
 #include "MemoryManager.h"
+#include "AssetManager.h"
+#include "MemoryAllocator.h"
 
 class Camera;
 class Scene;
-class AssetManager;
 
 
 extern Camera* mainCamera;
 extern Scene* mainScene;
-extern AssetManager* assetManager;
-extern MemoryManager* memoryManager;
 
 extern int windowWidth;
 extern int windowHeight;

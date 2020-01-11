@@ -5,7 +5,7 @@
 Bounds::Bounds() : 
 	minX(0), minY(0), minZ(0), 
 	maxX(0), maxY(0), maxZ(0), 
-	points(std::vector<glm::vec4>(8)) {
+	points(std::vector<glm::vec4, MemoryAllocator<glm::vec4> >(8)) {
 
 }
 
@@ -13,7 +13,7 @@ Bounds::Bounds(const float minVx, const float minVy, const float minVz,
 	const float maxVx, const float maxVy, const float maxVz) :
 	minX(minVx), minY(minVy), minZ(minVz),
 	maxX(maxVx), maxY(maxVy), maxZ(maxVz),
-	points(std::vector<glm::vec4>(8)) {
+	points(std::vector<glm::vec4, MemoryAllocator<glm::vec4> >(8)) {
 
 	points[0] = glm::vec4(maxX, maxY, maxZ, 1);
 	points[1] = glm::vec4(maxX, minY, maxZ, 1);
@@ -39,7 +39,7 @@ Bounds::Bounds(const Bounds& b) {
 }
 
 Bounds* Bounds::clone() const {
-	return memoryManager->Allocate<Bounds>(*this);
+	return MemoryManager::Allocate<Bounds>(*this);
 }
 
 Bounds& Bounds::operator=(const Bounds& b) {

@@ -6,7 +6,8 @@
 #include "Material.h"
 
 
-Model::Model() : meshes(std::vector<Mesh*>()), materials(std::vector<Material*>()), bounds(nullptr) {
+Model::Model() : meshes(std::vector<Mesh*, MemoryAllocator<Mesh*> >()), 
+	materials(std::vector<Material*, MemoryAllocator<Material*> >()), bounds(nullptr) {
 
 }
 

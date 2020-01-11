@@ -65,15 +65,15 @@ struct PointLightToGPU {
 
 class RendererSystem : public Systems {
 private:
-	std::vector<ModelRenderer*> modelRenderers;
-	std::vector<MeshToDraw> meshesToDraw;
-	std::vector<MeshToDraw> transparentToDraw;
-	std::vector<PointLightToGPU> pointLightsToGPU;
+	std::vector<ModelRenderer*, MemoryAllocator<ModelRenderer*> > modelRenderers;
+	std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> > meshesToDraw;
+	std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> > transparentToDraw;
+	std::vector<PointLightToGPU, MemoryAllocator<PointLightToGPU> > pointLightsToGPU;
 
 	// TODO: Need to add lights to the asset manager
-	std::vector<PointLight*> pointLights;
+	std::vector<PointLight*, MemoryAllocator<PointLight*> > pointLights;
 	DirectionalLight* sun;
-	std::vector<PointLightToDraw> pointLightsToDraw;
+	std::vector<PointLightToDraw, MemoryAllocator<PointLightToDraw> > pointLightsToDraw;
 
 	GLubyte dummyData[4] = { 255, 255, 255, 255 };
 

@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <string>
+#include "MemoryAllocator.h"
 
 class Mesh;
 class Material;
@@ -13,8 +14,8 @@ class Model {
 
 public:
 	std::string name;
-	std::vector<Mesh*> meshes;
-	std::vector<Material*> materials;
+	std::vector<Mesh*, MemoryAllocator<Mesh*> > meshes;
+	std::vector<Material*, MemoryAllocator<Material*> > materials;
 	Bounds* bounds;
 
 	Model();

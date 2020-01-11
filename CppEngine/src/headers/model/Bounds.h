@@ -6,6 +6,7 @@
 #include "glm/glm.hpp"
 
 #include <vector>
+#include "MemoryAllocator.h"
 
 class Bounds {
 
@@ -23,7 +24,7 @@ public:
 	glm::vec3 Max(const glm::mat4 t);
 	glm::vec3 Min(const glm::mat4 t);
 
-	std::vector<glm::vec4> points;
+	std::vector<glm::vec4, MemoryAllocator<glm::vec4> > points;
 	float minX, minY, minZ;
 	float maxX, maxY, maxZ;
 };

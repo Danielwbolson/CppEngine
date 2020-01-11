@@ -4,18 +4,18 @@
 #include "Globals.h"
 
 Camera::Camera() {
-    transform = memoryManager->Allocate<Transform>();
-	frustumPlanes = std::vector<glm::vec4>(6);
+    transform = MemoryManager::Allocate<Transform>();
+	frustumPlanes = std::vector<glm::vec4, MemoryAllocator<glm::vec4> >(6);
 }
 
 Camera::~Camera() {
-	memoryManager->Free(transform);
+	MemoryManager::Free(transform);
 }
 
 Camera::Camera(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& up, 
 	const float& f, const float& np, const float& fp) {
 
-	transform = memoryManager->Allocate<Transform>(pos, glm::normalize(dir), glm::normalize(up));
+	transform = MemoryManager::Allocate<Transform>(pos, glm::normalize(dir), glm::normalize(up));
 
     fov = f;
     near_plane = np;
@@ -25,7 +25,7 @@ Camera::Camera(const glm::vec3& pos, const glm::vec3& dir, const glm::vec3& up,
     proj = glm::perspective(fov, aspect_ratio, near_plane, far_plane);
 	view = glm::lookAt(transform->position, transform->position + transform->forward, transform->up);
 
-	frustumPlanes = std::vector<glm::vec4>(6);
+	frustumPlanes = std::vector<glm::vec4, MemoryAllocator<glm::vec4> >(6);
 	UpdateFrustumPlanes();
 }
 

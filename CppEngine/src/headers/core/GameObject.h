@@ -13,7 +13,7 @@ class GameObject {
 public:
 	Transform* transform;
 
-	std::vector<Component*> components;
+	std::vector<Component*, MemoryAllocator<Component*> > components;
 	std::string name;
 	bool dead = false;
 

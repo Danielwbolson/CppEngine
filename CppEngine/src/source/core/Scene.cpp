@@ -8,23 +8,23 @@ Scene::Scene() : windowWidth(640), windowHeight(480), background{ glm::vec3(0, 0
 
 Scene::~Scene() {
 	for (int i = 0; i < gameObjects.size(); i++) {
-		memoryManager->Free(gameObjects[i]);
+		MemoryManager::Free(gameObjects[i]);
 	}
 	gameObjects.clear();
 
 	for (int i = 0; i < instances.size(); i++) {
-		memoryManager->Free(instances[i]);
+		MemoryManager::Free(instances[i]);
 	}
 	instances.clear();
 
 	for (int i = 0; i < lights.size(); i++) {
-		memoryManager->Free(lights[i]);
+		MemoryManager::Free(lights[i]);
 	}
 	lights.clear();
 }
 
 GameObject* Scene::FindGameObject(const std::string& name) {
-    std::vector<GameObject*>::iterator it = std::find_if(gameObjects.begin(), gameObjects.end(), [&](const GameObject* c) {
+    std::vector<GameObject*, MemoryAllocator<GameObject*> >::iterator it = std::find_if(gameObjects.begin(), gameObjects.end(), [&](const GameObject* c) {
         return c->name == name;
     });
 
@@ -35,7 +35,7 @@ GameObject* Scene::FindGameObject(const std::string& name) {
 }
 
 GameObject* Scene::FindInstance(const std::string& name) {
-    std::vector<GameObject*>::iterator it = std::find_if(instances.begin(), instances.end(), [&](const GameObject* c) {
+    std::vector<GameObject*, MemoryAllocator<GameObject*> >::iterator it = std::find_if(instances.begin(), instances.end(), [&](const GameObject* c) {
         return c->name == name;
     });
 
@@ -48,7 +48,7 @@ GameObject* Scene::FindInstance(const std::string& name) {
 void Scene::Update(const float dt) {
     for (int i = 0; i < instances.size(); i++) {
         if (instances[i]->dead) {
-			memoryManager->Free(instances[i]);
+			MemoryManager::Free(instances[i]);
             instances[i] = NULL;
             instances.erase(instances.begin() + (i--));
         }

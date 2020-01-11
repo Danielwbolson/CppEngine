@@ -27,7 +27,7 @@ public:
     glm::mat4 view;
     glm::mat4 proj;
 
-	std::vector<glm::vec4> frustumPlanes;
+	std::vector<glm::vec4, MemoryAllocator<glm::vec4> > frustumPlanes;
 
     float fov, aspect_ratio;
     float near_plane, far_plane;

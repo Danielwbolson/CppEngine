@@ -16,9 +16,9 @@ public:
     int windowWidth;
     int windowHeight;
 
-    std::vector<GameObject*> gameObjects;
-    std::vector<GameObject*> instances;
-    std::vector<Light*> lights;
+    std::vector<GameObject*, MemoryAllocator<GameObject*> > gameObjects;
+    std::vector<GameObject*, MemoryAllocator<GameObject*> > instances;
+    std::vector<Light*, MemoryAllocator<Light*> > lights;
     glm::vec3 background;
 
     Scene();
