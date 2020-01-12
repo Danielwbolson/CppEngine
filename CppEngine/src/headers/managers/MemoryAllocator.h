@@ -26,6 +26,7 @@ struct MemoryAllocator {
 		typedef MemoryAllocator<U> other;
 	};
 
+
 	pointer address(reference x) const { return &x; }
 	const_pointer address(const_reference x) const { return &x; }
 
@@ -37,21 +38,19 @@ struct MemoryAllocator {
 	~MemoryAllocator() {}
 
 	// Functions
-
 	size_type max_size() const throw() {
 		return (size_t)MemoryManager::detail::memBlockSize;
 	}
 
 	// Allocate a number of size T elements
 	pointer allocate(size_type num) {
-		pointer t = MemoryManager::Malloc<T>(num * sizeof(T));
-		return t;
+		return static_cast<pointer>(MemoryManager::Malloc(num * sizeof(T)));
 	}
 
-	// Initialie our memory
-	template< class U, typename... Args >
-	void construct(U* ptr, Args&&... args) {
-		new (ptr) U(std::forward<Args>(args)...);
+	// Initialize our memory
+	template< typename... Args >
+	void construct(T* ptr, Args&&... args) {
+		::new ((void*)ptr) T(std::forward<Args>(args)...);
 	}
 
 	// Deallocate our pointer
@@ -60,9 +59,8 @@ struct MemoryAllocator {
 	}
 
 	// Destroy our pointer via destructor
-	template< class U >
-	void destroy(U* ptr) {
-		ptr->~U();
+	void destroy(pointer ptr) {
+		ptr->~T();
 	}
 
 };

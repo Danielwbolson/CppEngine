@@ -921,14 +921,12 @@ bool RendererSystem::ShouldFrustumCull(const Mesh* mesh, const glm::mat4& model)
 		Checks if every plane can "see" the most likely point. If every plane can see
 		at least one point that means our mesh is at least partially visible.
 	*/
-	std::vector<glm::vec4, MemoryAllocator<glm::vec4> > planes = mainCamera->frustumPlanes;
-
 	int success = 0;
 	for (int j = 0; j < 6; j++) {
-		float val = fmax(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)
-			+ fmax(minPoint.y * planes[j].y, maxPoint.y * planes[j].y)
-			+ fmax(minPoint.z * planes[j].z, maxPoint.z * planes[j].z)
-			+ planes[j].w;
+		float val = fmax(minPoint.x * mainCamera->frustumPlanes[j].x, maxPoint.x * mainCamera->frustumPlanes[j].x)
+			+ fmax(minPoint.y * mainCamera->frustumPlanes[j].y, maxPoint.y * mainCamera->frustumPlanes[j].y)
+			+ fmax(minPoint.z * mainCamera->frustumPlanes[j].z, maxPoint.z * mainCamera->frustumPlanes[j].z)
+			+ mainCamera->frustumPlanes[j].w;
 		success += (val > 0);
 	}
 
