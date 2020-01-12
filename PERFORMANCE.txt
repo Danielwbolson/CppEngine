@@ -56,7 +56,6 @@ Total : 160 bits
 
 Timings (microseconds):
 FPS - 32.93074615
-Triangles: 985334
 Frustum culling - 246.2307692
 Shadow Map - 498.0504615
 Deferred To Texture - 657.4695385
@@ -83,7 +82,6 @@ Total bits: 128
 
 Timings (microseconds):
 FPS - 33.67545714
-Triangles: 982454
 Frustum culling - 277.2380952
 Shadow Map - 494.4761905
 Deferred To Texture - 576.2407619
@@ -92,3 +90,24 @@ Transparent Time - 7845.277143
 Post Process - 192.5302857
 
 Total time : 26762.2101 (26.8ms)
+
+========================================
+1/12/2020
+Implementing custom memory manager to take better advantage of cache.
+No meaningful performance difference from this implementation. Need to take a look at why that is.
+Possibly due to too large of memory arrays (for storage of mesh data, which maybe isn't necessary
+to be optimally stored since all that happens is it is sent to the GPU...)
+Triangles drawn: 982454
+
+Bits are same
+
+Timings (microseconds):
+FPS - 34.07703529
+Frustum Culling - 184.4705882
+Shadow Map - 494.4150588
+Deferred To Texture - 582.4715294
+Deferred Lighting - 17336.34706
+Transparent Time - 7968.757647
+Post Processing - 191.3185882
+
+Total time : 26757.78047 (26.8ms)
