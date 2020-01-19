@@ -118,6 +118,7 @@ set(LIGHTS_H
 set(MANAGER_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers/AssetManager.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers/MemoryManager.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/managers/MemoryAllocator.h
 )
 set(MANAGER_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/managers/AssetManager.cpp

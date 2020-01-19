@@ -1,8 +1,26 @@
-Rendering:
-- Cutouts render with deferred rendering rather than transparent
-- Optimization of deferred lighting
+TODO List:
+Difficulty: Small(1-3 days) --> Medium(3-7 days) --> Large(7-14 days) --> Huge(14+ days)
 
-Engine:
-- Physics
-- Collisions
-- Animation (FBX) support
+Memory Manager:
+ Small --> Optimize what should be in our custom dynamic memory block and what shouldn't (mesh vertices probably don't need to, lights probably do, etc.)
+ Medium --> Speed up allocation (slower than default allocator)
+
+Rendering:
+ Small --> Cutouts should render with deferred rendering rather than forward transparent
+ Small --> Automatic calculation of Orthographic matrix for shadow maps based on scene bounds
+ Medium --> Support for more lights (multiple directional light, spot light)
+ Large --> Ambient Occlusion calculated and incorporated into current gbuffers (don't use more texture memory)
+ Large --> Tiled-Deferred Rendering instead of deferred with light volumes
+ Huge --> Translate rendering logic into Vulkan (Requires continuation of Vulkan tutorial to learn more)
+
+Clean-up:
+ Small --> Vector for each light type. No need for one generic lights array
+ Small --> Get all assets in AssetManager
+ Small --> Switch shader vector from vector to map or similar structure for more intuitive lookup of shaders
+
+
+DOING List (By Feb):
+- Optimize what should be in our custom dynamic memory block and what shouldn't (mesh vertices probably don't need to, lights probably do, etc.)
+- Speed up allocation (slower than default allocator)
+- Vector for each light type. No need for one generic lights array
+- Switch shader vector from vector to map or similar structure for more intuitive lookup of shaders

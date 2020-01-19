@@ -33,7 +33,7 @@ void luaSetup(sol::state& L) {
 // output functionName(lua_State* luaState) {}
 
 int addPointLight(const float& r, const float& g, const float& b, const float& x , const float& y, const float& z) {
-	mainScene->lights.push_back(memoryManager->Allocate<PointLight>(
+	mainScene->lights.push_back(MemoryManager::Allocate<PointLight>(
 		glm::vec3(r, g, b), 
 		glm::vec4(x, y, z, 1))
 	);
@@ -42,7 +42,7 @@ int addPointLight(const float& r, const float& g, const float& b, const float& x
 }
 
 int addDirectionalLight(const float& r, const float& g, const float& b, const float& dx, const float& dy, const float& dz) {
-	mainScene->lights.push_back(memoryManager->Allocate<DirectionalLight>(
+	mainScene->lights.push_back(MemoryManager::Allocate<DirectionalLight>(
 		glm::vec4(r, g, b, 1),
 		glm::vec4(glm::normalize(glm::vec3(dx, dy, dz)), 1))
 	);
@@ -54,7 +54,7 @@ int addModel() {
 }
 
 int addInstance(const std::string& gameObjectName) {
-	GameObject* g = memoryManager->Allocate<GameObject>(*(mainScene->FindGameObject(gameObjectName)));
+	GameObject* g = MemoryManager::Allocate<GameObject>(*(mainScene->FindGameObject(gameObjectName)));
 	for (int i = 0; i < g->components.size(); i++) {
 		g->components[i]->gameObject = g;
 	}

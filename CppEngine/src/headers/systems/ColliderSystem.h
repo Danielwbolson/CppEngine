@@ -2,6 +2,7 @@
 #ifndef COLLIDER_SYSTEM_H_
 #define COLLIDER_SYSTEM_H_
 
+#include "MemoryAllocator.h"
 #include "Systems.h"
 #include "Collider.h"
 
@@ -9,7 +10,7 @@
 
 class ColliderSystem : public Systems {
 private:
-    std::vector<Collider*> colliders;
+    std::vector<Collider*, MemoryAllocator<Collider*> > colliders;
 
 public:
     ColliderSystem();

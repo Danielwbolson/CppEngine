@@ -1,13 +1,11 @@
 
 # Floor
 gameObject floor
-shader deferredToTexture.vert deferredToTexture.frag
 material default.mtl
 model floor
 component modelRenderer
 
 # chalet
 gameObject chalet
-shader deferredToTexture.vert deferredToTexture.frag
 model chalet
 component modelRenderer

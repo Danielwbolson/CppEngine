@@ -9,7 +9,6 @@
 #include "Configuration.h"
 #include "Scene.h"
 
-#include "AssetManager.h"
 #include "Camera.h"
 #include "Globals.h"
 
@@ -22,16 +21,16 @@ RendererSystem::RendererSystem(const int& sW, const int& sH) {
 	screenWidth = sW;
 	screenHeight = sH;
 
-	modelRenderers = std::vector<ModelRenderer*>();
-	meshesToDraw = std::vector<MeshToDraw>();
-	transparentToDraw = std::vector<MeshToDraw>();
+	modelRenderers = std::vector<ModelRenderer*, MemoryAllocator<ModelRenderer*> >();
+	meshesToDraw = std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> >();
+	transparentToDraw = std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> >();
 
-	pointLights = std::vector<PointLight*>();
-	pointLightsToDraw = std::vector<PointLightToDraw>();
-	pointLightsToGPU = std::vector<PointLightToGPU>();
+	pointLights = std::vector<PointLight*, MemoryAllocator<PointLight*> >();
+	pointLightsToDraw = std::vector<PointLightToDraw, MemoryAllocator<PointLightToDraw> >();
+	pointLightsToGPU = std::vector<PointLightToGPU, MemoryAllocator<PointLightToGPU> >();
 
 	// We know that this is a mesh, not a model
-	lightVolume = (assetManager->tinyLoadObj("sphere"))->meshes[0];
+	lightVolume = (AssetManager::tinyLoadObj("sphere"))->meshes[0];
 }
 
 RendererSystem::~RendererSystem() {
@@ -243,9 +242,9 @@ void RendererSystem::Register(const Component* c) {
 		// Set up our shader based on if we need transparency or not
 		Material* mat = mr->model->materials[i];
 		if (!mat->isTransparent) {
-			mat->shader = assetManager->shaders[0];
+			mat->shader = (*AssetManager::shaders)[0];
 		} else {
-			mat->shader = assetManager->shaders[1];
+			mat->shader = (*AssetManager::shaders)[1];
 		}
 
 		glGenVertexArrays(1, &(mr->vaos[i]));
@@ -327,30 +326,30 @@ void RendererSystem::Register(const Component* c) {
 		// Textures
 		// Load up either a null texture or the wanted one
 		if (mat->ambientTexture != nullptr && !mat->ambientTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("ambient", mat->ambientIndex, 0, mat->ambientTexture);
+			AssetManager::LoadTextureToGPU("ambient", mat->ambientIndex, 0, mat->ambientTexture);
 		} 
 		if (mat->diffuseTexture != nullptr && !mat->diffuseTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("diffuse", mat->diffuseIndex, 1, mat->diffuseTexture);
+			AssetManager::LoadTextureToGPU("diffuse", mat->diffuseIndex, 1, mat->diffuseTexture);
 		} 
 		if (mat->specularTexture != nullptr && !mat->specularTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("specular", mat->specularIndex, 2, mat->specularTexture);
+			AssetManager::LoadTextureToGPU("specular", mat->specularIndex, 2, mat->specularTexture);
 		} 
 		if (mat->specularHighLightTexture != nullptr && !mat->specularHighLightTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("specularHighlight", mat->specularHighLightIndex, 3, mat->specularHighLightTexture);
+			AssetManager::LoadTextureToGPU("specularHighlight", mat->specularHighLightIndex, 3, mat->specularHighLightTexture);
 		} 
 		if (mat->bumpTexture != nullptr && !mat->bumpTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("bump", mat->bumpIndex, 4, mat->bumpTexture);
+			AssetManager::LoadTextureToGPU("bump", mat->bumpIndex, 4, mat->bumpTexture);
 			mat->usingBump = true;
 		}
 		if (mat->normalTexture != nullptr && !mat->normalTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("normal", mat->normalIndex, 5, mat->normalTexture);
+			AssetManager::LoadTextureToGPU("normal", mat->normalIndex, 5, mat->normalTexture);
 			mat->usingNormal = true;
 		}
 		if (mat->displacementTexture != nullptr && !mat->displacementTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("displacement", mat->displacementIndex, 6, mat->displacementTexture);
+			AssetManager::LoadTextureToGPU("displacement", mat->displacementIndex, 6, mat->displacementTexture);
 		} 
 		if (mat->alphaTexture != nullptr && !mat->alphaTexture->loadedToGPU) {
-			assetManager->LoadTextureToGPU("alpha", mat->alphaIndex, 7, mat->alphaTexture);
+			AssetManager::LoadTextureToGPU("alpha", mat->alphaIndex, 7, mat->alphaTexture);
 		}
 
 		mat->InitUniforms();
@@ -558,49 +557,49 @@ void RendererSystem::DeferredToTexture() {
 
 		glActiveTexture(GL_TEXTURE0 + 0);
 		if (m->diffuseTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::diffuseTextures)[m->diffuseIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniDiffuseTex, 0);
 
 		glActiveTexture(GL_TEXTURE0 + 1);
 		if (m->specularTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::specularTextures)[m->specularIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniSpecularTex, 1);
 
 		glActiveTexture(GL_TEXTURE0 + 2);
 		if (m->specularHighLightTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::specularHighLightTextures)[m->specularHighLightIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniSpecularHighLightTex, 2);
 
 		glActiveTexture(GL_TEXTURE0 + 3);
 		if (m->bumpTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::bumpTextures)[m->bumpIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniBumpTex, 3);
 
 		glActiveTexture(GL_TEXTURE0 + 4);
 		if (m->normalTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->normalTextures[m->normalIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::normalTextures)[m->normalIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniNormalTex, 4);
 
 		glActiveTexture(GL_TEXTURE0 + 5);
 		if (m->displacementTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::displacementTextures)[m->displacementIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniDisplacementTex, 5);
 
@@ -816,57 +815,57 @@ void RendererSystem::DrawTransparent() {
 
 		glActiveTexture(GL_TEXTURE0 + 0);
 		if (m->diffuseTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->diffuseTextures[m->diffuseIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::diffuseTextures)[m->diffuseIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniDiffuseTex, 0);
 
 		glActiveTexture(GL_TEXTURE0 + 1);
 		if (m->specularTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->specularTextures[m->specularIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::specularTextures)[m->specularIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniSpecularTex, 1);
 
 		glActiveTexture(GL_TEXTURE0 + 2);
 		if (m->specularHighLightTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->specularHighLightTextures[m->specularHighLightIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::specularHighLightTextures)[m->specularHighLightIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniSpecularHighLightTex, 2);
 
 		glActiveTexture(GL_TEXTURE0 + 3);
 		if (m->bumpTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->bumpTextures[m->bumpIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::bumpTextures)[m->bumpIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniBumpTex, 3);
 
 		glActiveTexture(GL_TEXTURE0 + 4);
 		if (m->normalTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->normalTextures[m->normalIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::normalTextures)[m->normalIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniNormalTex, 4);
 
 		glActiveTexture(GL_TEXTURE0 + 5);
 		if (m->displacementTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->displacementTextures[m->displacementIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::displacementTextures)[m->displacementIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniDisplacementTex, 5);
 
 		glActiveTexture(GL_TEXTURE0 + 6);
 		if (m->alphaTexture != nullptr) {
-			glBindTexture(GL_TEXTURE_2D, assetManager->alphaTextures[m->alphaIndex]);
+			glBindTexture(GL_TEXTURE_2D, (*AssetManager::alphaTextures)[m->alphaIndex]);
 		} else {
-			glBindTexture(GL_TEXTURE_2D, assetManager->nullTexture);
+			glBindTexture(GL_TEXTURE_2D, AssetManager::nullTexture);
 		}
 		glUniform1i(m->uniAlphaTex, 6);
 
@@ -922,14 +921,12 @@ bool RendererSystem::ShouldFrustumCull(const Mesh* mesh, const glm::mat4& model)
 		Checks if every plane can "see" the most likely point. If every plane can see
 		at least one point that means our mesh is at least partially visible.
 	*/
-	std::vector<glm::vec4> planes = mainCamera->frustumPlanes;
-
 	int success = 0;
 	for (int j = 0; j < 6; j++) {
-		float val = fmax(minPoint.x * planes[j].x, maxPoint.x * planes[j].x)
-			+ fmax(minPoint.y * planes[j].y, maxPoint.y * planes[j].y)
-			+ fmax(minPoint.z * planes[j].z, maxPoint.z * planes[j].z)
-			+ planes[j].w;
+		float val = fmax(minPoint.x * mainCamera->frustumPlanes[j].x, maxPoint.x * mainCamera->frustumPlanes[j].x)
+			+ fmax(minPoint.y * mainCamera->frustumPlanes[j].y, maxPoint.y * mainCamera->frustumPlanes[j].y)
+			+ fmax(minPoint.z * mainCamera->frustumPlanes[j].z, maxPoint.z * mainCamera->frustumPlanes[j].z)
+			+ mainCamera->frustumPlanes[j].w;
 		success += (val > 0);
 	}
 
