@@ -68,11 +68,8 @@ private:
 	std::vector<ModelRenderer*, MemoryAllocator<ModelRenderer*> > modelRenderers;
 	std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> > meshesToDraw;
 	std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> > transparentToDraw;
-	std::vector<PointLightToGPU, MemoryAllocator<PointLightToGPU> > pointLightsToGPU;
 
-	// TODO: Need to add lights to the asset manager
-	std::vector<PointLight*, MemoryAllocator<PointLight*> > pointLights;
-	DirectionalLight* sun;
+	std::vector<PointLightToGPU, MemoryAllocator<PointLightToGPU> > pointLightsToGPU;
 	std::vector<PointLightToDraw, MemoryAllocator<PointLightToDraw> > pointLightsToDraw;
 
 	GLubyte dummyData[4] = { 255, 255, 255, 255 };

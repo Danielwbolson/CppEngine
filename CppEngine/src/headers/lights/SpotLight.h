@@ -7,7 +7,10 @@
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
-struct SpotLight : public Light {
+struct SpotLight {
+	std::string type;
+	float lum;
+
     glm::vec4 color;
     glm::vec4 position;
     glm::vec4 direction;

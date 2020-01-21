@@ -10,10 +10,10 @@ Mesh::~Mesh() {
 	MemoryManager::Free(bounds);
 }
 
-Mesh::Mesh(std::vector<glm::vec3, MemoryAllocator<glm::vec3> > p, 
-	std::vector<glm::vec3, MemoryAllocator<glm::vec3> > n, 
-	std::vector<glm::vec2, MemoryAllocator<glm::vec2> > uv,
-	std::vector<unsigned int, MemoryAllocator<unsigned int> > ind) {
+Mesh::Mesh(std::vector<glm::vec3> p, 
+	std::vector<glm::vec3> n, 
+	std::vector<glm::vec2> uv,
+	std::vector<unsigned int> ind) {
     positions = p;
     normals = n;
     uvs = uv;

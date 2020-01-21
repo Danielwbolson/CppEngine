@@ -16,11 +16,6 @@ Scene::~Scene() {
 		MemoryManager::Free(instances[i]);
 	}
 	instances.clear();
-
-	for (int i = 0; i < lights.size(); i++) {
-		MemoryManager::Free(lights[i]);
-	}
-	lights.clear();
 }
 
 GameObject* Scene::FindGameObject(const std::string& name) {

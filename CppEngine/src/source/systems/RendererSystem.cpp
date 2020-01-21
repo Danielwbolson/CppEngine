@@ -21,14 +21,6 @@ RendererSystem::RendererSystem(const int& sW, const int& sH) {
 	screenWidth = sW;
 	screenHeight = sH;
 
-	modelRenderers = std::vector<ModelRenderer*, MemoryAllocator<ModelRenderer*> >();
-	meshesToDraw = std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> >();
-	transparentToDraw = std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> >();
-
-	pointLights = std::vector<PointLight*, MemoryAllocator<PointLight*> >();
-	pointLightsToDraw = std::vector<PointLightToDraw, MemoryAllocator<PointLightToDraw> >();
-	pointLightsToGPU = std::vector<PointLightToGPU, MemoryAllocator<PointLightToGPU> >();
-
 	// We know that this is a mesh, not a model
 	lightVolume = (AssetManager::tinyLoadObj("sphere"))->meshes[0];
 }
@@ -50,29 +42,11 @@ RendererSystem::~RendererSystem() {
 	}
 	modelRenderers.clear();
 
-	for (int i = 0; i < pointLights.size(); i++) {
-		pointLights[i] = nullptr;
-	}
-	pointLights.clear();
-
-	sun = nullptr;
-
 	meshesToDraw.clear();
 	transparentToDraw.clear();
 }
 
 void RendererSystem::Setup() {
-
-	// Get all of our lights
-	for (int i = 0; i < mainScene->lights.size(); i++) {
-
-		if (mainScene->lights[i]->GetType() == "pointLight") {
-			pointLights.push_back((PointLight*)mainScene->lights[i]);
-		} else if (mainScene->lights[i]->GetType() == "directionalLight") {
-			sun = (DirectionalLight*)mainScene->lights[i];
-		}
-
-	}
 
 	// Get our list of related components, in this case MeshRenderers
 	for (int i = 0; i < mainScene->instances.size(); i++) {
@@ -316,8 +290,8 @@ void RendererSystem::Register(const Component* c) {
 		if (mat->isTransparent && pointLightsSSBO == 0) {
 			glGenBuffers(1, &pointLightsSSBO);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightsSSBO);
-			pointLightsToGPU.reserve(pointLights.size());
-			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * pointLights.size(), pointLightsToGPU.data(), GL_DYNAMIC_DRAW);
+			pointLightsToGPU.reserve(mainScene->pointLights.size());
+			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * mainScene->pointLights.size(), pointLightsToGPU.data(), GL_DYNAMIC_DRAW);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLightsSSBO);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		}
@@ -438,11 +412,11 @@ void RendererSystem::CullScene() {
 	// Get all of our lights that will be used for drawing.
 	pointLightsToDraw.clear();
 	pointLightsToGPU.clear();
-	for (int i = 0; i < pointLights.size(); i++) {
-		glm::vec4 pos = pointLights[i]->position;
-		glm::vec3 color = pointLights[i]->color;
-		float radius = pointLights[i]->radius;
-		float lum = pointLights[i]->lum;
+	for (int i = 0; i < mainScene->pointLights.size(); i++) {
+		glm::vec4 pos = mainScene->pointLights[i].position;
+		glm::vec3 color = mainScene->pointLights[i].color;
+		float radius = mainScene->pointLights[i].radius;
+		float lum = mainScene->pointLights[i].lum;
 
 		glm::mat4 model = glm::mat4(1);
 		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
@@ -484,9 +458,9 @@ void RendererSystem::DrawShadows() {
 
 	// Create matrices to simulate drawing from our directional light's perspective
 	proj = glm::ortho(-30.0f, 10.0f, -15.0f, 40.0f, 0.01f, 1000.0f);
-	glm::vec3 pos = glm::vec3(sun->direction) * -100.0f;
-	glm::vec3 up = glm::cross(glm::vec3(sun->direction), glm::vec3(0, 0, -1));
-	view = glm::lookAt(pos, pos + 100.0f * glm::vec3(sun->direction), glm::normalize(up));
+	glm::vec3 pos = glm::vec3(mainScene->directionalLights[0].direction) * -100.0f;
+	glm::vec3 up = glm::cross(glm::vec3(mainScene->directionalLights[0].direction), glm::vec3(0, 0, -1));
+	view = glm::lookAt(pos, pos + 100.0f * glm::vec3(mainScene->directionalLights[0].direction), glm::normalize(up));
 	lightProjView = proj * view;
 	glUniformMatrix4fv(glGetUniformLocation(shadowMapShader, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
 
@@ -732,9 +706,9 @@ void RendererSystem::DeferredLighting() {
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
 		GLint lightDir = glGetUniformLocation(directionalLightShader, "lightDir");
-		glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
+		glUniform3f(lightDir, mainScene->directionalLights[0].direction.x, mainScene->directionalLights[0].direction.y, mainScene->directionalLights[0].direction.z);
 		GLint lightCol = glGetUniformLocation(directionalLightShader, "lightCol");
-		glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
+		glUniform3f(lightCol, mainScene->directionalLights[0].color.r, mainScene->directionalLights[0].color.g, mainScene->directionalLights[0].color.b);
 
 		glDrawArrays(GL_TRIANGLES, 0, 6); //Number of vertices
 	}
@@ -778,9 +752,9 @@ void RendererSystem::DrawTransparent() {
 
 		// Directional light
 		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightDir");
-		glUniform3f(lightDir, sun->direction.x, sun->direction.y, sun->direction.z);
+		glUniform3f(lightDir, mainScene->directionalLights[0].direction.x, mainScene->directionalLights[0].direction.y, mainScene->directionalLights[0].direction.z);
 		GLint lightCol = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightCol");
-		glUniform3f(lightCol, sun->color.r, sun->color.g, sun->color.b);
+		glUniform3f(lightCol, mainScene->directionalLights[0].color.r, mainScene->directionalLights[0].color.g, mainScene->directionalLights[0].color.b);
 
 		// Shadow map stuff
 		glActiveTexture(GL_TEXTURE0 + 8);

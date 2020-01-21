@@ -33,20 +33,20 @@ void luaSetup(sol::state& L) {
 // output functionName(lua_State* luaState) {}
 
 int addPointLight(const float& r, const float& g, const float& b, const float& x , const float& y, const float& z) {
-	mainScene->lights.push_back(MemoryManager::Allocate<PointLight>(
-		glm::vec3(r, g, b), 
+	mainScene->pointLights.push_back(PointLight(
+		glm::vec3(r, g, b),
 		glm::vec4(x, y, z, 1))
 	);
 
-	return static_cast<int>(mainScene->lights.size() - 1);
+	return static_cast<int>(mainScene->pointLights.size() - 1);
 }
 
 int addDirectionalLight(const float& r, const float& g, const float& b, const float& dx, const float& dy, const float& dz) {
-	mainScene->lights.push_back(MemoryManager::Allocate<DirectionalLight>(
+	mainScene->directionalLights.push_back(DirectionalLight(
 		glm::vec4(r, g, b, 1),
 		glm::vec4(glm::normalize(glm::vec3(dx, dy, dz)), 1))
 	);
-	return static_cast<int>(mainScene->lights.size() - 1);
+	return static_cast<int>(mainScene->directionalLights.size() - 1);
 }
 
 int addModel() {
@@ -80,7 +80,6 @@ int rotateInstance(const int& index, const float& xRot, const float& yRot) {
 }
 
 int rotateSunX(const int& index, const float& angle) {
-	DirectionalLight* sun = (DirectionalLight*)mainScene->lights[index];
-	sun->direction = glm::normalize(glm::vec4(glm::rotate(glm::vec3(sun->direction), angle, glm::vec3(1, 0, 0)), 0));
+	mainScene->directionalLights[0].direction = glm::normalize(glm::vec4(glm::rotate(glm::vec3(mainScene->directionalLights[0].direction), angle, glm::vec3(1, 0, 0)), 0));
 	return 1;
 }

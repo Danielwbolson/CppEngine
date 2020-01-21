@@ -3,7 +3,10 @@
 #define SCENE_H_
 
 #include "GameObject.h"
-#include "Light.h"
+
+#include "DirectionalLight.h"
+#include "PointLight.h"
+#include "SpotLight.h"
 
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
@@ -18,7 +21,11 @@ public:
 
     std::vector<GameObject*, MemoryAllocator<GameObject*> > gameObjects;
     std::vector<GameObject*, MemoryAllocator<GameObject*> > instances;
-    std::vector<Light*, MemoryAllocator<Light*> > lights;
+
+    std::vector<PointLight, MemoryAllocator<PointLight> > pointLights;
+    std::vector<DirectionalLight, MemoryAllocator<DirectionalLight> > directionalLights;
+    std::vector<SpotLight, MemoryAllocator<SpotLight> > spotLights;
+
     glm::vec3 background;
 
     Scene();

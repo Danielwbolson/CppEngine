@@ -30,8 +30,8 @@ namespace MemoryManager {
 		extern std::vector<unsigned char*> memoryArrays;
 		extern std::vector<std::list<MemoryChunk> > freeChunks;
 
-		// 50mbs
-		const unsigned int memBlockSize = 52428800;
+		// 1mb
+		const unsigned int memBlockSize = 1048576;
 		// If you are bigger than 1kb...
 		const unsigned int margin = 1024;
 

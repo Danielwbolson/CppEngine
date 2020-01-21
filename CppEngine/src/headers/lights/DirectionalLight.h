@@ -7,7 +7,10 @@
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
-struct DirectionalLight : public Light {
+struct DirectionalLight {
+	std::string type;
+	float lum;
+
     glm::vec4 color;
     glm::vec4 direction;
 

@@ -763,12 +763,12 @@ namespace AssetManager {
 				sscanf(line, "directional_light %f %f %f %f %f %f %f %f",
 					&r, &g, &b, &a, &dx, &dy, &dz, &dw);
 
-				DirectionalLight* d = MemoryManager::Allocate<DirectionalLight>(
+				DirectionalLight d = DirectionalLight(
 					glm::vec4(r, g, b, a),
 					glm::normalize(glm::vec4(dx, dy, dz, dw))
-					);
+				);
 
-				scene->lights.push_back(d);
+				scene->directionalLights.push_back(d);
 			} else if (strcmp(command, "spot_light") == 0) { // If the command is a point_light
 				float r, g, b, a;
 				float px, py, pz, pw;
@@ -777,36 +777,26 @@ namespace AssetManager {
 				sscanf(line, "spot_light %f %f %f %f %f %f %f %f %f %f %f %f %f %f",
 					&r, &g, &b, &a, &px, &py, &pz, &pw, &dx, &dy, &dz, &dw, &angle1, &angle2);
 
-				SpotLight* s = MemoryManager::Allocate<SpotLight>(
+				SpotLight s = SpotLight(
 					glm::vec4(r, g, b, a),
 					glm::vec4(px, py, pz, pw),
 					glm::normalize(glm::vec4(dx, dy, dz, dw)),
 					angle1,
 					angle2
-					);
+				);
 
-				scene->lights.push_back(s);
+				scene->spotLights.push_back(s);
 			} else if (strcmp(command, "point_light") == 0) { // If the command is a spot_light
 				float r, g, b, a, x, y, z, w;
 				sscanf(line, "point_light %f %f %f %f %f %f %f %f",
 					&r, &g, &b, &a, &x, &y, &z, &w);
 
-				PointLight* p = MemoryManager::Allocate<PointLight>(
+				PointLight p = PointLight(
 					glm::vec4(r, g, b, a),
 					glm::vec4(x, y, z, w)
-					);
+				);
 
-				scene->lights.push_back(p);
-			} else if (strcmp(command, "ambient_light") == 0) { // If the command is a ambient_light
-				float r, g, b, a;
-				sscanf(line, "ambient_light %f %f %f %f", &r, &g, &b, &a);
-
-
-				AmbientLight* amb = MemoryManager::Allocate<AmbientLight>(
-					glm::vec4(r, g, b, a)
-					);
-
-				scene->lights.push_back(amb);
+				scene->pointLights.push_back(p);
 			} else {
 				fprintf(stderr, "WARNING. Do not know command: %s\n", command);
 			}

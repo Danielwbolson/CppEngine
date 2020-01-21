@@ -7,7 +7,10 @@
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
-struct PointLight : public Light {
+struct PointLight {
+	std::string type;
+	float lum;
+
 	glm::vec4 position; 
 	glm::vec3 color;
 	float radius;

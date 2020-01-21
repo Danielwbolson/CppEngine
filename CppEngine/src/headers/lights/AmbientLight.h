@@ -7,7 +7,10 @@
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
-struct AmbientLight : public Light {
+struct AmbientLight {
+	std::string type;
+	float lum;
+
     glm::vec4 color;
 
     AmbientLight(const glm::vec4& c) : color(c) {
