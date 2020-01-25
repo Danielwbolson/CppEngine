@@ -111,3 +111,11 @@ Transparent Time - 7968.757647
 Post Processing - 191.3185882
 
 Total time : 26757.78047 (26.8ms)
+
+======================================
+1/25/2020
+Discored NVidia Nsight. Did a bunch of performance analyzing and found some issues:
+- Terrible L2 cache and texture fetch performance during light volumes
+- - Makes sense since each light volume is in a different stop and thus acceses a random texture coordinate. Could be improved in tiled deferred but is worth taking a look now
+- Stalling in shaders mainly due to texture look-ups
+- - Find way to streamline these. Could also be due to above
