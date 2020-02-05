@@ -17,10 +17,3 @@ Clean-up:
  Small --> Vector for each light type. No need for one generic lights array
  Small --> Get all assets in AssetManager
  Small --> Switch shader vector from vector to map or similar structure for more intuitive lookup of shaders
-
-
-DOING List (By Feb):
-- Optimize what should be in our custom dynamic memory block and what shouldn't (mesh vertices probably don't need to, lights probably do, etc.)
-- Speed up allocation (slower than default allocator)
-- Vector for each light type. No need for one generic lights array
-- Switch shader vector from vector to map or similar structure for more intuitive lookup of shaders
