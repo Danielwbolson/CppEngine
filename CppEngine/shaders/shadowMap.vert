@@ -2,9 +2,10 @@
 
 in vec3 inPos;
 
-uniform mat4 lightProjView;
+// Matrix of light for shadows, matrix of camera for depth pre-pass
+uniform mat4 projView;
 uniform mat4 model;
 
 void main() {
-	gl_Position = lightProjView * model * vec4(inPos, 1.0);
+	gl_Position = projView * model * vec4(inPos, 1.0);
 }

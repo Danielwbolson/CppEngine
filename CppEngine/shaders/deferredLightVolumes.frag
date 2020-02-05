@@ -34,6 +34,8 @@ void main() {
     vec3 normal       = octahedronDecompress(texture(gNormal, UV).rgb);
     uvec4 diffuseSpec = texture(gDiffuseSpec, UV);
     float depth       = texture(gDepth, UV).r;
+	
+	vec3 diffuseColor; vec3 specularColor;
 
 	// Calculate fragment position from depth
 	float z = 2.0 * depth - 1;
@@ -48,10 +50,8 @@ void main() {
 
     // light info in world space
     vec3 lightDir = normalize(lightPos - fragPos);
-
-	vec3 diffuseColor; vec3 specularColor;
-
     float ndotL = max(dot(normal, lightDir), 0.0);
+
     if (ndotL > 0.0) {
         // diffuse
 		diffuseColor.x = float(diffuseSpec.x & 0xFF) / 255.0;

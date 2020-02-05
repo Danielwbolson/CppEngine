@@ -61,14 +61,15 @@ void RendererSystem::Setup() {
 	glEnable(GL_DEBUG_OUTPUT);
 	glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 	glDebugMessageCallback(util::DebugMessageCallback, 0);
-	GLuint unusedIds = 0;
-	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, &unusedIds, true);
+	glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_FALSE);
+	glDebugMessageControl(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_ERROR, GL_DONT_CARE, 0, NULL, GL_TRUE);
 
 	glGenQueries(1, &timeQuery);
 
 	// Enable/Disable macros
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_CULL_FACE);
+	glDepthFunc(GL_LEQUAL);
 
 
 	// Set up our light volume shader
@@ -113,14 +114,6 @@ void RendererSystem::Setup() {
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.diffuseSpec, 0);
 
-		// depth
-		glGenTextures(1, &(gBuffer.depth));
-		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT24, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
-
 		// - tell OpenGL which attachments we'll use (of this framebuffer) for rendering 
 		GLuint attachments[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
 		glDrawBuffers(2, attachments);
@@ -131,7 +124,6 @@ void RendererSystem::Setup() {
 	// Set up our directional light shader
 	{
 		directionalLightShader = util::initShaderFromFiles("deferredDirectionalLight.vert", "deferredDirectionalLight.frag");
-
 
 		// Set up quad mesh
 		glGenVertexArrays(1, &quadVAO);
@@ -171,6 +163,8 @@ void RendererSystem::Setup() {
 		glReadBuffer(GL_NONE);
 	}
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	// Create our framebufferobject and final render texture
 	{
 		finalQuadShader = util::initShaderFromFiles("finalQuad.vert", "finalQuad.frag");
@@ -191,15 +185,29 @@ void RendererSystem::Setup() {
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, finalQuadRender, 0);
 		glDrawBuffer(GL_COLOR_ATTACHMENT0);
 
-		GLuint rboDepth;
-		glGenRenderbuffers(1, &rboDepth);
-		glBindRenderbuffer(GL_RENDERBUFFER, rboDepth);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, screenWidth, screenHeight);
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboDepth);
-
 		GLint posAttrib = glGetAttribLocation(finalQuadShader, "inPos");
 		glEnableVertexAttribArray(posAttrib);
 		glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+	}
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// Set up our shared depth buffer between our gbuffer and our intermediary/final framebuffer that collects all output
+	{
+		// Set up our depth texture
+		glGenTextures(1, &(gBuffer.depth));
+		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+		// Connect to our gBuffer
+		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
+
+		// Connect to our intermediary frame buffer
+		glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -334,12 +342,21 @@ void RendererSystem::Register(const Component* c) {
 void RendererSystem::Render() {
 
 	totalTriangles = 0;
+	view = mainCamera->view;
+	proj = mainCamera->proj;
 
 	// First, cull out unwanted geometry. Currently, only Frustum Culling is supported
 	auto startTime = std::chrono::high_resolution_clock::now();
 	CullScene();
 	auto endTime = std::chrono::high_resolution_clock::now();
 	cullTime = std::chrono::duration_cast<std::chrono::microseconds>(endTime - startTime).count();
+
+	// Next, do our depth pre-pass as to pre-emptively set our depth values of our opaque geometry
+	// to speed up our transparent pass
+	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
+	OpaqueDepthPrePass();
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &depthPrePassTime);
 
 	// Next, calculate our shadow map using our directional light only
 	// We do this every frame because we are assuming the directional light will move
@@ -348,6 +365,7 @@ void RendererSystem::Render() {
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &shadowTime);
 
+	// Set proj and view back to what we want after shadows
 	view = mainCamera->view;
 	proj = mainCamera->proj;
 
@@ -444,6 +462,40 @@ void RendererSystem::CullScene() {
 
 }
 
+void RendererSystem::OpaqueDepthPrePass() {
+
+	glViewport(0, 0, windowWidth, windowHeight);
+	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+
+	// Let opengl know we are only doing depth here
+	glDrawBuffer(GL_NONE);
+	glReadBuffer(GL_NONE);
+
+	glClear(GL_DEPTH_BUFFER_BIT);
+
+	glUseProgram(shadowMapShader);
+
+	glUniformMatrix4fv(glGetUniformLocation(shadowMapShader, "projView"), 1, GL_FALSE, glm::value_ptr(proj * view));
+
+	GLint uniModel = glGetUniformLocation(shadowMapShader, "model");
+
+	for (int i = 0; i < meshesToDraw.size(); i++) {
+		glBindVertexArray(meshesToDraw[i].vao);
+
+		glUniformMatrix4fv(uniModel, 1, GL_FALSE, glm::value_ptr(meshesToDraw[i].model));
+
+		totalTriangles += static_cast<int>(meshesToDraw[i].mesh->indices.size()) / 3;
+
+		// Use our shader and draw our program
+		glDrawElements(GL_TRIANGLES, static_cast<int>(meshesToDraw[i].mesh->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
+	}
+
+	// Reset our framebuffer to use our color attachment for the future uses
+	glDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 void RendererSystem::DrawShadows() {
 
 	// Set our viewport for our shadow map and link our depth FBO
@@ -462,7 +514,7 @@ void RendererSystem::DrawShadows() {
 	glm::vec3 up = glm::cross(glm::vec3(mainScene->directionalLights[0].direction), glm::vec3(0, 0, -1));
 	view = glm::lookAt(pos, pos + 100.0f * glm::vec3(mainScene->directionalLights[0].direction), glm::normalize(up));
 	lightProjView = proj * view;
-	glUniformMatrix4fv(glGetUniformLocation(shadowMapShader, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
+	glUniformMatrix4fv(glGetUniformLocation(shadowMapShader, "projView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
 
 	GLint uniModel = glGetUniformLocation(shadowMapShader, "model");
 
@@ -498,9 +550,10 @@ void RendererSystem::DeferredToTexture() {
 
 	// Bind the output framebuffer from our deferred shading
 	glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
+
 	// Clear the buffer to default color
 	glClearColor(0, 0, 0, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT);
 
 	// All opaque meshes use same shader
 	if (meshesToDraw.size() > 0) {
@@ -590,7 +643,6 @@ void RendererSystem::DeferredToTexture() {
 
 void RendererSystem::DeferredLighting() {
 
-	glClear(GL_COLOR_BUFFER_BIT);
 	glDisable(GL_DEPTH_TEST);
 	glDepthMask(GL_FALSE);
 	glEnable(GL_BLEND);
@@ -600,6 +652,7 @@ void RendererSystem::DeferredLighting() {
 
 	// Bind the output framebuffer from our deferred shading
 	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+
 	// Clear the buffer to default color
 	glClearColor(0, 0, 0, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -719,11 +772,6 @@ void RendererSystem::DeferredLighting() {
 }
 
 void RendererSystem::DrawTransparent() {
-
-	// Save all of our depth information from deferred pass for use in forward pass
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, gBuffer.id);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, finalQuadFBO);
-	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
 

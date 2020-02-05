@@ -119,3 +119,34 @@ Discored NVidia Nsight. Did a bunch of performance analyzing and found some issu
 - - Makes sense since each light volume is in a different stop and thus acceses a random texture coordinate. Could be improved in tiled deferred but is worth taking a look now
 - Stalling in shaders mainly due to texture look-ups
 - - Find way to streamline these. Could also be due to above
+
+=======================================
+2/5/2020
+Implemented a depth pre-pass to try and speed up my deferred to texture pass. Also combined
+depth attachments for gbuffer and my intermediary framebuffer to avoid a slow, non-asynchronous
+Blit during the transparent pass. We can't do a depth pre-pass for transparent geometry
+as that will cause an issue with transparent objects and depth being just one value.
+
+The boost here is the avoidance of using a Blit in the transparent pass (1.6ms) and pretty
+much a wash on the depth prepass. Saved 0.2ms in the deferred to texture step, while 
+spending 0.13 on the pre-pass... so a 0.07ms boost
+
+Triangles drawn: 1209781(2x opaque geometry, 1.23x overall due to light volumes)
+The increase here is due to drawing all of our opaque geometry twice, once for the depth
+pre-pass and once for gbuffer stuff.
+
+Timings (microseconds):
+FPS - 35.07676471
+Frustum Culling - 199.9
+Opaque Depth Pre-Pass - 131.1776
+Shadow Map - 497.208
+Deferred To Texture - 386.5392
+Deferred Lighting - 17369.895
+Transparent Time - 6367.4645
+Post Processing - 188.2096
+
+Total time : 25140.3939 (25.1ms)
+
+I also tried different heuristics for sorting my light volumes to try and take advantage of
+the texture cache as that is my biggest bottleneck, but to no avail. 
+Tiled-Deferred, here I come.

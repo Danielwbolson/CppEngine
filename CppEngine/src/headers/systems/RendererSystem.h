@@ -107,6 +107,7 @@ public:
 
 	// Timings
 	GLuint timeQuery;
+	long long depthPrePassTime = 0;
 	long long cullTime; long long shadowTime;
 	long long deferredToTexTime; long long deferredLightsTime;
 	long long transparentTime; long long postFXXTime;
@@ -120,6 +121,7 @@ public:
 	void Update(const float&) {}
 	void Render();
 
+	void OpaqueDepthPrePass();
 	void CullScene();
 	void DrawShadows();
 	void DeferredToTexture();
