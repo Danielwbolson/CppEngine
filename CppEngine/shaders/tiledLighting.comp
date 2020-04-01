@@ -1,0 +1,58 @@
+#version 450 compatibility
+#extension GL_ARB_compute_shader : enable
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+uniform sampler2D gNormal;
+uniform usampler2D gDiffuseSpec;
+uniform sampler2D gDepth;
+
+uniform vec3 camPos;
+uniform mat4 pvm;
+
+uniform int numPointLights;
+uniform int numDirectionalLights;
+
+struct PointLightToGPU {
+	vec4 position;
+	vec3 color;
+	float luminance;
+};
+layout(std430, binding = 0) buffer PointLights {
+	PointLightToGPU pointLights[];
+};
+
+struct DirectionalLightToGPU {
+	vec4 direction;
+	vec4 color;
+};
+layout(std430, binding = 1) buffer DirectionalLights {
+	DirectionalLightToGPU directionalLights[];
+};
+
+struct Tile {
+	int lights[127];
+	int numLights;
+};
+layout(std430, binding = 2) buffer LightTiles {
+	Tile lightTiles[];
+};
+
+
+// AABB detection of point lights against our tiles frustum
+// Each tile has a camera frustum
+
+void main() {
+	// x and y are based one our 16x16 tile
+	// Size of work group
+	vec2 localId = gl_LocalInvocationID.xy;
+	// x and y range based on screen size (how many 16x16 tiles)
+	// Number of work groups in x and y
+	vec2 globalId = gl_GlobalInvocationID.xy;
+
+	// First, decide if each light is in our tile
+	for (int i = 0; i < numPointLights; i++) {
+		
+		//if (pointLights[i]
+	}
+}

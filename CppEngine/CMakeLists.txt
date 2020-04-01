@@ -186,6 +186,7 @@ set(SHADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPhong.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.frag
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/tiledLighting.comp
 )
 
 set(INCS

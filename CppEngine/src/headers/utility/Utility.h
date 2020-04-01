@@ -44,7 +44,7 @@ namespace util {
         return buf.str();
     }
 
-    static GLuint initShaderFromFiles(const std::string& vert, const std::string& frag) {
+    static GLuint initVertFragShader(const std::string& vert, const std::string& frag) {
         // Vert and frag shaders, compiled from file
         GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
         const std::string vertString = util::fileToString(vert);
@@ -74,6 +74,25 @@ namespace util {
 
         return shaderProgram;
     }
+
+	static GLuint initComputeShader(const std::string& compute) {
+		// Compute shader, compiled from file
+		GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
+		const std::string computeString = util::fileToString(compute);
+		if (computeString == "") {
+			fprintf(stderr, "Failed to load compute shader: %s", compute.c_str());
+			exit(1);
+		}
+		const GLchar* computeSource = computeString.c_str();
+		util::loadShader(computeShader, computeSource);
+
+		// Create our compute shader program
+		GLuint shaderProgram = glCreateProgram();
+		glAttachShader(shaderProgram, computeShader);
+		glLinkProgram(shaderProgram); //run the linker
+
+		return shaderProgram;
+	}
 
 	static void DebugMessageCallback(GLenum source,
 		GLenum type,

@@ -16,10 +16,12 @@
 #include "Shader.h"
 
 
+#define WORK_GROUP_SIZE 16
+#define NUM_GROUPS_X (windowWidth/WORK_GROUP_SIZE)
+#define NUM_GROUPS_Y (windowHeight/WORK_GROUP_SIZE)
 
-RendererSystem::RendererSystem(const int& sW, const int& sH) {
-	screenWidth = sW;
-	screenHeight = sH;
+
+RendererSystem::RendererSystem() {
 
 	// We know that this is a mesh, not a model
 	lightVolume = (AssetManager::tinyLoadObj("sphere"))->meshes[0];
@@ -74,7 +76,7 @@ void RendererSystem::Setup() {
 
 	// Set up our light volume shader
 	{
-		lightVolumeShader = util::initShaderFromFiles("deferredLightVolumes.vert", "deferredLightVolumes.frag");
+		lightVolumeShader = util::initVertFragShader("deferredLightVolumes.vert", "deferredLightVolumes.frag");
 
 
 		// Set up light volume mesh
@@ -101,7 +103,7 @@ void RendererSystem::Setup() {
 		// normal color buffer
 		glGenTextures(1, &(gBuffer.normals));
 		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, windowWidth, windowHeight, 0, GL_RGB, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.normals, 0);
@@ -109,7 +111,7 @@ void RendererSystem::Setup() {
 		// diffuse color
 		glGenTextures(1, &(gBuffer.diffuseSpec));
 		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuseSpec);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16UI, screenWidth, screenHeight, 0, GL_RGBA_INTEGER, GL_UNSIGNED_INT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16UI, windowWidth, windowHeight, 0, GL_RGBA_INTEGER, GL_UNSIGNED_INT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.diffuseSpec, 0);
@@ -123,7 +125,7 @@ void RendererSystem::Setup() {
 
 	// Set up our directional light shader
 	{
-		directionalLightShader = util::initShaderFromFiles("deferredDirectionalLight.vert", "deferredDirectionalLight.frag");
+		directionalLightShader = util::initVertFragShader("deferredDirectionalLight.vert", "deferredDirectionalLight.frag");
 
 		// Set up quad mesh
 		glGenVertexArrays(1, &quadVAO);
@@ -141,7 +143,7 @@ void RendererSystem::Setup() {
 
 	// Create depth buffer and map for shadow maps from directional light
 	{
-		shadowMapShader = util::initShaderFromFiles("shadowMap.vert", "shadowMap.frag");
+		shadowMapShader = util::initVertFragShader("shadowMap.vert", "shadowMap.frag");
 
 		glGenFramebuffers(1, &depthMapFBO);
 		glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
@@ -167,7 +169,7 @@ void RendererSystem::Setup() {
 
 	// Create our framebufferobject and final render texture
 	{
-		finalQuadShader = util::initShaderFromFiles("finalQuad.vert", "finalQuad.frag");
+		finalQuadShader = util::initVertFragShader("finalQuad.vert", "finalQuad.frag");
 
 		glGenFramebuffers(1, &finalQuadFBO);
 		glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
@@ -197,7 +199,7 @@ void RendererSystem::Setup() {
 		// Set up our depth texture
 		glGenTextures(1, &(gBuffer.depth));
 		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, windowWidth, windowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -208,6 +210,44 @@ void RendererSystem::Setup() {
 		// Connect to our intermediary frame buffer
 		glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
+	}
+
+	// Set up our compute shader to handle our tiled light calculations
+	{
+		tiledComputeShader = util::initComputeShader("tiledLighting.comp");
+
+		glGenBuffers(1, &tiledPointLightsSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledPointLightsSSBO);
+		pointLightsToGPU.reserve(mainScene->pointLights.size());
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * mainScene->pointLights.size(), NULL, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, tiledPointLightsSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+
+		// Set up our directional light array and buffers
+		for (int i = 0; i < mainScene->directionalLights.size(); i++) {
+			DirectionalLightToGPU d = DirectionalLightToGPU{
+				d.direction = mainScene->directionalLights[i].direction,
+				d.color = glm::vec3(mainScene->directionalLights[i].color),
+				d.luminance = mainScene->directionalLights[i].lum
+			};
+			directionalLightsToGPU.push_back(d);
+		}
+
+		glGenBuffers(1, &tiledDirectionalLightsSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledDirectionalLightsSSBO);
+		directionalLightsToGPU.reserve(mainScene->directionalLights.size());
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(DirectionalLightToGPU) * mainScene->directionalLights.size(), directionalLightsToGPU.data(), GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, tiledDirectionalLightsSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+
+		glGenBuffers(1, &lightTilesSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightTilesSSBO);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 128 * NUM_GROUPS_X * NUM_GROUPS_Y, NULL, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, lightTilesSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -374,6 +414,13 @@ void RendererSystem::Render() {
 	DeferredToTexture();
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &deferredToTexTime);
+
+
+	// Compute shader step, where we calculate lighting using our tiled compute shader
+	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
+	TiledCompute();
+	glEndQuery(GL_TIME_ELAPSED);
+	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &tileComputeTime);
 
 	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
 	DeferredLighting();
@@ -639,6 +686,38 @@ void RendererSystem::DeferredToTexture() {
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+}
+
+void RendererSystem::TiledCompute() {
+	
+	glUseProgram(tiledComputeShader);
+
+	// Connect our gbuffer textures
+	glActiveTexture(GL_TEXTURE0 + 0);
+	glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+	glActiveTexture(GL_TEXTURE0 + 1);
+	glBindTexture(GL_TEXTURE_2D, gBuffer.diffuseSpec);
+	glActiveTexture(GL_TEXTURE0 + 2);
+	glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
+	glUniform1i(glGetUniformLocation(tiledComputeShader, "gNormal"), 0);
+	glUniform1i(glGetUniformLocation(tiledComputeShader, "gDiffuseSpec"), 1);
+	glUniform1i(glGetUniformLocation(tiledComputeShader, "gDepth"), 2);
+
+	// Set up our other variables
+	GLint uniCamPos = glGetUniformLocation(tiledComputeShader, "camPos");
+	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+
+	GLint pvm = glGetUniformLocation(tiledComputeShader, "pvm");
+
+	//TODO:
+	// Need to decide if this compute shader is an all-in-one or if it will just calculate light tiles
+
+	// Set up our point light SSBO with necessary data
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledPointLightsSSBO);
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data());
+	
+
+	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
 }
 
 void RendererSystem::DeferredLighting() {
@@ -908,7 +987,7 @@ void RendererSystem::PostProcess() {
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, finalQuadFBO);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBlitFramebuffer(0, 0, windowWidth, windowHeight, 0, 0, windowWidth, windowHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glUseProgram(finalQuadShader);

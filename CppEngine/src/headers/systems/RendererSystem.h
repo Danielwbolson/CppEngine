@@ -62,6 +62,11 @@ struct PointLightToGPU {
 	glm::vec3 color;
 	float luminance;
 };
+struct DirectionalLightToGPU {
+	glm::vec4 direction;
+	glm::vec3 color;
+	float luminance;
+};
 
 class RendererSystem : public Systems {
 private:
@@ -70,11 +75,11 @@ private:
 	std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> > transparentToDraw;
 
 	std::vector<PointLightToGPU, MemoryAllocator<PointLightToGPU> > pointLightsToGPU;
+	std::vector<DirectionalLightToGPU, MemoryAllocator<DirectionalLightToGPU> > directionalLightsToGPU;
 	std::vector<PointLightToDraw, MemoryAllocator<PointLightToDraw> > pointLightsToDraw;
 
 	GLubyte dummyData[4] = { 255, 255, 255, 255 };
 
-	int screenWidth; int screenHeight;
 	glm::mat4 proj; glm::mat4 view;
 
 	// Deferred
@@ -86,6 +91,11 @@ private:
 	// Directional Light quad
 	GLuint directionalLightShader;
 	glm::mat4 lightProjView;
+
+	// Tiled lighting variables
+	GLuint tiledComputeShader;
+	GLuint tiledPointLightsSSBO; GLuint tiledDirectionalLightsSSBO;
+	GLuint lightTilesSSBO; // Max of 128 lights per tile
 
 	// Light volumes
 	Mesh* lightVolume;
@@ -108,11 +118,12 @@ public:
 	// Timings
 	GLuint timeQuery;
 	long long depthPrePassTime = 0;
+	long long tileComputeTime;
 	long long cullTime; long long shadowTime;
 	long long deferredToTexTime; long long deferredLightsTime;
 	long long transparentTime; long long postFXXTime;
 
-	RendererSystem(const int&, const int&);
+	RendererSystem();
 	~RendererSystem();
 
 	void Setup();
@@ -125,6 +136,7 @@ public:
 	void CullScene();
 	void DrawShadows();
 	void DeferredToTexture();
+	void TiledCompute();
 	void DeferredLighting();
 	void DrawTransparent();
 	void PostProcess();
