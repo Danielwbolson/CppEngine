@@ -3,15 +3,24 @@
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
-uniform sampler2D gNormal;
-uniform usampler2D gDiffuseSpec;
-uniform sampler2D gDepth;
+layout (binding = 0) uniform sampler2D gNormal;
+layout (binding = 1) uniform usampler2D gDiffuseSpec;
+layout (binding = 2) uniform sampler2D gDepth;
 
-uniform vec3 camPos;
-uniform mat4 pvm;
+layout (binding = 0) uniform writeonly image2D destTex;
 
-uniform int numPointLights;
-uniform int numDirectionalLights;
+// Used for frustum calculations
+uniform mat4 projView;
+
+// Used for recreation of position from depth
+uniform mat4 invProj;
+uniform mat4 invView;
+
+//uniform int numPointLights;
+//uniform int numDirectionalLights;
+
+shared uint minDepth;
+shared uint maxDepth;
 
 struct PointLightToGPU {
 	vec4 position;
@@ -30,29 +39,58 @@ layout(std430, binding = 1) buffer DirectionalLights {
 	DirectionalLightToGPU directionalLights[];
 };
 
-struct Tile {
-	int lights[127];
-	int numLights;
-};
-layout(std430, binding = 2) buffer LightTiles {
-	Tile lightTiles[];
-};
+//// each tile supports 128 unique lights
+//struct Tile {
+//	int pointLights[123]; // 123 point lights supported
+//	int numTilePointLights;
+//
+//	int directionalLights[3]; // 3 directional lights supported
+//	int numTileDirLights;
+//};
+//layout(std430, binding = 2) buffer LightTiles {
+//	Tile lightTiles[];
+//};
 
 
 // AABB detection of point lights against our tiles frustum
 // Each tile has a camera frustum
 
 void main() {
-	// x and y are based one our 16x16 tile
-	// Size of work group
-	vec2 localId = gl_LocalInvocationID.xy;
-	// x and y range based on screen size (how many 16x16 tiles)
-	// Number of work groups in x and y
-	vec2 globalId = gl_GlobalInvocationID.xy;
 
-	// First, decide if each light is in our tile
-	for (int i = 0; i < numPointLights; i++) {
-		
-		//if (pointLights[i]
-	}
+	// position in local work grop
+	ivec2 localId = ivec2(gl_LocalInvocationID.xy);
+
+	// position in global shader (texture position)
+	ivec2 globalId = ivec2(gl_GlobalInvocationID.xy);
+
+	// Get depth value from texture
+	float depthFloat = texture(gDepth, globalId).r;
+
+	uint depthInt = uint(depthFloat * 0xfffffffu);
+
+	// Calculate min/max depth of out work group or tile
+	atomicMax(maxDepth, depthInt);
+	atomicMin(minDepth, depthInt);
+
+	// At this point, we need all threads in the same work group to finish their above calculations
+	barrier();
+
+
+	// Reset out min/max depth values for this tile to floats
+	float maxDepthFloat = float(float(maxDepth) / float(0xfffffffu));
+	float minDepthFloat = float(float(minDepth) / float(0xfffffffu));
+
+	// Calculate our max x and y texture bounds of this tile
+	uint minX = gl_WorkGroupSize.x * gl_WorkGroupID.x;
+	uint maxX = gl_WorkGroupSize.x * (gl_WorkGroupID.x + 1);
+	uint minY = gl_WorkGroupSize.y * gl_WorkGroupID.y;
+	uint maxY = gl_WorkGroupSize.y * (gl_WorkGroupID.y + 1);
+
+	ivec2 resolution = imageSize(destTex);
+
+	// We need to convert our tile's frustum to the correct scale and position
+	// We can use gl_WorkGroupSize since our x and y are the same (16x16)
+	// TODO: A lot of examples I see divide by 2 in the denominator. I don't understand that
+	vec2 tileScale = resolution * (1.0f / float(2.0f * gl_WorkGroupSize.x));
+	vec2 tileBias = tileScale - vec2(gl_WorkGroupID.xy);
 }

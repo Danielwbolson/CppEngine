@@ -242,11 +242,11 @@ void RendererSystem::Setup() {
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 
-		glGenBuffers(1, &lightTilesSSBO);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightTilesSSBO);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 128 * NUM_GROUPS_X * NUM_GROUPS_Y, NULL, GL_DYNAMIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, lightTilesSSBO);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+		//glGenBuffers(1, &lightTilesSSBO);
+		//glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightTilesSSBO);
+		//glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 128 * NUM_GROUPS_X * NUM_GROUPS_Y, NULL, GL_DYNAMIC_DRAW);
+		//glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, lightTilesSSBO);
+		//glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	}
 
@@ -692,29 +692,40 @@ void RendererSystem::TiledCompute() {
 	
 	glUseProgram(tiledComputeShader);
 
+
 	// Connect our gbuffer textures
 	glActiveTexture(GL_TEXTURE0 + 0);
 	glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+	glUniform1i(glGetUniformLocation(tiledComputeShader, "gNormal"), 0);
+
 	glActiveTexture(GL_TEXTURE0 + 1);
 	glBindTexture(GL_TEXTURE_2D, gBuffer.diffuseSpec);
+	glUniform1i(glGetUniformLocation(tiledComputeShader, "gDiffuseSpec"), 1);
+
 	glActiveTexture(GL_TEXTURE0 + 2);
 	glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
-	glUniform1i(glGetUniformLocation(tiledComputeShader, "gNormal"), 0);
-	glUniform1i(glGetUniformLocation(tiledComputeShader, "gDiffuseSpec"), 1);
 	glUniform1i(glGetUniformLocation(tiledComputeShader, "gDepth"), 2);
 
-	// Set up our other variables
-	GLint uniCamPos = glGetUniformLocation(tiledComputeShader, "camPos");
-	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+	glBindImageTexture(0, finalQuadRender, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_SRGB8);
+	glUniform1i(glGetUniformLocation(tiledComputeShader, "destTex"), 0);
 
-	GLint pvm = glGetUniformLocation(tiledComputeShader, "pvm");
+
+	// Set up our other variables
+	GLint uniProjView = glGetUniformLocation(tiledComputeShader, "projVew");
+	glUniformMatrix4fv(uniProjView, 1, GL_FALSE, glm::value_ptr(proj * view));
+	GLint uniInvProj = glGetUniformLocation(tiledComputeShader, "invProj");
+	glUniformMatrix4fv(uniInvProj, 1, GL_FALSE, glm::value_ptr(glm::inverse(proj)));
+	GLint uniInvView = glGetUniformLocation(tiledComputeShader, "invView");
+	glUniformMatrix4fv(uniInvView, 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
 
 	//TODO:
 	// Need to decide if this compute shader is an all-in-one or if it will just calculate light tiles
 
-	// Set up our point light SSBO with necessary data
+	// Set up our SSBO's with necessary data
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledPointLightsSSBO);
 	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data());
+	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledDirectionalLightsSSBO);
+	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 1, sizeof(DirectionalLightToGPU) * directionalLightsToGPU.size(), directionalLightsToGPU.data());
 	
 
 	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
