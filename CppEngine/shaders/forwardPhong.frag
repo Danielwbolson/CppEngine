@@ -26,7 +26,8 @@ uniform vec3 camPos;
 
 
 struct PointLightToGPU {
-	vec4 position;
+	vec3 position;
+	float radius;
 	vec3 color;
 	float luminance;
 };

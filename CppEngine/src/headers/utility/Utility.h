@@ -28,7 +28,6 @@ namespace util {
         //Let's double check the shader compiled 
         GLint status;
         glGetShaderiv(shaderID, GL_COMPILE_STATUS, &status); //Check for errors
-		checkGLError("After shaderiv");
         if (!status) {
             char buffer[1024]; glGetShaderInfoLog(shaderID, 1024, NULL, buffer);
             printf("Shader Compile Failed. Info:\n\n%s\n", buffer);
@@ -66,11 +65,21 @@ namespace util {
 
         //Join the vertex and fragment shaders together into one program
         GLuint shaderProgram = glCreateProgram();
-		checkGLError("After shader program");
         glAttachShader(shaderProgram, vertexShader);
         glAttachShader(shaderProgram, fragmentShader);
         //glBindFragDataLocation(shaderProgram, 0, "outColor"); // set output
         glLinkProgram(shaderProgram); //run the linker
+
+		//Error checking after link
+		char errbuf[4096];
+		GLsizei len;
+		GLint link_ok = GL_FALSE;
+		glGetProgramInfoLog(shaderProgram, sizeof(errbuf), &len, errbuf);
+		glGetProgramiv(shaderProgram, GL_LINK_STATUS, &link_ok);
+		if (!link_ok) {
+			std::cout << errbuf << std::endl;
+			std::cout << "The compute shader did not link correctly." << std::endl;
+		}
 
         return shaderProgram;
     }
@@ -90,6 +99,17 @@ namespace util {
 		GLuint shaderProgram = glCreateProgram();
 		glAttachShader(shaderProgram, computeShader);
 		glLinkProgram(shaderProgram); //run the linker
+
+		//Error checking after link
+		char errbuf[4096];
+		GLsizei len;
+		GLint link_ok = GL_FALSE;
+		glGetProgramInfoLog(shaderProgram, sizeof(errbuf), &len, errbuf);
+		glGetProgramiv(shaderProgram, GL_LINK_STATUS, &link_ok);
+		if (!link_ok) {
+			std::cout << errbuf << std::endl;
+			std::cout << "The compute shader did not link correctly." << std::endl;
+		}
 
 		return shaderProgram;
 	}

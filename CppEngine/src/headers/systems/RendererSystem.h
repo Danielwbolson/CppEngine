@@ -49,16 +49,9 @@ struct MeshToDraw {
 	}
 };
 
-struct PointLightToDraw {
-	glm::mat4 model; 
-	glm::vec3 position;
-	float luminance;
-	glm::vec3 color;
-	float radius;
-};
-
 struct PointLightToGPU {
-	glm::vec4 position;
+	glm::vec3 position;
+	float radius;
 	glm::vec3 color;
 	float luminance;
 };
@@ -76,7 +69,6 @@ private:
 
 	std::vector<PointLightToGPU, MemoryAllocator<PointLightToGPU> > pointLightsToGPU;
 	std::vector<DirectionalLightToGPU, MemoryAllocator<DirectionalLightToGPU> > directionalLightsToGPU;
-	std::vector<PointLightToDraw, MemoryAllocator<PointLightToDraw> > pointLightsToDraw;
 
 	GLubyte dummyData[4] = { 255, 255, 255, 255 };
 
@@ -94,18 +86,13 @@ private:
 
 	// Tiled lighting variables
 	GLuint tiledComputeShader;
-	GLuint tiledPointLightsSSBO; GLuint tiledDirectionalLightsSSBO;
-	GLuint lightTilesSSBO; // Max of 128 lights per tile
-
-	// Light volumes
-	Mesh* lightVolume;
-	GLuint lightVolumeVAO; GLuint lightVolumeVBO; GLuint lightVolumeIBO;
-	GLuint lightVolumeShader;
-	GLuint pointLightsSSBO = 0;
+	GLuint tiledPointLightsSSBO;
+	GLuint lightTilesSSBO; // Max of 512 lights per tile
 
 	// Shadows
 	GLuint shadowMapShader;
 	GLuint depthMapFBO; GLuint depthMap;
+	GLuint pointLightsSSBO = 0;
 	const int shadowWidth = 4096; const int shadowHeight = 4096;
 
 	// Post processing

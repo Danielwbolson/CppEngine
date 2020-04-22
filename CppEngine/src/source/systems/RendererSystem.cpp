@@ -21,18 +21,13 @@
 #define NUM_GROUPS_Y (windowHeight/WORK_GROUP_SIZE)
 
 
-RendererSystem::RendererSystem() {
-
-	// We know that this is a mesh, not a model
-	lightVolume = (AssetManager::tinyLoadObj("sphere"))->meshes[0];
-}
+RendererSystem::RendererSystem() {}
 
 RendererSystem::~RendererSystem() {
-	glDeleteProgram(lightVolumeShader);
-
-	glDeleteBuffers(1, &lightVolumeIBO);
-	glDeleteBuffers(1, &lightVolumeVBO);
-	glDeleteVertexArrays(1, &lightVolumeVAO);
+	//TODO: Clear everything and delete everything we need
+	glDeleteProgram(tiledComputeShader);
+	glDeleteProgram(directionalLightShader);
+	glDeleteProgram(finalQuadShader);
 	
 	glDeleteFramebuffers(1, &gBuffer.id);
 	glDeleteTextures(1, &gBuffer.normals);
@@ -73,29 +68,30 @@ void RendererSystem::Setup() {
 	glEnable(GL_CULL_FACE);
 	glDepthFunc(GL_LEQUAL);
 
+	// Set up our vectors of gpu lights
+	pointLightsToGPU.reserve(mainScene->pointLights.size());
+	for (int i = 0; i < mainScene->pointLights.size(); i++) {
+		PointLightToGPU pToGPU = PointLightToGPU{
+			pToGPU.position = glm::vec3(mainScene->pointLights[i].position),
+			pToGPU.radius = mainScene->pointLights[i].radius,
+			pToGPU.color = mainScene->pointLights[i].color,
+			pToGPU.luminance = mainScene->pointLights[i].lum
+		};
+		pointLightsToGPU.push_back(pToGPU);
+	}
 
-	// Set up our light volume shader
+	directionalLightsToGPU.reserve(mainScene->directionalLights.size());
+	for (int i = 0; i < mainScene->directionalLights.size(); i++) {
+		DirectionalLightToGPU d = DirectionalLightToGPU{
+			d.direction = mainScene->directionalLights[i].direction,
+			d.color = glm::vec3(mainScene->directionalLights[i].color),
+			d.luminance = mainScene->directionalLights[i].lum
+		};
+		directionalLightsToGPU.push_back(d);
+	}
+
+	// Set up our gBuffer
 	{
-		lightVolumeShader = util::initVertFragShader("deferredLightVolumes.vert", "deferredLightVolumes.frag");
-
-
-		// Set up light volume mesh
-		glGenVertexArrays(1, &lightVolumeVAO);
-		glBindVertexArray(lightVolumeVAO);
-
-		glGenBuffers(1, &lightVolumeVBO);
-		glBindBuffer(GL_ARRAY_BUFFER, lightVolumeVBO);
-		glBufferData(GL_ARRAY_BUFFER, lightVolume->positions.size() * 3 * sizeof(float), &(lightVolume->positions[0]), GL_STATIC_DRAW);
-		glEnableVertexAttribArray(glGetAttribLocation(lightVolumeShader, "inPos"));
-		glVertexAttribPointer(glGetAttribLocation(lightVolumeShader, "inPos"), 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-		// index buffer for sphere
-		glGenBuffers(1, &lightVolumeIBO);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolumeIBO);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightVolume->indices.size() * sizeof(GL_UNSIGNED_INT), &(lightVolume->indices[0]), GL_STATIC_DRAW);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-
-
 		// Set up textures
 		glGenFramebuffers(1, &(gBuffer.id));
 		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
@@ -176,7 +172,7 @@ void RendererSystem::Setup() {
 
 		glGenTextures(1, &finalQuadRender);
 		glBindTexture(GL_TEXTURE_2D, finalQuadRender);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, windowWidth, windowHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowWidth, windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -218,35 +214,15 @@ void RendererSystem::Setup() {
 
 		glGenBuffers(1, &tiledPointLightsSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledPointLightsSSBO);
-		pointLightsToGPU.reserve(mainScene->pointLights.size());
-		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * mainScene->pointLights.size(), NULL, GL_DYNAMIC_DRAW);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data(), GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, tiledPointLightsSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-
-		// Set up our directional light array and buffers
-		for (int i = 0; i < mainScene->directionalLights.size(); i++) {
-			DirectionalLightToGPU d = DirectionalLightToGPU{
-				d.direction = mainScene->directionalLights[i].direction,
-				d.color = glm::vec3(mainScene->directionalLights[i].color),
-				d.luminance = mainScene->directionalLights[i].lum
-			};
-			directionalLightsToGPU.push_back(d);
-		}
-
-		glGenBuffers(1, &tiledDirectionalLightsSSBO);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledDirectionalLightsSSBO);
-		directionalLightsToGPU.reserve(mainScene->directionalLights.size());
-		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(DirectionalLightToGPU) * mainScene->directionalLights.size(), directionalLightsToGPU.data(), GL_DYNAMIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, tiledDirectionalLightsSSBO);
+		glGenBuffers(1, &lightTilesSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightTilesSSBO);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(unsigned int) * 512 * NUM_GROUPS_X * NUM_GROUPS_Y, NULL, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lightTilesSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
-
-		//glGenBuffers(1, &lightTilesSSBO);
-		//glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightTilesSSBO);
-		//glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(int) * 128 * NUM_GROUPS_X * NUM_GROUPS_Y, NULL, GL_DYNAMIC_DRAW);
-		//glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, lightTilesSSBO);
-		//glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	}
 
@@ -338,8 +314,7 @@ void RendererSystem::Register(const Component* c) {
 		if (mat->isTransparent && pointLightsSSBO == 0) {
 			glGenBuffers(1, &pointLightsSSBO);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightsSSBO);
-			pointLightsToGPU.reserve(mainScene->pointLights.size());
-			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * mainScene->pointLights.size(), pointLightsToGPU.data(), GL_DYNAMIC_DRAW);
+			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * mainScene->pointLights.size(), NULL, GL_DYNAMIC_DRAW);
 			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLightsSSBO);
 			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		}
@@ -415,13 +390,13 @@ void RendererSystem::Render() {
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &deferredToTexTime);
 
-
-	// Compute shader step, where we calculate lighting using our tiled compute shader
+	// Compute shader step, where we calculate point light lighting using our tiled compute shader
 	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
 	TiledCompute();
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &tileComputeTime);
 
+	// Regular deferred where we calculate directional lighting
 	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
 	DeferredLighting();
 	glEndQuery(GL_TIME_ELAPSED);
@@ -438,9 +413,6 @@ void RendererSystem::Render() {
 	PostProcess();
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &postFXXTime);
-
-	// Finally, render final image to 2D quad that is the size of the screen
-	//DrawQuad();
 }
 
 void RendererSystem::CullScene() {
@@ -449,6 +421,7 @@ void RendererSystem::CullScene() {
 	meshesToDraw.clear();
 	transparentToDraw.clear();
 	for (int i = 0; i < modelRenderers.size(); i++) {
+
 		glm::mat4 model = modelRenderers[i]->gameObject->transform->model;
 		for (int j = 0; j < modelRenderers[i]->numMeshes; j++) {
 
@@ -472,39 +445,7 @@ void RendererSystem::CullScene() {
 			}
 
 		}
-	}
 
-	// Get all of our lights that will be used for drawing.
-	pointLightsToDraw.clear();
-	pointLightsToGPU.clear();
-	for (int i = 0; i < mainScene->pointLights.size(); i++) {
-		glm::vec4 pos = mainScene->pointLights[i].position;
-		glm::vec3 color = mainScene->pointLights[i].color;
-		float radius = mainScene->pointLights[i].radius;
-		float lum = mainScene->pointLights[i].lum;
-
-		glm::mat4 model = glm::mat4(1);
-		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
-		model = glm::scale(model, glm::vec3(radius, radius, radius));
-
-		if (!ShouldFrustumCull(lightVolume, model)) {
-
-			PointLightToDraw pToDraw = PointLightToDraw{
-				pToDraw.model = model,
-				pToDraw.position = pos,
-				pToDraw.luminance = lum,
-				pToDraw.color = color,
-				pToDraw.radius = radius
-			};
-			pointLightsToDraw.push_back(pToDraw);
-
-			PointLightToGPU pToGPU = PointLightToGPU{
-				pToGPU.position = pos,
-				pToGPU.color = color,
-				pToGPU.luminance = lum
-			};
-			pointLightsToGPU.push_back(pToGPU);
-		}
 	}
 
 }
@@ -689,7 +630,14 @@ void RendererSystem::DeferredToTexture() {
 }
 
 void RendererSystem::TiledCompute() {
-	
+
+	// Clear framebuffer from last frame
+	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+	glClearColor(0, 0, 0, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+
 	glUseProgram(tiledComputeShader);
 
 
@@ -706,32 +654,37 @@ void RendererSystem::TiledCompute() {
 	glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
 	glUniform1i(glGetUniformLocation(tiledComputeShader, "gDepth"), 2);
 
-	glBindImageTexture(0, finalQuadRender, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_SRGB8);
+	glBindImageTexture(0, finalQuadRender, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
 	glUniform1i(glGetUniformLocation(tiledComputeShader, "destTex"), 0);
 
 
 	// Set up our other variables
-	GLint uniProjView = glGetUniformLocation(tiledComputeShader, "projVew");
-	glUniformMatrix4fv(uniProjView, 1, GL_FALSE, glm::value_ptr(proj * view));
+	glm::vec3 camPos = mainCamera->transform->position;
+	GLint uniCamPos = glGetUniformLocation(tiledComputeShader, "camPos");
+	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+
+	GLint uniProjView = glGetUniformLocation(tiledComputeShader, "proj");
+	glUniformMatrix4fv(uniProjView, 1, GL_FALSE, glm::value_ptr(proj));
+	GLint uniView = glGetUniformLocation(tiledComputeShader, "view");
+	glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
+
 	GLint uniInvProj = glGetUniformLocation(tiledComputeShader, "invProj");
 	glUniformMatrix4fv(uniInvProj, 1, GL_FALSE, glm::value_ptr(glm::inverse(proj)));
 	GLint uniInvView = glGetUniformLocation(tiledComputeShader, "invView");
 	glUniformMatrix4fv(uniInvView, 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
 
+	GLint uniNumPointLights = glGetUniformLocation(tiledComputeShader, "numPointLights");
+	glUniform1ui(uniNumPointLights, static_cast<unsigned int>(pointLightsToGPU.size()));
+
 	//TODO:
 	// Need to decide if this compute shader is an all-in-one or if it will just calculate light tiles
-
-	// Set up our SSBO's with necessary data
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledPointLightsSSBO);
-	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data());
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledDirectionalLightsSSBO);
-	glBufferSubData(GL_SHADER_STORAGE_BUFFER, 1, sizeof(DirectionalLightToGPU) * directionalLightsToGPU.size(), directionalLightsToGPU.data());
-	
 
 	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
 }
 
 void RendererSystem::DeferredLighting() {
+
+	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
 
 	glDisable(GL_DEPTH_TEST);
 	glDepthMask(GL_FALSE);
@@ -739,85 +692,6 @@ void RendererSystem::DeferredLighting() {
 	glBlendFunc(GL_ONE, GL_ONE);
 
 	glm::vec3 camPos = mainCamera->transform->position;
-
-	// Bind the output framebuffer from our deferred shading
-	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
-
-	// Clear the buffer to default color
-	glClearColor(0, 0, 0, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	// Point lights
-	{
-		glUseProgram(lightVolumeShader);
-		glBindVertexArray(lightVolumeVAO);
-
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuseSpec);
-		glActiveTexture(GL_TEXTURE2);
-		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
-		glUniform1i(glGetUniformLocation(lightVolumeShader, "gNormal"), 0);
-		glUniform1i(glGetUniformLocation(lightVolumeShader, "gDiffuseSpec"), 1);
-		glUniform1i(glGetUniformLocation(lightVolumeShader, "gDepth"), 2);
-
-		GLint uniCamPos = glGetUniformLocation(lightVolumeShader, "camPos");
-		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
-
-		GLint uniProj = glGetUniformLocation(lightVolumeShader, "invProj");
-		glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(glm::inverse(proj)));
-		GLint uniView = glGetUniformLocation(lightVolumeShader, "invView");
-		glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
-
-		GLint pvm = glGetUniformLocation(lightVolumeShader, "pvm");
-		GLint lightPos = glGetUniformLocation(lightVolumeShader, "lightPos");
-		GLint lightCol = glGetUniformLocation(lightVolumeShader, "lightCol");
-		GLint lightLum = glGetUniformLocation(lightVolumeShader, "lightLum");
-
-		// instead of drawing arrays, draw spheres at each light position
-		// Tiled deferred rendering has a huge boost over deferred with light volumes in densely
-		// populated lights (like my demo). However, it performs (slightly?) worse with sparsely
-		// populated lights
-		// Assuming I want to keep deferred/light-volumes due to performing better in more realistic
-		// scenarios, how can I boost performance?
-
-		// Right now we loop through every single pixel for every single light --> WASTE
-		// We want to get that to looping through every pixel for every meaningful light
-		// - BVH --> Would be similar to frustum planes. Would need to figure out bounds of object and which bvh sections it fits in
-		// - 
-		// - Tiled-deferred
-
-
-		// Point Lights
-		for (int i = 0; i < pointLightsToDraw.size(); i++) {
-
-			glm::mat4 pvmMatrix = proj * view * pointLightsToDraw[i].model;
-
-			// Switch culling if inside light volume
-			// float cubeRadius = sqrt(pointLightsToDraw[i].radius * pointLightsToDraw[i].radius + pointLightsToDraw[i].radius * pointLightsToDraw[i].radius);
-			if (glm::length(camPos - glm::vec3(pointLightsToDraw[i].position)) < pointLightsToDraw[i].radius) {
-				glCullFace(GL_FRONT);
-			} else {
-				glCullFace(GL_BACK);
-			}
-
-
-			glUniformMatrix4fv(pvm, 1, GL_FALSE, glm::value_ptr(pvmMatrix));
-			glUniform1f(lightLum, pointLightsToDraw[i].luminance);
-			glUniform3f(lightPos, pointLightsToDraw[i].position.x, pointLightsToDraw[i].position.y, pointLightsToDraw[i].position.z);
-			glUniform3f(lightCol, pointLightsToDraw[i].color.r, pointLightsToDraw[i].color.g, pointLightsToDraw[i].color.b);
-
-
-			totalTriangles += static_cast<int>(lightVolume->indices.size()) / 3;
-
-			// User our shader and draw our program
-			glDrawElements(GL_TRIANGLES, static_cast<int>(lightVolume->indices.size()), GL_UNSIGNED_INT, 0); //Number of vertices
-		}
-	}
-
-	// Switch back culling after point lights
-	glCullFace(GL_BACK);
 
 	// Directional Light (Sun)
 	{
