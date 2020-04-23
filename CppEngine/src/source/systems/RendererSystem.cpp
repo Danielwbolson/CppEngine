@@ -72,10 +72,8 @@ void RendererSystem::Setup() {
 	pointLightsToGPU.reserve(mainScene->pointLights.size());
 	for (int i = 0; i < mainScene->pointLights.size(); i++) {
 		PointLightToGPU pToGPU = PointLightToGPU{
-			pToGPU.position = glm::vec3(mainScene->pointLights[i].position),
-			pToGPU.radius = mainScene->pointLights[i].radius,
-			pToGPU.color = mainScene->pointLights[i].color,
-			pToGPU.luminance = mainScene->pointLights[i].lum
+			pToGPU.position_and_radius = glm::vec4(glm::vec3(mainScene->pointLights[i].position), mainScene->pointLights[i].radius),
+			pToGPU.color_and_luminance = glm::vec4(mainScene->pointLights[i].color, mainScene->pointLights[i].lum)
 		};
 		pointLightsToGPU.push_back(pToGPU);
 	}

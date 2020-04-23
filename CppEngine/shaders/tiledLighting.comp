@@ -29,14 +29,14 @@ shared uint maxDepth;
 shared uint numTilePointLights;
 
 struct PointLightToGPU {
-	vec3 position;
-	float radius;
-	vec3 color;
-	float luminance;
+	vec4 position_and_radius;
+	vec4 color_and_luminance;
 };
 layout(std430, binding = 0) buffer PointLights {
 	PointLightToGPU pointLights[];
 };
+// Caching in shared memory to speed up performance
+shared PointLightToGPU sharedPointLights[MAX_LIGHTS_PER_TILE];
 
 // each tile supports 512 unique point lights
 struct Tile {
@@ -118,7 +118,7 @@ void main() {
 	// Light culling for this tile
 	// Each thread in this block should cull as few lights as possible (distribute evenly)
 	uint numThreads = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
-	uint numPasses = (numPointLights / numThreads) + 1;
+	uint numPasses = max((numPointLights - 1) / numThreads + 1, 0);
 
 	for (int i = 0; i < numPasses; i++) {
 
@@ -129,8 +129,8 @@ void main() {
 		uint index = i * numThreads + gl_LocalInvocationIndex;
 		if (index >= numPointLights) { continue; }
 
-		vec4 pos = view * vec4(pointLights[index].position, 1.0);
-		float rad = pointLights[index].radius / pos.w;
+		vec4 pos = view * vec4(pointLights[index].position_and_radius.xyz, 1.0);
+		float rad = pointLights[index].position_and_radius.w / pos.w;
 		vec3 minPoint = vec3(pos.x - rad, pos.y - rad, pos.z - rad);
 		vec3 maxPoint = vec3(pos.x + rad, pos.y + rad, pos.z + rad);
 
@@ -147,11 +147,14 @@ void main() {
 		// If all frustums can see a part of this, this light is impacting our tile
 		if (inFrustum == 6) {
 			// Add our current light to this tiles array of lights
-			lightTiles[oneDimWorkGroupID].pointLights[atomicAdd(numTilePointLights, 1)] = index;
+			uint id = atomicAdd(numTilePointLights, 1);
+			lightTiles[oneDimWorkGroupID].pointLights[id] = index;
+			sharedPointLights[id] = pointLights[index];
 		}
 
 	}
 
+    memoryBarrierShared();
 	barrier();
 
 	// At this point, our tile should be filled with all of the point lights it needs
@@ -177,9 +180,9 @@ void main() {
 
 	// Run through all lights for this tile
 	for (int i = 0; i < numTilePointLights; i++) {
-		vec3 lightPos = pointLights[lightTiles[oneDimWorkGroupID].pointLights[i]].position;
-		vec3 lightCol = pointLights[lightTiles[oneDimWorkGroupID].pointLights[i]].color;
-		float lightLum = pointLights[lightTiles[oneDimWorkGroupID].pointLights[i]].luminance;
+		vec3 lightPos = sharedPointLights[i].position_and_radius.xyz;
+		vec3 lightCol = sharedPointLights[i].color_and_luminance.xyz;
+		float lightLum = sharedPointLights[i].color_and_luminance.w;
 
 		// light info in world space
 		vec3 lightDir = normalize(lightPos - fragPos);

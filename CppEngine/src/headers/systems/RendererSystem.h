@@ -50,10 +50,8 @@ struct MeshToDraw {
 };
 
 struct PointLightToGPU {
-	glm::vec3 position;
-	float radius;
-	glm::vec3 color;
-	float luminance;
+	glm::vec4 position_and_radius;
+	glm::vec4 color_and_luminance;
 };
 struct DirectionalLightToGPU {
 	glm::vec4 direction;
