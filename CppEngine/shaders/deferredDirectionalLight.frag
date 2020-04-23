@@ -9,9 +9,9 @@ uniform sampler2D gDepth;
 uniform sampler2D depthMap;
 const float span = 1.0 / 4096.0;
 
-uniform vec3 lightDir;
-uniform vec3 lightCol;
-uniform mat4 lightProjView;
+uniform vec3 directionalLightDir;
+uniform vec3 directionalLightCol;
+uniform mat4 directionalLightProjView;
 
 uniform vec3 camPos;
 
@@ -50,20 +50,20 @@ void main() {
     vec3 eye = normalize(camPos-fragPos);
     vec3 outColor = vec3(0, 0, 0);
 
-	vec4 fragPosLightSpace = (lightProjView * vec4(fragPos, 1.0));
+	vec4 fragPosLightSpace = (directionalLightProjView * vec4(fragPos, 1.0));
 
 	vec3 diffuseColor; vec3 specularColor;
 
-    float ndotL = max(dot(normal, -lightDir), 0.0);
+    float ndotL = max(dot(normal, -directionalLightDir), 0.0);
     if (ndotL > 0.0) {
         // diffuse
 		diffuseColor.x = float(diffuseSpec.x & 0xFF) / 255.0;
 		diffuseColor.y = float(diffuseSpec.y & 0xFF) / 255.0;
 		diffuseColor.z = float(diffuseSpec.z & 0xFF) / 255.0;
-        vec3 diffuse = lightCol * diffuseColor * ndotL;
+        vec3 diffuse = directionalLightCol * diffuseColor * ndotL;
 
         // specular
-        vec3 h = normalize(-lightDir + eye);
+        vec3 h = normalize(-directionalLightDir + eye);
         float spec = pow(max(dot(h, normal), 0.0), diffuseSpec.a);
 		
 		specularColor.x = float(diffuseSpec.x >> 8) / 255.0;
@@ -90,7 +90,7 @@ float calculateShadow(vec4 fragPosLightSpace) {
 			float y = projCoords.y + span * (j - 2);
 			float textureDepth = texture(depthMap, vec2(x, y)).r;
 
-			shadow += textureDepth < projCoords.z - 0.0001 ? 1.0 : 0.0;
+			shadow += textureDepth < projCoords.z - 0.00001 ? 1.0 : 0.0;
 		}
 	}
 

@@ -1,7 +1,7 @@
 #version 450 compatibility
 #extension GL_ARB_compute_shader : enable
 
-#define MAX_LIGHTS_PER_TILE 512
+#define MAX_LIGHTS_PER_TILE 1023
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
@@ -32,17 +32,18 @@ struct PointLightToGPU {
 	vec4 position_and_radius;
 	vec4 color_and_luminance;
 };
-layout(std430, binding = 0) buffer PointLights {
+layout(std430, binding = 0) readonly buffer PointLights {
 	PointLightToGPU pointLights[];
 };
 // Caching in shared memory to speed up performance
 shared PointLightToGPU sharedPointLights[MAX_LIGHTS_PER_TILE];
 
-// each tile supports 512 unique point lights
+// each tile supports 1023 unique point lights
 struct Tile {
-	uint pointLights[512]; // 512 point lights supported
+	uint pointLightIndices[MAX_LIGHTS_PER_TILE]; // 1023 point lights supported
+	uint numLights;
 };
-layout(std430, binding = 1) buffer LightTiles {
+layout(std430, binding = 1) coherent writeonly buffer LightTiles {
 	Tile lightTiles[];
 };
 
@@ -68,6 +69,8 @@ void main() {
 	// UV coordinates to use on our samplers
 	vec2 samplerUV = vec2(globalId.x / float(resolution.x), globalId.y / float(resolution.y));
 
+	lightTiles[oneDimWorkGroupID].numLights = 0;
+
 	// Get depth value from texture
 	float depthFloat = texture(gDepth, samplerUV).r;
 
@@ -78,6 +81,7 @@ void main() {
 	atomicMin(minDepth, depthInt);
 
 	// We need min/max depth for the tile calculated before continuing
+	memoryBarrierShared();
 	barrier();
 
 
@@ -148,7 +152,10 @@ void main() {
 		if (inFrustum == 6) {
 			// Add our current light to this tiles array of lights
 			uint id = atomicAdd(numTilePointLights, 1);
-			lightTiles[oneDimWorkGroupID].pointLights[id] = index;
+
+			lightTiles[oneDimWorkGroupID].pointLightIndices[id] = index;
+			atomicAdd(lightTiles[oneDimWorkGroupID].numLights, 1);
+
 			sharedPointLights[id] = pointLights[index];
 		}
 

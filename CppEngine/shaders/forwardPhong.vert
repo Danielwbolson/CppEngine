@@ -12,6 +12,8 @@ uniform mat4 model;
 uniform mat4 view;
 uniform mat4 proj;
 
+out vec4 outPos;
+
 out vec3 fragNorm;
 out vec3 fragPos;
 out vec2 fragUV;
@@ -30,4 +32,5 @@ void main() {
 	}
 
 	fragUV = inUV;
+	outPos = gl_Position;
 }

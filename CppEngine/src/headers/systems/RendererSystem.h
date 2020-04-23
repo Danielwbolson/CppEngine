@@ -58,6 +58,10 @@ struct DirectionalLightToGPU {
 	glm::vec3 color;
 	float luminance;
 };
+struct LightTile {
+	unsigned int pointLightIndices[1023]; // 1023 point lights supported
+	unsigned int numLights;
+};
 
 class RendererSystem : public Systems {
 private:
@@ -84,13 +88,12 @@ private:
 
 	// Tiled lighting variables
 	GLuint tiledComputeShader;
-	GLuint tiledPointLightsSSBO;
+	GLuint pointLightsSSBO;
 	GLuint lightTilesSSBO; // Max of 512 lights per tile
 
 	// Shadows
 	GLuint shadowMapShader;
 	GLuint depthMapFBO; GLuint depthMap;
-	GLuint pointLightsSSBO = 0;
 	const int shadowWidth = 4096; const int shadowHeight = 4096;
 
 	// Post processing
