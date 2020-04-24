@@ -218,7 +218,7 @@ void RendererSystem::Setup() {
 
 		glGenBuffers(1, &lightTilesSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightTilesSSBO);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(unsigned int) * 512 * NUM_GROUPS_X * NUM_GROUPS_Y, NULL, GL_DYNAMIC_DRAW);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(unsigned int) * 1024 * NUM_GROUPS_X * NUM_GROUPS_Y, NULL, GL_DYNAMIC_DRAW);
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lightTilesSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
