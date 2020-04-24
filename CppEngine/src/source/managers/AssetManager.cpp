@@ -102,13 +102,13 @@ namespace AssetManager {
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullData);
 
 		Shader* deferredToTexture = MemoryManager::Allocate<Shader>("deferredToTexture.vert", "deferredToTexture.frag");
-		Shader* forwardPhong = MemoryManager::Allocate<Shader>("forwardPhong.vert", "forwardPhong.frag");
+		Shader* forwardPlusTransparency = MemoryManager::Allocate<Shader>("forwardPlusTransparency.vert", "forwardPlusTransparency.frag");
 
 		shaders->push_back(deferredToTexture);
-		shaders->push_back(forwardPhong);
+		shaders->push_back(forwardPlusTransparency);
 
 		deferredToTexture = nullptr;
-		forwardPhong = nullptr;
+		forwardPlusTransparency = nullptr;
 
 	}
 

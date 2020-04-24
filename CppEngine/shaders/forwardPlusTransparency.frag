@@ -14,7 +14,7 @@ uniform sampler2D dispTex;
 uniform sampler2D alphaTex;
 
 uniform sampler2D depthMap;
-const float span = 1.0 / 16384.0;
+const float span = 1.0 / 4096.0;
 
 uniform bool usingBump;
 uniform bool usingNormal;
@@ -96,7 +96,7 @@ void main() {
 
 	vec4 fragPosLightSpace = (directionalLightProjView * vec4(fragPos, 1.0));
 	float shadow = calculateShadow(fragPosLightSpace);
-	vec3 directionalLightCol = /*vec3(0, 0, 0);*/ (1.0 - shadow) * calculateDirectionalLight(eye, n, d, spec, specExp);
+	vec3 directionalLightCol = (1.0 - shadow) * calculateDirectionalLight(eye, n, d, spec, specExp);
 
     finalColor = vec4(pointLightCol + directionalLightCol, o);
 }
@@ -113,12 +113,16 @@ vec3 calculatePointLights(vec3 eye, vec3 n, vec4 d, vec3 spec, float specExp, ve
 	for (int i = 0; i < lightTiles[oneDimTileCoord].numLights; i++) {
 		uint index = lightTiles[oneDimTileCoord].pointLightIndices[i];
 
-		vec3 lightDir = normalize(pointLights[index].position_and_radius.xyz - fragPos);
+		// Cache since ssbo access is slow (only two acceses instead of 4
+		vec4 position_and_radius = pointLights[index].position_and_radius;
+		vec4 color_and_luminance = pointLights[index].color_and_luminance;
+
+		vec3 lightDir = normalize(position_and_radius.xyz - fragPos);
 
 		float ndotL = max(dot(n, lightDir), 0.0);
 		if (ndotL > 0.0) {
 			// diffuse
-			vec3 diffuseColor = d.rbg * pointLights[index].color_and_luminance.rgb * ndotL;
+			vec3 diffuseColor = d.rgb * color_and_luminance.rgb * ndotL;
 
 			// specular
 			vec3 h = normalize(lightDir + eye);
@@ -126,8 +130,8 @@ vec3 calculatePointLights(vec3 eye, vec3 n, vec4 d, vec3 spec, float specExp, ve
 			vec3 specularColor = spec * exponent;
 
 			// attenuation
-			float dist = length(pointLights[index].position_and_radius.xyz - fragPos);
-			float attenuation = pointLights[index].color_and_luminance.a / (1 + 1 * dist + 2 * dist * dist);
+			float dist = length(position_and_radius.xyz - fragPos);
+			float attenuation = color_and_luminance.a / (1 + 1 * dist + 2 * dist * dist);
 
 			if (attenuation < 0.01) { attenuation = 0; }
 
@@ -171,7 +175,7 @@ float calculateShadow(vec4 fragPosLightSpace) {
 			float y = projCoords.y + span * (j - 2);
 			float textureDepth = texture(depthMap, vec2(x, y)).r;
 
-			shadow += textureDepth < projCoords.z - 0.00001 ? 1.0 : 0.0;
+			shadow += textureDepth < projCoords.z - 0.0001 ? 1.0 : 0.0;
 		}
 	}
 

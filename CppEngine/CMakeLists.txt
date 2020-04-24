@@ -182,8 +182,8 @@ set(SHADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/deferredToTexture.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/finalQuad.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/finalQuad.frag
-	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPhong.vert
-	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPhong.frag
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPlusTransparency.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPlusTransparency.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/tiledLighting.comp

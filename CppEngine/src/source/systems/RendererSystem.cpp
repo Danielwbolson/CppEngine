@@ -347,6 +347,12 @@ void RendererSystem::Render() {
 	view = mainCamera->view;
 	proj = mainCamera->proj;
 
+	// Clear color from our final framebuffer (depth will be overridden)
+	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+	glClearColor(0, 0, 0, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
 	// First, cull out unwanted geometry. Currently, only Frustum Culling is supported
 	auto startTime = std::chrono::high_resolution_clock::now();
 	CullScene();
@@ -617,13 +623,6 @@ void RendererSystem::DeferredToTexture() {
 }
 
 void RendererSystem::TiledCompute() {
-
-	// Clear framebuffer from last frame
-	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
-	glClearColor(0, 0, 0, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
 
 	glUseProgram(tiledComputeShader);
 
