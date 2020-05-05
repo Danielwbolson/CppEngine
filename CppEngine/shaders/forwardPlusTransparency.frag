@@ -133,8 +133,6 @@ vec3 calculatePointLights(vec3 eye, vec3 n, vec4 d, vec3 spec, float specExp, ve
 			float dist = length(position_and_radius.xyz - fragPos);
 			float attenuation = color_and_luminance.a / (1 + 1 * dist + 2 * dist * dist);
 
-			if (attenuation < 0.01) { attenuation = 0; }
-
 			outColor += diffuseColor * attenuation; // diffuse
 			outColor += specularColor * attenuation; // specular
 		}
