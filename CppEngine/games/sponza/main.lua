@@ -12,7 +12,7 @@ sun = addDirectionalLight(.945 * 1.5, .9 * 1.5, .8 * 1.5, 0, -1, 0)
 
 pointLightArray = {}
 idPoint = 1
-for i = 0,0 do
+for i = 0,500 do
 	local r = 0.945
 	local g = 0.9
 	local b = 0.8

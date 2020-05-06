@@ -59,6 +59,7 @@ void main() {
 	numTilePointLights = 0;
 	minDepth = uint(0xFFFFFFFF);
 	maxDepth = 0;
+	memoryBarrierShared();
 	barrier();
 
 	// position in global shader (texture position)
@@ -92,6 +93,7 @@ void main() {
 	// We need to convert our tile's frustum to the correct scale and position
 	// We can use gl_WorkGroupSize since our x and y are the same (16x16)
 	// TODO: I don't understand why 2 is in the denominator. Makes sense to me to not have it.
+	mat4 projView = proj * view;
 	vec2 tileScale = resolution * (1.0f / float(2.0f * gl_WorkGroupSize.xy));
 	vec2 tileBias = tileScale - vec2(gl_WorkGroupID.xy);
 
@@ -99,9 +101,24 @@ void main() {
 	// Thus, we want to calculate frustum planes using a proj matrix
 	/* https://www.digipen.edu/sites/default/files/public/docs/theses/denis-ishmukhametov-master-of-science-in-computer-science-thesis-efficient-tile-based-deferred-shading-pipeline.pdf */
 
-	vec4 col1 = vec4(-proj[0][0] * tileScale.x, proj[0][1], tileBias.x, proj[0][3]);
-	vec4 col2 = vec4(proj[1][0], -proj[1][1] * tileScale.y, tileBias.y, proj[1][3]);
-	vec4 col4 = vec4(proj[3][0], proj[3][1], -1.0f, proj[3][3]);
+	vec4 col1 = vec4(	
+		-proj[0][0] * tileScale.x, 
+		0.0f, 
+		tileBias.x, 
+		0.0f
+	);
+	vec4 col2 = vec4(
+		0.0f, 
+		-proj[1][1] * tileScale.y, 
+		tileBias.y, 
+		0.0f
+	);
+	vec4 col4 = vec4(
+		0.0f, 
+		0.0f, 
+		1.0f, 
+		0.0f
+	);
 
 	vec4 frustumPlanes[6];
 	//left
@@ -109,16 +126,18 @@ void main() {
 	//right
 	frustumPlanes[1] = col4 - col1;
 	//bottom
-	frustumPlanes[2] = col4 + col2;
+	frustumPlanes[2] = col4 - col2;
 	//top
-	frustumPlanes[3] = col4 - col2;
+	frustumPlanes[3] = col4 + col2;
 	//near
+	// Normal is facing incorrect direction. Lights are culled that shouldn't be otherwise. Will move
+	// away from frustum calculations
 	frustumPlanes[4] = vec4(0.0f, 0.0f, -1.0f, -minDepthFloat); // why negative min depth?
 	//far
 	frustumPlanes[5] = vec4(0.0f, 0.0f, -1.0f, maxDepthFloat);
 
 	// TODO : Should we normalize the frustum planes?
-	for(int i = 0; i < 6; i++) {
+	for(int i = 0; i < 4; i++) {
         frustumPlanes[i] *= 1.0f / length(frustumPlanes[i].xyz);
     }
 
@@ -136,13 +155,13 @@ void main() {
 		uint index = i * numThreads + gl_LocalInvocationIndex;
 		if (index >= numPointLights) { continue; }
 
-		vec4 viewPos = view * vec4(pointLights[index].position_and_radius.xyz, 1.0);
+		vec4 viewPos = view * vec4(pointLights[index].position_and_radius.xyz, 1.0f);
 		float rad = pointLights[index].position_and_radius.w / viewPos.w;
 
 		bool inFrustum = true;
 		for (int j = 0; j < 6; j++) {
-			float dist = dot(frustumPlanes[i], viewPos);
-			inFrustum = inFrustum && (abs(dist) <= rad);
+			float dist = dot(frustumPlanes[j], viewPos);
+			inFrustum = inFrustum && (dist >= -rad);
 		}
 
 		// If all frustums can see a part of this, this light is impacting our tile
@@ -185,38 +204,34 @@ void main() {
 	// Run through all lights for this tile
 	for (int i = 0; i < numTilePointLights; i++) {
 		vec3 lightPos = sharedPointLights[i].position_and_radius.xyz;
-		float lightRad = sharedPointLights[i].position_and_radius.w;
-		vec3 lightCol = sharedPointLights[i].color_and_luminance.xyz;
-		float lightLum = sharedPointLights[i].color_and_luminance.w;
 
 		// light info in world space
 		vec3 lightDir = normalize(lightPos - fragPos);
 		float ndotL = max(dot(normal, lightDir), 0.0);
 		float dist = length(lightPos - fragPos);
+		
+		if (ndotL > 0.0 && (dist < sharedPointLights[i].position_and_radius.w)) {
 
-		if (ndotL > 0.0) { //&& (dist < lightRad)) {
-			outColor = vec3(ndotL, 0, 0);
+			// diffuse
+			diffuseColor.x = float(diffuseSpec.x & 0xFF) / 255.0;
+			diffuseColor.y = float(diffuseSpec.y & 0xFF) / 255.0;
+			diffuseColor.z = float(diffuseSpec.z & 0xFF) / 255.0;
+			vec3 diffuse = sharedPointLights[i].color_and_luminance.xyz * diffuseColor * ndotL;
 
-//			// diffuse
-//			diffuseColor.x = float(diffuseSpec.x & 0xFF) / 255.0;
-//			diffuseColor.y = float(diffuseSpec.y & 0xFF) / 255.0;
-//			diffuseColor.z = float(diffuseSpec.z & 0xFF) / 255.0;
-//			vec3 diffuse = lightCol * diffuseColor * ndotL;
-//
-//			// specular
-//			vec3 h = normalize(lightDir + eye);
-//			float spec = pow(max(dot(h, normal), 0.0), diffuseSpec.a);
-//
-//			specularColor.x = float(diffuseSpec.x >> 8) / 255.0;
-//			specularColor.y = float(diffuseSpec.y >> 8) / 255.0;
-//			specularColor.z = float(diffuseSpec.z >> 8) / 255.0;
-//			vec3 specular = specularColor * spec;
-//
-//			// attenuation
-//			float attenuation = lightLum / (1 + 1 * dist + 2 * dist * dist);
-//
-//			outColor += diffuse * attenuation; // diffuse
-//			outColor += specular * attenuation; // specular
+			// specular
+			vec3 h = normalize(lightDir + eye);
+			float spec = pow(max(dot(h, normal), 0.0), diffuseSpec.a);
+
+			specularColor.x = float(diffuseSpec.x >> 8) / 255.0;
+			specularColor.y = float(diffuseSpec.y >> 8) / 255.0;
+			specularColor.z = float(diffuseSpec.z >> 8) / 255.0;
+			vec3 specular = specularColor * spec;
+
+			// attenuation
+			float attenuation = sharedPointLights[i].color_and_luminance.w / (1 + 1 * dist + 2 * dist * dist);
+
+			outColor += diffuse * attenuation; // diffuse
+			outColor += specular * attenuation; // specular
 		}
 	}
 
