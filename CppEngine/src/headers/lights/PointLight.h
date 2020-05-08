@@ -24,7 +24,7 @@ struct PointLight {
 		// 0.01 = lum / (1 + 1 * radius + 2 * radius * radius);
 		float a = 1;
 		float b = 2;
-		float lightLum = 0.008f;
+		float lightLum = 0.005f;
 		radius = sqrt(lum / (b * lightLum));
 	}
 
@@ -32,6 +32,8 @@ struct PointLight {
         if (this == &p) return *this;
         this->color = p.color;
         this->position = p.position;
+		this->radius = p.radius;
+		this->lum = p.lum;
         return *this;
     }
 };

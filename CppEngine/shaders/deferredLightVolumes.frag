@@ -46,11 +46,13 @@ void main() {
     
     // eye
     vec3 eye = normalize(camPos-fragPos);
-    vec3 outColor = vec3(0, 0, 0);
 
     // light info in world space
     vec3 lightDir = normalize(lightPos - fragPos);
     float ndotL = max(dot(normal, lightDir), 0.0);
+	float dist = length(lightPos - fragPos);
+
+	vec3 outColor = vec3(0, 0, 0);
 
     if (ndotL > 0.0) {
         // diffuse
@@ -69,7 +71,6 @@ void main() {
         vec3 specular = specularColor * spec;
 
         // attenuation
-        float dist = length(lightPos - fragPos);
         float attenuation = lightLum / (1 + 1 * dist + 2 * dist * dist);
 
         outColor += diffuse * attenuation; // diffuse

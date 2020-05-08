@@ -4,6 +4,8 @@
 #include <chrono>
 #include <cmath>
 #include "glm/gtc/type_ptr.hpp"
+#include <glm/gtc/matrix_transform.hpp> 
+#include <glm/gtx/transform.hpp>
 
 #include "Utility.h"
 #include "Configuration.h"
@@ -17,10 +19,7 @@
 
 
 
-RendererSystem::RendererSystem(const int& sW, const int& sH) {
-	screenWidth = sW;
-	screenHeight = sH;
-
+RendererSystem::RendererSystem() {
 	// We know that this is a mesh, not a model
 	lightVolume = (AssetManager::tinyLoadObj("sphere"))->meshes[0];
 }
@@ -91,7 +90,6 @@ void RendererSystem::Setup() {
 		glGenBuffers(1, &lightVolumeIBO);
 		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightVolumeIBO);
 		glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightVolume->indices.size() * sizeof(GL_UNSIGNED_INT), &(lightVolume->indices[0]), GL_STATIC_DRAW);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 
 		// Set up textures
@@ -101,7 +99,7 @@ void RendererSystem::Setup() {
 		// normal color buffer
 		glGenTextures(1, &(gBuffer.normals));
 		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, screenWidth, screenHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB8, windowWidth, windowHeight, 0, GL_RGB, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gBuffer.normals, 0);
@@ -109,7 +107,7 @@ void RendererSystem::Setup() {
 		// diffuse color
 		glGenTextures(1, &(gBuffer.diffuseSpec));
 		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuseSpec);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16UI, screenWidth, screenHeight, 0, GL_RGBA_INTEGER, GL_UNSIGNED_INT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA16UI, windowWidth, windowHeight, 0, GL_RGBA_INTEGER, GL_UNSIGNED_INT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gBuffer.diffuseSpec, 0);
@@ -197,7 +195,7 @@ void RendererSystem::Setup() {
 		// Set up our depth texture
 		glGenTextures(1, &(gBuffer.depth));
 		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, screenWidth, screenHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, windowWidth, windowHeight, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
@@ -436,11 +434,12 @@ void RendererSystem::CullScene() {
 		float radius = mainScene->pointLights[i].radius;
 		float lum = mainScene->pointLights[i].lum;
 
-		glm::mat4 model = glm::mat4(1);
-		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
-		model = glm::scale(model, glm::vec3(radius, radius, radius));
-
-		if (true) { //!ShouldFrustumCull(lightVolume, model)) {
+		glm::mat4 model = glm::mat4(1.0);
+		glm::mat4 scale = glm::scale(glm::vec3(radius, radius, radius)); 
+		glm::mat4 translate = glm::translate(glm::vec3(pos.x, pos.y, pos.z));
+		model = translate * scale * model;
+		
+		if (!ShouldFrustumCull(lightVolume, model)) {
 
 			PointLightToDraw pToDraw = PointLightToDraw{
 				pToDraw.model = model,
@@ -908,7 +907,7 @@ void RendererSystem::PostProcess() {
 
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, finalQuadFBO);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(0, 0, screenWidth, screenHeight, 0, 0, screenWidth, screenHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+	glBlitFramebuffer(0, 0, windowWidth, windowHeight, 0, 0, windowWidth, windowHeight, GL_DEPTH_BUFFER_BIT, GL_NEAREST);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	glUseProgram(finalQuadShader);

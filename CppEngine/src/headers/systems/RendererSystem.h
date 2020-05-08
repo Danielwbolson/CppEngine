@@ -112,7 +112,7 @@ public:
 	long long deferredToTexTime; long long deferredLightsTime;
 	long long transparentTime; long long postFXXTime;
 
-	RendererSystem(const int&, const int&);
+	RendererSystem();
 	~RendererSystem();
 
 	void Setup();
