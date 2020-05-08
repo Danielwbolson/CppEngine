@@ -174,7 +174,7 @@ void RendererSystem::Setup() {
 
 		glGenTextures(1, &finalQuadRender);
 		glBindTexture(GL_TEXTURE_2D, finalQuadRender);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB8, windowWidth, windowHeight, 0, GL_RGB, GL_FLOAT, NULL);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowWidth, windowHeight, 0, GL_RGBA, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -440,7 +440,7 @@ void RendererSystem::CullScene() {
 		model = glm::translate(model, glm::vec3(pos.x, pos.y, pos.z));
 		model = glm::scale(model, glm::vec3(radius, radius, radius));
 
-		if (!ShouldFrustumCull(lightVolume, model)) {
+		if (true) { //!ShouldFrustumCull(lightVolume, model)) {
 
 			PointLightToDraw pToDraw = PointLightToDraw{
 				pToDraw.model = model,
