@@ -45,6 +45,7 @@ layout(std430, binding = 1) coherent writeonly buffer LightTiles {
 shared uint minDepth;
 shared uint maxDepth;
 shared uint numTilePointLights;
+shared uint numTileTransparentPointLights;
 
 vec3 octahedronDecompress(vec3);
 vec2 signNotZero(vec2);
@@ -57,6 +58,7 @@ void main() {
 		minDepth = 0x7f7fffff;
 		maxDepth = 0;
 		numTilePointLights = 0;
+		numTileTransparentPointLights = 0;
 	}
 
 	// position in global shader (texture position)
@@ -131,12 +133,11 @@ void main() {
 	frustumPlanes[2] = col4 - col2;
 	//top
 	frustumPlanes[3] = col4 + col2;
-	//near
-//	// Normal is facing incorrect direction. Lights are culled that shouldn't be otherwise. Will move
-//	// away from frustum calculations
-	frustumPlanes[4] = vec4(0.0f, 0.0f, -1.0f, -minViewDepth); // why negative min depth?
+
 	//far
-	frustumPlanes[5] = vec4(0.0f, 0.0f, 1.0f, maxViewDepth);
+	frustumPlanes[4] = vec4(0.0f, 0.0f, 1.0f, maxViewDepth);
+	//near
+	frustumPlanes[5] = vec4(0.0f, 0.0f, -1.0f, -minViewDepth);
 
 	// TODO : Should we normalize the frustum planes?
 	for(int i = 0; i < 4; i++) {
@@ -160,20 +161,27 @@ void main() {
 		vec4 viewPos = view * vec4(pointLights[index].position_and_radius.xyz, 1.0f);
 		float rad = pointLights[index].position_and_radius.w;
 
+		// check against frustum walls and far plane
 		bool inFrustum = true;
-		for (int j = 0; j < 6; j++) {
+		for (int j = 0; j < 5; j++) {
 			float dist = dot(frustumPlanes[j].xyz, viewPos.xyz) + frustumPlanes[j].w;
 			inFrustum = inFrustum && (dist >= -rad);
 		}
 
-		// If all frustums can see a part of this, this light is impacting our tile
+		// Camera plane for transparent geometry and Forward+
+		float dist = dot(vec4(0, 0, -1.0, -0.1), viewPos);
+		inFrustum = inFrustum && (dist >= -rad);
 		if (inFrustum) {
-			// Add our current light to this tiles array of lights
-			uint id = atomicAdd(numTilePointLights, 1);
-
+			uint id = atomicAdd(numTileTransparentPointLights, 1);
 			lightTiles[oneDimWorkGroupID].pointLightIndices[id] = index;
 			atomicAdd(lightTiles[oneDimWorkGroupID].numLights, 1);
+		}
 
+		// Near plane for opaque geometry
+		dist = dot(frustumPlanes[5], viewPos);
+		inFrustum = inFrustum && (dist >= -rad);
+		if (inFrustum) {
+			uint id = atomicAdd(numTilePointLights, 1);
 			sharedPointLights[id] = pointLights[index];
 		}
 
