@@ -82,9 +82,6 @@ void main() {
 	// We need min/max depth for the tile calculated before continuing
 	barrier();
 
-	float f = 1000.0;
-    float n = 0.1;
-
 	// Reset our min/max depth values for this tile to floats
 	float maxDepthFloat = float(maxDepth) / float(0x7f7fffff);
 	float depth_ndc = 2.0 * maxDepthFloat - 1.0f;
@@ -96,8 +93,6 @@ void main() {
 
 	// We need to convert our tile's frustum to the correct scale and position
 	// We can use gl_WorkGroupSize since our x and y are the same (16x16)
-	// TODO: I don't understand why 2 is in the denominator. Makes sense to me to not have it.
-	mat4 projView = proj * view;
 	vec2 tileScale = resolution * (1.0f / float(2.0f * gl_WorkGroupSize.xy));
 	vec2 tileBias = tileScale - vec2(gl_WorkGroupID.xy);
 
@@ -207,8 +202,6 @@ void main() {
 
 	// eye
 	vec3 eye = normalize(camPos-fragPos);
-
-	//outColor = vec3(maxDepthFloat / 100, minDepthFloat / 100, 0);
 
 	// Run through all lights for this tile
 	for (int i = 0; i < numTilePointLights; i++) {

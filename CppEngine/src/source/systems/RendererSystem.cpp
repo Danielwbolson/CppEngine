@@ -354,7 +354,7 @@ void RendererSystem::Render() {
 	// Clear color from our final framebuffer (depth will be overridden)
 	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
 	glClearColor(0, 0, 0, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// First, cull out unwanted geometry. Currently, only Frustum Culling is supported
@@ -667,10 +667,8 @@ void RendererSystem::TiledCompute() {
 
 	//TODO:
 	// Need to decide if this compute shader is an all-in-one or if it will just calculate light tiles
-	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
 	glMemoryBarrier(GL_ALL_BARRIER_BITS);
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
 void RendererSystem::DeferredLighting() {
