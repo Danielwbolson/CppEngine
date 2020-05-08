@@ -193,16 +193,20 @@ void RendererSystem::Setup() {
 		// Set up our depth texture
 		glGenTextures(1, &(gBuffer.depth));
 		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, windowWidth, windowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+		//glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, windowWidth, windowHeight, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
+		//glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_STENCIL_TEXTURE_MODE, GL_DEPTH_COMPONENT);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, windowWidth, windowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
 		// Connect to our gBuffer
 		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
+		//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 
 		// Connect to our intermediary frame buffer
 		glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+		//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 	}
 
@@ -663,8 +667,9 @@ void RendererSystem::TiledCompute() {
 
 	//TODO:
 	// Need to decide if this compute shader is an all-in-one or if it will just calculate light tiles
-
+	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
+	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 

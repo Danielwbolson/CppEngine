@@ -21,12 +21,7 @@ uniform mat4 invView;
 
 // Used for specular lighting
 uniform vec3 camPos;
-
 uniform uint numPointLights;
-
-shared uint minDepth;
-shared uint maxDepth;
-shared uint numTilePointLights;
 
 struct PointLightToGPU {
 	vec4 position_and_radius;
@@ -47,6 +42,9 @@ layout(std430, binding = 1) coherent writeonly buffer LightTiles {
 	Tile lightTiles[];
 };
 
+shared uint minDepth;
+shared uint maxDepth;
+shared uint numTilePointLights;
 
 vec3 octahedronDecompress(vec3);
 vec2 signNotZero(vec2);
@@ -55,12 +53,11 @@ vec3 oct_to_float32x3(vec2);
 
 void main() {
 
-	// Set our initial variables
-	numTilePointLights = 0;
-	minDepth = uint(0xFFFFFFFF);
-	maxDepth = 0;
-	memoryBarrierShared();
-	barrier();
+	if (gl_LocalInvocationIndex == 0) {
+		minDepth = 0x7f7fffff;
+		maxDepth = 0;
+		numTilePointLights = 0;
+	}
 
 	// position in global shader (texture position)
 	ivec2 globalId = ivec2(gl_GlobalInvocationID.xy);
@@ -74,21 +71,26 @@ void main() {
 
 	// Get depth value from texture
 	float depthFloat = texture(gDepth, samplerUV).r;
-
-	uint depthInt = uint(depthFloat * 0xFFFFFFFF);
-
+	uint depthInt = uint(depthFloat * float(0x7f7fffff));
+	
 	// Calculate min/max depth of out work group or tile
 	atomicMax(maxDepth, depthInt);
 	atomicMin(minDepth, depthInt);
 
 	// We need min/max depth for the tile calculated before continuing
-	memoryBarrierShared();
 	barrier();
 
+	float f = 1000.0;
+    float n = 0.1;
 
 	// Reset our min/max depth values for this tile to floats
-	float maxDepthFloat = float(maxDepth / float(0xFFFFFFFF));
-	float minDepthFloat = float(minDepth / float(0xFFFFFFFF));
+	float maxDepthFloat = float(maxDepth) / float(0x7f7fffff);
+	float depth_ndc = 2.0 * maxDepthFloat - 1.0f;
+	float maxViewDepth = proj[3][2] / (proj[2][2] + depth_ndc);
+
+	float minDepthFloat = float(minDepth) / float(0x7f7fffff);
+	depth_ndc = 2.0 * minDepthFloat - 1.0f;
+	float minViewDepth = proj[3][2] / (proj[2][2] + depth_ndc);
 
 	// We need to convert our tile's frustum to the correct scale and position
 	// We can use gl_WorkGroupSize since our x and y are the same (16x16)
@@ -116,7 +118,7 @@ void main() {
 	vec4 col4 = vec4(
 		0.0f, 
 		0.0f, 
-		1.0f, 
+		-1.0f, 
 		0.0f
 	);
 
@@ -130,11 +132,11 @@ void main() {
 	//top
 	frustumPlanes[3] = col4 + col2;
 	//near
-	// Normal is facing incorrect direction. Lights are culled that shouldn't be otherwise. Will move
-	// away from frustum calculations
-	frustumPlanes[4] = vec4(0.0f, 0.0f, -1.0f, -minDepthFloat); // why negative min depth?
+//	// Normal is facing incorrect direction. Lights are culled that shouldn't be otherwise. Will move
+//	// away from frustum calculations
+	frustumPlanes[4] = vec4(0.0f, 0.0f, -1.0f, -minViewDepth); // why negative min depth?
 	//far
-	frustumPlanes[5] = vec4(0.0f, 0.0f, -1.0f, maxDepthFloat);
+	frustumPlanes[5] = vec4(0.0f, 0.0f, 1.0f, maxViewDepth);
 
 	// TODO : Should we normalize the frustum planes?
 	for(int i = 0; i < 4; i++) {
@@ -156,11 +158,11 @@ void main() {
 		if (index >= numPointLights) { continue; }
 
 		vec4 viewPos = view * vec4(pointLights[index].position_and_radius.xyz, 1.0f);
-		float rad = pointLights[index].position_and_radius.w / viewPos.w;
+		float rad = pointLights[index].position_and_radius.w;
 
 		bool inFrustum = true;
 		for (int j = 0; j < 6; j++) {
-			float dist = dot(frustumPlanes[j], viewPos);
+			float dist = dot(frustumPlanes[j].xyz, viewPos.xyz) + frustumPlanes[j].w;
 			inFrustum = inFrustum && (dist >= -rad);
 		}
 
@@ -177,7 +179,6 @@ void main() {
 
 	}
 
-    memoryBarrierShared();
 	barrier();
 
 	// At this point, our tile should be filled with all of the point lights it needs
@@ -187,19 +188,19 @@ void main() {
 	// Don't normalize normal or we will ruin the encoding
 	vec3 normal       = octahedronDecompress(texture(gNormal, samplerUV).rgb);
 	uvec4 diffuseSpec = texture(gDiffuseSpec, samplerUV);
-	float depth       = texture(gDepth, samplerUV).r;
 	
 	vec3 diffuseColor; vec3 specularColor;
-
-	// Calculate fragment position from depth
-	float z = 2.0 * depth - 1;
+	
+	float z = 2.0 * depthFloat - 1;
 	vec4 clipSpacePos = vec4(samplerUV * 2.0 - 1.0, z, 1.0);
 	vec4 viewSpacePos = invProj * clipSpacePos;
 	viewSpacePos /= viewSpacePos.w;
 	vec3 fragPos = (invView * viewSpacePos).xyz;
-    
+
 	// eye
 	vec3 eye = normalize(camPos-fragPos);
+
+	//outColor = vec3(maxDepthFloat / 100, minDepthFloat / 100, 0);
 
 	// Run through all lights for this tile
 	for (int i = 0; i < numTilePointLights; i++) {
@@ -210,6 +211,7 @@ void main() {
 		float ndotL = max(dot(normal, lightDir), 0.0);
 		float dist = length(lightPos - fragPos);
 		
+
 		if (ndotL > 0.0 && (dist < sharedPointLights[i].position_and_radius.w)) {
 
 			// diffuse
@@ -232,6 +234,7 @@ void main() {
 
 			outColor += diffuse * attenuation; // diffuse
 			outColor += specular * attenuation; // specular
+
 		}
 	}
 
