@@ -216,12 +216,6 @@ void RendererSystem::Setup() {
 		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, tiledPointLightsSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
-		glGenBuffers(1, &lightTilesSSBO);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightTilesSSBO);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(unsigned int) * 1024 * NUM_GROUPS_X * NUM_GROUPS_Y, NULL, GL_DYNAMIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lightTilesSSBO);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -677,7 +671,10 @@ void RendererSystem::TiledCompute() {
 	//TODO:
 	// Need to decide if this compute shader is an all-in-one or if it will just calculate light tiles
 
+	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
+	glMemoryBarrier(GL_ALL_BARRIER_BITS);
+	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
 void RendererSystem::DeferredLighting() {

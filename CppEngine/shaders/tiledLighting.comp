@@ -1,7 +1,7 @@
 #version 450 compatibility
 #extension GL_ARB_compute_shader : enable
 
-#define MAX_LIGHTS_PER_TILE 1024
+#define MAX_LIGHTS_PER_TILE 1023
 
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
@@ -24,10 +24,6 @@ uniform vec3 camPos;
 
 uniform uint numPointLights;
 
-shared uint minDepth;
-shared uint maxDepth;
-shared uint numTilePointLights;
-
 struct PointLightToGPU {
 	vec4 position_and_radius;
 	vec4 color_and_luminance;
@@ -38,14 +34,9 @@ layout(std430, binding = 0) buffer PointLights {
 // Caching in shared memory to speed up performance
 shared PointLightToGPU sharedPointLights[MAX_LIGHTS_PER_TILE];
 
-// each tile supports 1024 unique point lights
-struct Tile {
-	uint pointLights[1024]; // 1024 point lights supported
-};
-layout(std430, binding = 1) buffer LightTiles {
-	Tile lightTiles[];
-};
-
+shared uint minDepth;
+shared uint maxDepth;
+shared uint numTilePointLights;
 
 vec3 octahedronDecompress(vec3);
 vec2 signNotZero(vec2);
@@ -54,10 +45,11 @@ vec3 oct_to_float32x3(vec2);
 
 void main() {
 
-	// Set our initial variables
-	numTilePointLights = 0;
-	minDepth = uint(0xFFFFFFFF);
-	maxDepth = 0;
+	if (gl_LocalInvocationIndex == 0) {
+		minDepth = 0x7f7fffff;
+		maxDepth = 0;
+		numTilePointLights = 0;
+	}
 	barrier();
 
 	// position in global shader (texture position)
@@ -70,8 +62,7 @@ void main() {
 
 	// Get depth value from texture
 	float depthFloat = texture(gDepth, samplerUV).r;
-
-	uint depthInt = uint(depthFloat * 0xFFFFFFFF);
+	uint depthInt = uint(depthFloat * float(0x7f7fffff));
 
 	// Calculate min/max depth of out work group or tile
 	atomicMax(maxDepth, depthInt);
@@ -81,9 +72,14 @@ void main() {
 	barrier();
 
 
-	// Reset our min/max depth values for this tile to floats
-	float maxDepthFloat = float(maxDepth / float(0xFFFFFFFF));
-	float minDepthFloat = float(minDepth / float(0xFFFFFFFF));
+	// Reset our min/max depth values for this tile to floats and get them in view space
+	float maxDepthFloat = float(maxDepth) / float(0x7f7fffff);
+	float depth_ndc = 2.0 * maxDepthFloat - 1.0f;
+	float maxViewDepth = proj[3][2] / (proj[2][2] + depth_ndc);
+
+	float minDepthFloat = float(minDepth) / float(0x7f7fffff);
+	depth_ndc = 2.0 * minDepthFloat - 1.0f;
+	float minViewDepth = proj[3][2] / (proj[2][2] + depth_ndc);
 
 	// We need to convert our tile's frustum to the correct scale and position
 	// We can use gl_WorkGroupSize since our x and y are the same (16x16)
@@ -95,9 +91,24 @@ void main() {
 	// Thus, we want to calculate frustum planes using a proj matrix
 	/* https://gamedev.stackexchange.com/questions/108442/tiled-deferred-rendering-light-culling */
 
-	vec4 col1 = vec4(-proj[0][0] * tileScale.x, proj[0][1], tileBias.x, proj[0][3]);
-	vec4 col2 = vec4(proj[1][0], -proj[1][1] * tileScale.y, tileBias.y, proj[1][3]);
-	vec4 col4 = vec4(proj[3][0], proj[3][1], -1.0, proj[3][3]);
+	vec4 col1 = vec4(	
+		-proj[0][0] * tileScale.x, 
+		0.0f, 
+		tileBias.x, 
+		0.0f
+	);
+	vec4 col2 = vec4(
+		0.0f, 
+		-proj[1][1] * tileScale.y, 
+		tileBias.y, 
+		0.0f
+	);
+	vec4 col4 = vec4(
+		0.0f, 
+		0.0f, 
+		-1.0f, 
+		0.0f
+	);
 
 	vec4 frustumPlanes[6];
 	//left
@@ -105,20 +116,23 @@ void main() {
 	//right
 	frustumPlanes[1] = col4 - col1;
 	//bottom
-	frustumPlanes[2] = col4 + col2;
+	frustumPlanes[2] = col4 - col2;
 	//top
-	frustumPlanes[3] = col4 - col2;
-	//near
-	frustumPlanes[4] = vec4(0.0f, 0.0f, -1.0f, -minDepthFloat); // why negative min depth?
-	//far
-	frustumPlanes[5] = vec4(0.0f, 0.0f, -1.0f, maxDepthFloat);
+	frustumPlanes[3] = col4 + col2;
 
-	// TODO : Should we normalize the frustum planes?
+	//far
+	frustumPlanes[4] = vec4(0.0f, 0.0f, 1.0f, maxViewDepth);
+	//near
+	frustumPlanes[5] = vec4(0.0f, 0.0f, -1.0f, -minViewDepth);
+
+	for(int i = 0; i < 4; i++) {
+        frustumPlanes[i] *= 1.0f / length(frustumPlanes[i].xyz);
+    }
 
 	// Light culling for this tile
 	// Each thread in this block should cull as few lights as possible (distribute evenly)
 	uint numThreads = gl_WorkGroupSize.x * gl_WorkGroupSize.y;
-	uint numPasses = max((numPointLights - 1) / numThreads + 1, 0);
+	uint numPasses = (numPointLights + numThreads - 1) / numThreads;
 
 	for (int i = 0; i < numPasses; i++) {
 
@@ -129,32 +143,22 @@ void main() {
 		uint index = i * numThreads + gl_LocalInvocationIndex;
 		if (index >= numPointLights) { continue; }
 
-		vec4 pos = view * vec4(pointLights[index].position_and_radius.xyz, 1.0);
-		float rad = pointLights[index].position_and_radius.w / pos.w;
-		vec3 minPoint = vec3(pos.x - rad, pos.y - rad, pos.z - rad);
-		vec3 maxPoint = vec3(pos.x + rad, pos.y + rad, pos.z + rad);
+		vec4 viewPos = view * vec4(pointLights[index].position_and_radius.xyz, 1.0f);
+		float rad = pointLights[index].position_and_radius.w;
 
-		int inFrustum = 0;
-
+		// check against frustum
+		bool inFrustum = true;
 		for (int j = 0; j < 6; j++) {
-			float val = max(minPoint.x * frustumPlanes[j].x, maxPoint.x * frustumPlanes[j].x)
-				+ max(minPoint.y * frustumPlanes[j].y, maxPoint.y * frustumPlanes[j].y)
-				+ max(minPoint.z * frustumPlanes[j].z, maxPoint.z * frustumPlanes[j].z)
-				+ frustumPlanes[j].w;
-			inFrustum += int(val > 0);
+			float dist = dot(frustumPlanes[j].xyz, viewPos.xyz) + frustumPlanes[j].w;
+			inFrustum = inFrustum && (dist >= -rad);
 		}
 
-		// If all frustums can see a part of this, this light is impacting our tile
-		if (inFrustum == 6) {
-			// Add our current light to this tiles array of lights
+		if (inFrustum) {
 			uint id = atomicAdd(numTilePointLights, 1);
-			lightTiles[oneDimWorkGroupID].pointLights[id] = index;
 			sharedPointLights[id] = pointLights[index];
 		}
-
 	}
 
-    memoryBarrierShared();
 	barrier();
 
 	// At this point, our tile should be filled with all of the point lights it needs
@@ -164,12 +168,11 @@ void main() {
 	// Don't normalize normal or we will ruin the encoding
 	vec3 normal       = octahedronDecompress(texture(gNormal, samplerUV).rgb);
 	uvec4 diffuseSpec = texture(gDiffuseSpec, samplerUV);
-	float depth       = texture(gDepth, samplerUV).r;
 	
 	vec3 diffuseColor; vec3 specularColor;
 
 	// Calculate fragment position from depth
-	float z = 2.0 * depth - 1;
+	float z = 2.0 * depthFloat - 1;
 	vec4 clipSpacePos = vec4(samplerUV * 2.0 - 1.0, z, 1.0);
 	vec4 viewSpacePos = invProj * clipSpacePos;
 	viewSpacePos /= viewSpacePos.w;
@@ -181,19 +184,20 @@ void main() {
 	// Run through all lights for this tile
 	for (int i = 0; i < numTilePointLights; i++) {
 		vec3 lightPos = sharedPointLights[i].position_and_radius.xyz;
-		vec3 lightCol = sharedPointLights[i].color_and_luminance.xyz;
-		float lightLum = sharedPointLights[i].color_and_luminance.w;
 
 		// light info in world space
 		vec3 lightDir = normalize(lightPos - fragPos);
 		float ndotL = max(dot(normal, lightDir), 0.0);
+		float dist = length(lightPos - fragPos);
+		
 
-		if (ndotL > 0.0) {
+		if (ndotL > 0.0 && (dist < sharedPointLights[i].position_and_radius.w)) {
+
 			// diffuse
 			diffuseColor.x = float(diffuseSpec.x & 0xFF) / 255.0;
 			diffuseColor.y = float(diffuseSpec.y & 0xFF) / 255.0;
 			diffuseColor.z = float(diffuseSpec.z & 0xFF) / 255.0;
-			vec3 diffuse = lightCol * diffuseColor * ndotL;
+			vec3 diffuse = sharedPointLights[i].color_and_luminance.xyz * diffuseColor * ndotL;
 
 			// specular
 			vec3 h = normalize(lightDir + eye);
@@ -205,17 +209,18 @@ void main() {
 			vec3 specular = specularColor * spec;
 
 			// attenuation
-			float dist = length(lightPos - fragPos);
-			float attenuation = lightLum / (1 + 1 * dist + 2 * dist * dist);
+			float attenuation = sharedPointLights[i].color_and_luminance.w / (1 + 1 * dist + 2 * dist * dist);
 
 			outColor += diffuse * attenuation; // diffuse
 			outColor += specular * attenuation; // specular
+
 		}
 	}
 
 	imageStore(destTex, globalId, vec4(outColor, 1.0));
 
 }
+
 
 // Decompresses our octahedron encoded normals into a useable float3x32 format
 vec3 octahedronDecompress(vec3 v) {

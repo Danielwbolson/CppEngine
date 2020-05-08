@@ -85,7 +85,6 @@ private:
 	// Tiled lighting variables
 	GLuint tiledComputeShader;
 	GLuint tiledPointLightsSSBO;
-	GLuint lightTilesSSBO;
 
 	// Shadows
 	GLuint shadowMapShader;
