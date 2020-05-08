@@ -106,7 +106,7 @@ void main() {
 	vec4 col4 = vec4(
 		0.0f, 
 		0.0f, 
-		-1.0f, 
+		1.0f, 
 		0.0f
 	);
 
@@ -163,7 +163,6 @@ void main() {
 
 	// At this point, our tile should be filled with all of the point lights it needs
 	// Calculate lighting
-	vec3 outColor = vec3(0, 0, 0);
 
 	// Don't normalize normal or we will ruin the encoding
 	vec3 normal       = octahedronDecompress(texture(gNormal, samplerUV).rgb);
@@ -180,6 +179,8 @@ void main() {
     
 	// eye
 	vec3 eye = normalize(camPos-fragPos);
+
+	vec3 outColor = vec3(0, 0, 0);
 
 	// Run through all lights for this tile
 	for (int i = 0; i < numTilePointLights; i++) {
@@ -211,8 +212,8 @@ void main() {
 			// attenuation
 			float attenuation = sharedPointLights[i].color_and_luminance.w / (1 + 1 * dist + 2 * dist * dist);
 
-			outColor += diffuse * attenuation; // diffuse
-			outColor += specular * attenuation; // specular
+			outColor += diffuse * attenuation;
+			outColor += specular * attenuation;
 
 		}
 	}
