@@ -3,7 +3,6 @@
 #define POINT_LIGHT_H_
 
 #include "Light.h"
-#include <cstdio>
 
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"

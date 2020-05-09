@@ -199,12 +199,10 @@ void RendererSystem::Setup() {
 
 		// Connect to our gBuffer
 		glBindFramebuffer(GL_FRAMEBUFFER, gBuffer.id);
-		//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 
 		// Connect to our intermediary frame buffer
 		glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
-		//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gBuffer.depth, 0);
 	}
 
@@ -722,9 +720,6 @@ void RendererSystem::DeferredLighting() {
 }
 
 void RendererSystem::DrawTransparent() {
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glClear(GL_COLOR_BUFFER_BIT);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
 

@@ -60,6 +60,7 @@ void main() {
 		numTilePointLights = 0;
 		numTileTransparentPointLights = 0;
 	}
+	barrier();
 
 	// position in global shader (texture position)
 	ivec2 globalId = ivec2(gl_GlobalInvocationID.xy);
@@ -82,7 +83,7 @@ void main() {
 	// We need min/max depth for the tile calculated before continuing
 	barrier();
 
-	// Reset our min/max depth values for this tile to floats
+	// Reset our min/max depth values for this tile to floats and get them in view space
 	float maxDepthFloat = float(maxDepth) / float(0x7f7fffff);
 	float depth_ndc = 2.0 * maxDepthFloat - 1.0f;
 	float maxViewDepth = proj[3][2] / (proj[2][2] + depth_ndc);
@@ -134,7 +135,6 @@ void main() {
 	//near
 	frustumPlanes[5] = vec4(0.0f, 0.0f, -1.0f, -minViewDepth);
 
-	// TODO : Should we normalize the frustum planes?
 	for(int i = 0; i < 4; i++) {
         frustumPlanes[i] *= 1.0f / length(frustumPlanes[i].xyz);
     }
