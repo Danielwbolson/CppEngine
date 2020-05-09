@@ -150,3 +150,13 @@ Total time : 25140.3939 (25.1ms)
 I also tried different heuristics for sorting my light volumes to try and take advantage of
 the texture cache as that is my biggest bottleneck, but to no avail. 
 Tiled-Deferred, here I come.
+
+=======================================
+5/9/2020
+Fully implemented Tiled Deferred and Forward+
+
+Huge boost in performance. More analysis of results here: 
+https://docs.google.com/spreadsheets/d/16UaY-6x-lz7JujAXQqsjRXVe5sOM0ai-WGoXz7aaRy4/edit?usp=sharing
+
+Biggest places for optimization in these two additions are finding a better light attenuation 
+algorithm for my point lights. Currently, they get really large and thus don't take full advantage of Forward+. Also, finding a more accurate culling method than just tile frustums. There are some false positives that should be taken care of.
