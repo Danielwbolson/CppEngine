@@ -1,6 +1,6 @@
 # CppEngine
 
-### A multi-pass, Rendering engine featuring Tiled Deferred and Forward+ shading. Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects and interact with the sun.
+### A multi-pass rendering engine featuring Tiled Deferred and Forward+ shading. Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects and interact with the sun.
 
 ## Engine Features:  
 - Entity-Component-Systems Architecture
@@ -28,7 +28,7 @@ Make sure you configure `CppEngine/CppEngine/CMakeLists.txt` to the appropriate 
 `39 | #set(SDL2_INCLUDE_DIRS ${LAPTOP_SDL}include)`  
 
 There is already an SDL.dll from SDL 2.0.10 inside the `libs/` folder, so you shouldn't need to put one there.
-<br/>
+<br/> <br/>
 Navigate to the root directory. You should see src/, materials/, etc and perform the following commands:
 ```
 mkdir build
