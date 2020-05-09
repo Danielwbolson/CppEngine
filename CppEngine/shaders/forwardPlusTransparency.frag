@@ -99,6 +99,7 @@ void main() {
 	vec3 directionalLightCol = (1.0 - shadow) * calculateDirectionalLight(eye, n, d, spec, specExp);
 
     finalColor = vec4(pointLightCol + directionalLightCol, o);
+	//finalColor = vec4(pointLightCol, o);
 }
 
 vec3 calculatePointLights(vec3 eye, vec3 n, vec4 d, vec3 spec, float specExp, vec2 screenCoords) {

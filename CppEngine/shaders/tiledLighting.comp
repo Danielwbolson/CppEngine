@@ -212,7 +212,10 @@ void main() {
 		float ndotL = max(dot(normal, lightDir), 0.0);
 		float dist = length(lightPos - fragPos);
 		
+		// Show frustum culling
+		//outColor += vec3(0.0005, 0.0005, 0.0005);
 
+		// Show lighting
 		if (ndotL > 0.0 && (dist < sharedPointLights[i].position_and_radius.w)) {
 
 			// diffuse
