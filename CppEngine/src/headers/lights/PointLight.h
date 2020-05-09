@@ -21,13 +21,11 @@ struct PointLight {
 		lum = .6f * color.g + .3f * color.r + .1f * color.b;
 
 		// Calculate radius of volume using luminence and wanted cutoff value of 0.004f
-		// 0.01 = lum / (1 + 2 * radius + 2 * radius * radius);
-		float a = 2;
-		float b = 1;
-		float c = 0.01f / lum;
-		c = 1.0f / c;
-		c = 1 - c; // Now on right side of equation
-		radius = (-b + sqrt(b * b - 4 * a * c)) / (2 * a);
+		// 0.001 = lum / (1 + 1 * radius + 2 * radius * radius);
+		float a = 1;
+		float b = 2;
+		float lightLum = 0.005f;
+		radius = sqrt(lum / (b * lightLum));
 	}
 
     PointLight operator=(const PointLight& p) {

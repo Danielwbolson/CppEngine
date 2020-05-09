@@ -49,18 +49,18 @@ struct MeshToDraw {
 	}
 };
 
-struct PointLightToDraw {
-	glm::mat4 model; 
-	glm::vec3 position;
-	float luminance;
-	glm::vec3 color;
-	float radius;
-};
-
 struct PointLightToGPU {
-	glm::vec4 position;
+	glm::vec4 position_and_radius;
+	glm::vec4 color_and_luminance;
+};
+struct DirectionalLightToGPU {
+	glm::vec4 direction;
 	glm::vec3 color;
 	float luminance;
+};
+struct LightTile {
+	unsigned int pointLightIndices[1023]; // 1023 point lights supported
+	unsigned int numLights;
 };
 
 class RendererSystem : public Systems {
@@ -70,11 +70,10 @@ private:
 	std::vector<MeshToDraw, MemoryAllocator<MeshToDraw> > transparentToDraw;
 
 	std::vector<PointLightToGPU, MemoryAllocator<PointLightToGPU> > pointLightsToGPU;
-	std::vector<PointLightToDraw, MemoryAllocator<PointLightToDraw> > pointLightsToDraw;
+	std::vector<DirectionalLightToGPU, MemoryAllocator<DirectionalLightToGPU> > directionalLightsToGPU;
 
 	GLubyte dummyData[4] = { 255, 255, 255, 255 };
 
-	int screenWidth; int screenHeight;
 	glm::mat4 proj; glm::mat4 view;
 
 	// Deferred
@@ -87,11 +86,10 @@ private:
 	GLuint directionalLightShader;
 	glm::mat4 lightProjView;
 
-	// Light volumes
-	Mesh* lightVolume;
-	GLuint lightVolumeVAO; GLuint lightVolumeVBO; GLuint lightVolumeIBO;
-	GLuint lightVolumeShader;
-	GLuint pointLightsSSBO = 0;
+	// Tiled lighting variables
+	GLuint tiledComputeShader;
+	GLuint pointLightsSSBO;
+	GLuint lightTilesSSBO; // Max of 512 lights per tile
 
 	// Shadows
 	GLuint shadowMapShader;
@@ -108,11 +106,12 @@ public:
 	// Timings
 	GLuint timeQuery;
 	long long depthPrePassTime = 0;
+	long long tileComputeTime;
 	long long cullTime; long long shadowTime;
 	long long deferredToTexTime; long long deferredLightsTime;
 	long long transparentTime; long long postFXXTime;
 
-	RendererSystem(const int&, const int&);
+	RendererSystem();
 	~RendererSystem();
 
 	void Setup();
@@ -125,6 +124,7 @@ public:
 	void CullScene();
 	void DrawShadows();
 	void DeferredToTexture();
+	void TiledCompute();
 	void DeferredLighting();
 	void DrawTransparent();
 	void PostProcess();

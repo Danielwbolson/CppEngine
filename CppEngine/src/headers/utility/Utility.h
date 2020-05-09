@@ -28,7 +28,6 @@ namespace util {
         //Let's double check the shader compiled 
         GLint status;
         glGetShaderiv(shaderID, GL_COMPILE_STATUS, &status); //Check for errors
-		checkGLError("After shaderiv");
         if (!status) {
             char buffer[1024]; glGetShaderInfoLog(shaderID, 1024, NULL, buffer);
             printf("Shader Compile Failed. Info:\n\n%s\n", buffer);
@@ -44,7 +43,7 @@ namespace util {
         return buf.str();
     }
 
-    static GLuint initShaderFromFiles(const std::string& vert, const std::string& frag) {
+    static GLuint initVertFragShader(const std::string& vert, const std::string& frag) {
         // Vert and frag shaders, compiled from file
         GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
         const std::string vertString = util::fileToString(vert);
@@ -66,14 +65,54 @@ namespace util {
 
         //Join the vertex and fragment shaders together into one program
         GLuint shaderProgram = glCreateProgram();
-		checkGLError("After shader program");
         glAttachShader(shaderProgram, vertexShader);
         glAttachShader(shaderProgram, fragmentShader);
         //glBindFragDataLocation(shaderProgram, 0, "outColor"); // set output
         glLinkProgram(shaderProgram); //run the linker
 
+		//Error checking after link
+		char errbuf[4096];
+		GLsizei len;
+		GLint link_ok = GL_FALSE;
+		glGetProgramInfoLog(shaderProgram, sizeof(errbuf), &len, errbuf);
+		glGetProgramiv(shaderProgram, GL_LINK_STATUS, &link_ok);
+		if (!link_ok) {
+			std::cout << errbuf << std::endl;
+			std::cout << "The compute shader did not link correctly." << std::endl;
+		}
+
         return shaderProgram;
     }
+
+	static GLuint initComputeShader(const std::string& compute) {
+		// Compute shader, compiled from file
+		GLuint computeShader = glCreateShader(GL_COMPUTE_SHADER);
+		const std::string computeString = util::fileToString(compute);
+		if (computeString == "") {
+			fprintf(stderr, "Failed to load compute shader: %s", compute.c_str());
+			exit(1);
+		}
+		const GLchar* computeSource = computeString.c_str();
+		util::loadShader(computeShader, computeSource);
+
+		// Create our compute shader program
+		GLuint shaderProgram = glCreateProgram();
+		glAttachShader(shaderProgram, computeShader);
+		glLinkProgram(shaderProgram); //run the linker
+
+		//Error checking after link
+		char errbuf[4096];
+		GLsizei len;
+		GLint link_ok = GL_FALSE;
+		glGetProgramInfoLog(shaderProgram, sizeof(errbuf), &len, errbuf);
+		glGetProgramiv(shaderProgram, GL_LINK_STATUS, &link_ok);
+		if (!link_ok) {
+			std::cout << errbuf << std::endl;
+			std::cout << "The compute shader did not link correctly." << std::endl;
+		}
+
+		return shaderProgram;
+	}
 
 	static void DebugMessageCallback(GLenum source,
 		GLenum type,
