@@ -17,7 +17,7 @@
 ```
 git clone --recurse-submodules https://github.com/Danielwbolson/CppEngine.git
 ```
-Make sure you configure `CppEngine/CppEngine/CMakeLists.txt` to the appropriate location of your SDL2 download:  
+Make sure you configure `CppEngine/CppEngine/CMakeLists.txt` to the appropriate location of your SDL2 download (You will need to download SDL2 from the following link if you do not have it: https://www.libsdl.org/download-2.0.php):  
 
 `26 | set(LAPTOP_SDL D:/SDL2-2.0.10/)`  
 `27 | set(DESKTOP_SDL E:/SDL2-2.0.10/)`  
