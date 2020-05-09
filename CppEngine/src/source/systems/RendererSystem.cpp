@@ -301,17 +301,6 @@ void RendererSystem::Register(const Component* c) {
 		glUseProgram(mr->model->materials[i]->shader->shaderProgram);
 
 
-		// Set up SSBO for forward rendering for our transparent objects
-		// Only do this once as our transparent objects are all in same shader
-		if (mat->isTransparent && pointLightsSSBO == 0) {
-			glGenBuffers(1, &pointLightsSSBO);
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightsSSBO);
-			glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * mainScene->pointLights.size(), NULL, GL_DYNAMIC_DRAW);
-			glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLightsSSBO);
-			glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
-		}
-
-
 		// Textures
 		// Load up either a null texture or the wanted one
 		if (mat->ambientTexture != nullptr && !mat->ambientTexture->loadedToGPU) {
@@ -351,6 +340,12 @@ void RendererSystem::Render() {
 	totalTriangles = 0;
 	view = mainCamera->view;
 	proj = mainCamera->proj;
+
+	// Clear color/depth from our final framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
+	glClearColor(0, 0, 0, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// First, cull out unwanted geometry. Currently, only Frustum Culling is supported
 	auto startTime = std::chrono::high_resolution_clock::now();
@@ -623,13 +618,6 @@ void RendererSystem::DeferredToTexture() {
 
 void RendererSystem::TiledCompute() {
 
-	// Clear framebuffer from last frame
-	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
-	glClearColor(0, 0, 0, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-
 	glUseProgram(tiledComputeShader);
 
 
@@ -671,10 +659,8 @@ void RendererSystem::TiledCompute() {
 	//TODO:
 	// Need to decide if this compute shader is an all-in-one or if it will just calculate light tiles
 
-	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
 	glMemoryBarrier(GL_ALL_BARRIER_BITS);
-	glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
 }
 
 void RendererSystem::DeferredLighting() {
@@ -695,19 +681,17 @@ void RendererSystem::DeferredLighting() {
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gNormal"), 0);
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, gBuffer.diffuseSpec);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gDiffuseSpec"), 1);
 		glActiveTexture(GL_TEXTURE2);
 		glBindTexture(GL_TEXTURE_2D, gBuffer.depth);
+		glUniform1i(glGetUniformLocation(directionalLightShader, "gDepth"), 2);
 		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D, depthMap);
-		glUniform1i(glGetUniformLocation(directionalLightShader, "gNormal"), 0);
-		glUniform1i(glGetUniformLocation(directionalLightShader, "gDiffuseSpec"), 1);
-		glUniform1i(glGetUniformLocation(directionalLightShader, "gDepth"), 2);
 		glUniform1i(glGetUniformLocation(directionalLightShader, "depthMap"), 3);
 
-		GLint uniLightMat = glGetUniformLocation(directionalLightShader, "lightProjView");
-		glUniformMatrix4fv(uniLightMat, 1, GL_FALSE, glm::value_ptr(lightProjView));
 
 		GLint uniProj = glGetUniformLocation(directionalLightShader, "invProj");
 		glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(glm::inverse(proj)));
@@ -717,9 +701,11 @@ void RendererSystem::DeferredLighting() {
 		GLint uniCamPos = glGetUniformLocation(directionalLightShader, "camPos");
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
-		GLint lightDir = glGetUniformLocation(directionalLightShader, "lightDir");
+		GLint uniLightMat = glGetUniformLocation(directionalLightShader, "directionalLightProjView");
+		glUniformMatrix4fv(uniLightMat, 1, GL_FALSE, glm::value_ptr(lightProjView));
+		GLint lightDir = glGetUniformLocation(directionalLightShader, "directionalLightDir");
 		glUniform3f(lightDir, mainScene->directionalLights[0].direction.x, mainScene->directionalLights[0].direction.y, mainScene->directionalLights[0].direction.z);
-		GLint lightCol = glGetUniformLocation(directionalLightShader, "lightCol");
+		GLint lightCol = glGetUniformLocation(directionalLightShader, "directionalLightCol");
 		glUniform3f(lightCol, mainScene->directionalLights[0].color.r, mainScene->directionalLights[0].color.g, mainScene->directionalLights[0].color.b);
 
 		glDrawArrays(GL_TRIANGLES, 0, 6); //Number of vertices
@@ -748,9 +734,6 @@ void RendererSystem::DrawTransparent() {
 	if (transparentToDraw.size() > 0) {
 		glUseProgram(transparentToDraw[0].shaderProgram);
 
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightsSSBO);
-		glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data());
-
 		GLint uniNumLights = glGetUniformLocation(transparentToDraw[0].shaderProgram, "numLights");
 		glUniform1i(uniNumLights, static_cast<int>(pointLightsToGPU.size()));
 
@@ -758,16 +741,16 @@ void RendererSystem::DrawTransparent() {
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
 		// Directional light
-		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightDir");
+		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "directionalLightDir");
 		glUniform3f(lightDir, mainScene->directionalLights[0].direction.x, mainScene->directionalLights[0].direction.y, mainScene->directionalLights[0].direction.z);
-		GLint lightCol = glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightCol");
+		GLint lightCol = glGetUniformLocation(transparentToDraw[0].shaderProgram, "directionalLightCol");
 		glUniform3f(lightCol, mainScene->directionalLights[0].color.r, mainScene->directionalLights[0].color.g, mainScene->directionalLights[0].color.b);
 
 		// Shadow map stuff
 		glActiveTexture(GL_TEXTURE0 + 8);
 		glBindTexture(GL_TEXTURE_2D, depthMap);
 		glUniform1i(glGetUniformLocation(transparentToDraw[0].shaderProgram, "depthMap"), 8);
-		glUniformMatrix4fv(glGetUniformLocation(transparentToDraw[0].shaderProgram, "lightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
+		glUniformMatrix4fv(glGetUniformLocation(transparentToDraw[0].shaderProgram, "directionalLightProjView"), 1, GL_FALSE, glm::value_ptr(lightProjView));
 	}
 
 	// For each of our transparent objects, set up its shader

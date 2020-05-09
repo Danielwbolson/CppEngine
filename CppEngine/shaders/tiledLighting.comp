@@ -28,7 +28,7 @@ struct PointLightToGPU {
 	vec4 position_and_radius;
 	vec4 color_and_luminance;
 };
-layout(std430, binding = 0) buffer PointLights {
+layout(std430, binding = 0) readonly buffer PointLights {
 	PointLightToGPU pointLights[];
 };
 // Caching in shared memory to speed up performance
@@ -83,13 +83,12 @@ void main() {
 
 	// We need to convert our tile's frustum to the correct scale and position
 	// We can use gl_WorkGroupSize since our x and y are the same (16x16)
-	// TODO: I don't understand why 2 is in the denominator. Makes sense to me to not have it.
-	vec2 tileScale = resolution * (1.0f / float(2.0f * gl_WorkGroupSize.x));
+	vec2 tileScale = resolution * (1.0f / float(2.0f * gl_WorkGroupSize.xy));
 	vec2 tileBias = tileScale - vec2(gl_WorkGroupID.xy);
 
 	// Calculate frustum planes
 	// Thus, we want to calculate frustum planes using a proj matrix
-	/* https://gamedev.stackexchange.com/questions/108442/tiled-deferred-rendering-light-culling */
+	/* https://www.digipen.edu/sites/default/files/public/docs/theses/denis-ishmukhametov-master-of-science-in-computer-science-thesis-efficient-tile-based-deferred-shading-pipeline.pdf */
 
 	vec4 col1 = vec4(	
 		-proj[0][0] * tileScale.x, 
@@ -106,7 +105,7 @@ void main() {
 	vec4 col4 = vec4(
 		0.0f, 
 		0.0f, 
-		1.0f, 
+		-1.0f, 
 		0.0f
 	);
 
