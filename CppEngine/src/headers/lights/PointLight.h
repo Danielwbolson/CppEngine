@@ -25,7 +25,7 @@ struct PointLight {
 		// 0.001 = lum / (1 + 1 * radius + 2 * radius * radius);
 		float a = 1;
 		float b = 2;
-		float lightLum = 0.008f;
+		float lightLum = 0.005f;
 		radius = sqrt(lum / (b * lightLum));
 		//std::fprintf(stderr, "%f\n", radius);
 	}
