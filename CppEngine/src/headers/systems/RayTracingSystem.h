@@ -40,7 +40,7 @@ private:
 	// Uniforms
 	GLint uniDestTex;
 	GLint uniCamPos;
-	GLint uniProjView;
+	GLint uniProj;
 	GLint uniView;
 	GLint uniInvProj;
 	GLint uniInvView;

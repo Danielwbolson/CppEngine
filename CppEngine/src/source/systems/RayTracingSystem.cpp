@@ -163,7 +163,7 @@ void RayTracingSystem::Setup() {
 
 		uniCamPos = glGetUniformLocation(rayTraceComputeShader, "camPos");
 
-		uniProjView = glGetUniformLocation(rayTraceComputeShader, "proj");
+		uniProj = glGetUniformLocation(rayTraceComputeShader, "proj");
 		uniView = glGetUniformLocation(rayTraceComputeShader, "view");
 
 		uniInvProj = glGetUniformLocation(rayTraceComputeShader, "invProj");
@@ -232,7 +232,7 @@ void RayTracingSystem::RayTrace() {
 	glm::vec3 camPos = mainCamera->transform->position;
 	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
-	glUniformMatrix4fv(uniProjView, 1, GL_FALSE, glm::value_ptr(proj));
+	glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
 	glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
 	glUniformMatrix4fv(uniInvProj, 1, GL_FALSE, glm::value_ptr(glm::inverse(proj)));
 	glUniformMatrix4fv(uniInvView, 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
