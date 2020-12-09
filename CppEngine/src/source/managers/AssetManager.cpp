@@ -17,6 +17,8 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
+#include "BVH.h"
+
 #include "Component.h"
 #include "ModelRenderer.h"
 #include "Collider.h"
@@ -79,6 +81,10 @@ namespace AssetManager {
 	std::vector<GLuint, MemoryAllocator<GLuint> >* displacementTextures;
 	std::vector<GLuint, MemoryAllocator<GLuint> >* alphaTextures;
 
+	std::vector<GPUVertex>* gpuVertices;
+	std::vector<GPUTriangle>* gpuTriangles;
+	std::vector<GPUMaterial>* gpuMaterials;
+
 	GLuint nullTexture;
 	GLubyte nullData[4] = { 255, 255, 255, 255 };
 
@@ -95,6 +101,10 @@ namespace AssetManager {
 		normalTextures = MemoryManager::Allocate < std::vector<GLuint, MemoryAllocator<GLuint> > >();
 		displacementTextures = MemoryManager::Allocate < std::vector<GLuint, MemoryAllocator<GLuint> > >();
 		alphaTextures = MemoryManager::Allocate < std::vector<GLuint, MemoryAllocator<GLuint> > >();
+
+		gpuVertices = MemoryManager::Allocate<std::vector<GPUVertex>>();
+		gpuTriangles = MemoryManager::Allocate<std::vector<GPUTriangle>>();
+		gpuMaterials = MemoryManager::Allocate<std::vector<GPUMaterial>>();
 
 		// Set up our null texture
 		glGenTextures(1, &nullTexture);
@@ -133,6 +143,10 @@ namespace AssetManager {
 		}
 		shaders->clear();
 
+		if (bvh != nullptr) {
+			MemoryManager::Free(bvh);
+		}
+
 		for (int i = 0; i < diffuseTextures->size(); i++) {
 			glDeleteTextures(1, &(*diffuseTextures)[i]);
 		}
@@ -167,6 +181,11 @@ namespace AssetManager {
 			glDeleteTextures(1, &(*alphaTextures)[i]);
 		}
 		alphaTextures->clear();
+
+		MemoryManager::Free(gpuVertices);
+		MemoryManager::Free(gpuTriangles);
+		MemoryManager::Free(gpuMaterials);
+
 	}
 
 	Model* tinyLoadObj(const std::string fileName, bool useTinyMats) {
@@ -209,6 +228,7 @@ namespace AssetManager {
 			for (int i = 0; i < mats.size(); i++) {
 				tinyMaterials[i] = tinyLoadMaterial(mats[i], fileName);
 				model->materials.push_back(tinyMaterials[i]);
+				materials->push_back(tinyMaterials[i]);
 			}
 
 			for (int i = 0; i < shapes.size(); i++) {
@@ -909,6 +929,8 @@ namespace AssetManager {
 				if (currMaterial != nullptr) {
 					currModel->materials.push_back(currMaterial);
 				}
+				
+				models->push_back(currModel);
 
 			} else if (strcmp(command, "material") == 0) { // If the command is a material
 				char filename[1024];
@@ -931,6 +953,13 @@ namespace AssetManager {
 		currModel = nullptr;
 		currGameObject = nullptr;
 
+	}
+
+	void PostLoadScene() {
+		if (RAY_TRACING_ENABLED) {
+			AllocateGPUMemory();
+			bvh = MemoryManager::Allocate<BVH>(*gpuVertices, *gpuTriangles, 4, SplitMethod::SAH);
+		}
 	}
 
 	void LoadTextureToGPU(const std::string texType, const int vecIndex, const int texIndex, Texture* tex) {
@@ -982,6 +1011,173 @@ namespace AssetManager {
 		tex->loadedToGPU = true;
 
 		stbi_image_free(tex->pixels);
+	}
+
+	void AllocateGPUMemory() {
+
+		uint32_t indexOffset = 0;
+		uint32_t materialOffset = 0;
+		for (int32_t i = 0; i < mainScene->gameObjects.size(); i += 1) {
+
+			GameObject* gameObject = mainScene->instances[i];
+			glm::mat4 modelMatrix;
+			if (gameObject) {
+				modelMatrix = gameObject->transform->model;
+			}
+			else {
+				return;
+			}
+
+			ModelRenderer* modelRenderer = nullptr;
+			Model* model = nullptr;
+			if (modelRenderer = (ModelRenderer*)gameObject->GetComponent("modelRenderer")) {
+				model = modelRenderer->model;
+			}
+			else {
+				return;
+			}
+
+			for (int32_t j = 0; j < model->meshes.size(); j += 1) {
+				Mesh* mesh = model->meshes[j];
+				Material* material = model->materials[j];
+
+				for (int32_t k = 0; k < mesh->indices.size(); k += 3) {
+
+					GPUVertex vertices[3];
+					GPUTriangle gpuTriangle;
+					for (int32_t index = 0; index < 3; index += 1) {
+						int32_t idk = index + k;
+						int32_t indicesIndex = mesh->indices[idk];
+						vertices[index].position = modelMatrix * glm::vec4(mesh->positions[indicesIndex], 1);
+						vertices[index].normal = glm::vec4(glm::normalize(glm::vec3(glm::transpose(glm::inverse(modelMatrix)) * glm::vec4(mesh->normals[indicesIndex], 0))), 0);
+						vertices[index].uv = glm::vec4(mesh->uvs[indicesIndex], 0, 0);
+						vertices[index].tangents = glm::normalize(modelMatrix * glm::vec4(mesh->tangents[indicesIndex], 0));
+						gpuVertices->push_back(vertices[index]);
+
+						gpuTriangle.indices[index] = idk + indexOffset;
+					}
+					gpuTriangle.materialIndex = j + materialOffset;
+					gpuTriangles->push_back(gpuTriangle);
+				}
+
+
+				/*GPUMaterial gpuMaterial;
+				gpuMaterial.diffuseTexture =
+					LoadBindlessTexture("diffuse", material->diffuseTexture, material->diffuseIndex);
+				gpuMaterial.specularTexture =
+					LoadBindlessTexture("specular", material->specularTexture, material->specularIndex);
+				gpuMaterial.specularHighlightTexture =
+					LoadBindlessTexture("specularHighlight", material->specularHighLightTexture, material->specularHighLightIndex);
+				gpuMaterial.normalTexture =
+					LoadBindlessTexture("normal", material->normalTexture, material->normalIndex);
+				gpuMaterial.alphaTexture =
+					LoadBindlessTexture("alpha", material->alphaTexture, material->alphaIndex);
+
+				gpuMaterial.diffuse =
+					glm::u8vec4(
+						material->diffuse.x * 255,
+						material->diffuse.y * 255,
+						material->diffuse.z * 255,
+						255
+					);
+				gpuMaterial.specular =
+					glm::u8vec4(
+						material->specular.x * 255,
+						material->specular.y * 255,
+						material->specular.z * 255,
+						255
+					);
+				gpuMaterial.transmissive =
+					glm::u8vec4(
+						255,
+						255,
+						255,
+						255
+					);
+
+				gpuMaterial.specularExponent = material->specularExponent;
+				gpuMaterial.indexOfRefraction = 1.0f;
+				gpuMaterial.usingNormal = material->usingNormal;
+				gpuMaterials->push_back(gpuMaterial);*/
+
+				indexOffset += (int32_t)mesh->positions.size();
+			}
+			materialOffset += (int32_t)model->meshes.size();
+		}
+	}
+
+	uint64_t LoadBindlessTexture(std::string texType, Texture* tex, int32_t index) {
+
+		// Only function on valid textures
+		if (!tex) {
+			return 0;
+		}
+
+		uint64_t handle;
+		GLuint textureIndex;
+
+		if (texType == "diffuse") {
+			glGenTextures(1, &(*diffuseTextures)[index]);
+			glBindTexture(GL_TEXTURE_2D, (*diffuseTextures)[index]);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_SRGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
+			textureIndex = (*diffuseTextures)[index];
+		}
+		else if (texType == "specular") {
+			glGenTextures(1, &(*specularTextures)[index]);
+			glBindTexture(GL_TEXTURE_2D, (*specularTextures)[index]);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
+			textureIndex = (*specularTextures)[index];
+		}
+		else if (texType == "specularHighlight") {
+			glGenTextures(1, &(*specularHighLightTextures)[index]);
+			glBindTexture(GL_TEXTURE_2D, (*specularHighLightTextures)[index]);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
+			textureIndex = (*specularHighLightTextures)[index];
+		}
+		else if (texType == "bump") {
+			glGenTextures(1, &(*bumpTextures)[index]);
+			glBindTexture(GL_TEXTURE_2D, (*bumpTextures)[index]);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
+			textureIndex = (*bumpTextures)[index];
+		}
+		else if (texType == "normal") {
+			glGenTextures(1, &(*normalTextures)[index]);
+			glBindTexture(GL_TEXTURE_2D, (*normalTextures)[index]);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
+			textureIndex = (*normalTextures)[index];
+		}
+		else if (texType == "displacement") {
+			glGenTextures(1, &(*displacementTextures)[index]);
+			glBindTexture(GL_TEXTURE_2D, (*displacementTextures)[index]);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
+			textureIndex = (*displacementTextures)[index];
+		}
+		else if (texType == "alpha") {
+			glGenTextures(1, &(*alphaTextures)[index]);
+			glBindTexture(GL_TEXTURE_2D, (*alphaTextures)[index]);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
+			textureIndex = (*alphaTextures)[index];
+		}
+		else {
+			fprintf(stderr, "Invalid texture type. Type: %s\n", texType.c_str());
+			return 0;
+		}
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glGenerateMipmap(GL_TEXTURE_2D);
+
+		tex->loadedToGPU = true;
+
+		stbi_image_free(tex->pixels);
+
+		handle = glGetTextureHandleARB(textureIndex);
+		glMakeTextureHandleResidentARB(handle);
+
+		return handle;
 	}
 
 }

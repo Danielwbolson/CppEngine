@@ -10,6 +10,7 @@
 #include "RendererSystem.h"
 #include "ColliderSystem.h"
 #include "PhysicsSystem.h"
+#include "RayTracingSystem.h"
 
 #include "Globals.h"
 #include "Camera.h"
@@ -32,8 +33,8 @@ sol::state lua;
 sol::function frameUpdate;
 sol::function keyInput;
 
-int windowWidth = 1200;
-int windowHeight = 800;
+int windowWidth = 1920;
+int windowHeight = 1080;
 int engineComponentsSize = 3;
 
 float luaTimeSpeed = 1;
@@ -49,6 +50,7 @@ SDL_GLContext context;
 // Globals
 Camera* mainCamera;
 Scene* mainScene;
+BVH* bvh;
 
 // Helper functions
 int Init();

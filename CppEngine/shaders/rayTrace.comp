@@ -1,0 +1,291 @@
+#version 450 compatibility
+
+#extension GL_ARB_compute_shader	: enable
+//#extension GL_ARB_bindless_texture	: enable
+//#extension GL_NV_gpu_shader5		: enable
+
+#define rayMaxDist 10000000
+#define MAX_MATERIALS 32
+#define SMALL_NUMBER 0.000001
+#define MAX_POINT_LIGHTS 500
+
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
+
+
+struct Ray {
+	vec3 pos;
+	vec3 dir;
+	float tMax;
+};
+
+// Constant memory point lights
+struct PointLightToGPU {
+	vec4 position_and_radius;
+	vec4 color_and_luminance;
+};
+layout(std140, binding = 0) uniform PointLightBUffer {
+	PointLightToGPU pointLights[MAX_POINT_LIGHTS];
+};
+
+// Global memory materials buffer
+//struct GPUMaterial {
+//	sampler2D diffuseTexture;
+//	sampler2D specularTexture;
+//	sampler2D specularHighlightTexture;
+//	sampler2D normalTexture;
+//	sampler2D alphaTexture;
+//
+//	u8vec4 diffuse;
+//	u8vec4 specular;
+//	u8vec4 transmissive;
+//	float specularExponent;
+//	float indexOfRefraction;
+//	uint8_t usingNormal;
+//	uint8_t pad[3];
+//};
+//layout (std140, binding = 1) uniform Materials {
+//	GPUMaterial materials[MAX_MATERIALS];
+//};
+
+// Global memory bvh
+struct LinearBVHNode {
+	vec3 boundsMin;
+	int offset; // leaf node - primitiveOffset, interior node - secondChildOffset
+
+	vec3 boundsMax;
+	uint numPrimitives;
+
+	uint axis;
+	uint pad[3];
+};
+layout (std430, binding = 0) readonly buffer BVH {
+	LinearBVHNode nodes[];
+};
+
+// Global memory vertex buffer
+struct GPUVertex {
+	vec4 position;
+	vec4 normal;
+	vec4 uv;
+	vec4 tangents;
+};
+layout (std430, binding = 1) readonly buffer Vertices {
+	GPUVertex vertices[];
+};
+
+// Global memory triangle buffer
+struct GPUTriangle {
+	uint indices[3];
+	uint materialIndex;
+};
+layout (std430, binding = 2) readonly buffer Triangles {
+	GPUTriangle triangles[];
+};
+
+layout (binding = 0) uniform writeonly image2D destTex;
+
+uniform mat4 proj;
+uniform mat4 invProj;
+
+uniform mat4 view;
+uniform mat4 invView;
+
+uniform vec3 camPos;
+uniform uint numPointLights;
+
+struct Intersection {
+	GPUTriangle triangle;
+	vec3 normal;
+	float u;
+	vec3 point;
+	float v;
+};
+
+bool BVHIntersect(inout Ray ray, inout Intersection intersection);
+bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersection intersection);
+bool IntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 invDir, in ivec3 dirIsNeg);
+vec3 Slab(in vec3 boundsMin, in vec3 boundsMax, in int i);
+
+
+void main() {
+
+	// position in global shader (texture position)
+	ivec2 globalId = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 resolution = imageSize(destTex);
+	float aspectRatio = resolution.x / resolution.y;
+
+	// Compute our thread as a pixel in NDC coordinates
+	vec2 pixelUV = vec2(globalId.x / float(resolution.x), globalId.y / float(resolution.y));
+	vec2 pixelNDC = 2 * pixelUV - 1;
+
+	// Compute our thread NDC coordinates into a world space ray position
+	vec4 rayEye = invProj * vec4(pixelNDC, 1, 1.0);
+	vec3 rayWorld = (invView * rayEye).xyz;
+
+	// Create our ray
+	Ray ray;
+	ray.pos = rayWorld;
+	ray.dir = normalize(rayWorld - camPos);
+	ray.tMax = rayMaxDist;
+
+	// We now have a world space ray. We can intersect our BVH and calculate lighting.
+	vec3 finalColor = vec3(0,0,0);
+	Intersection intersection;
+
+	if (BVHIntersect(ray, intersection)) {
+		GPUVertex a = vertices[intersection.triangle.indices[0]];
+		GPUVertex b = vertices[intersection.triangle.indices[1]];
+		GPUVertex c = vertices[intersection.triangle.indices[2]];
+		vec2 triUvs = (a.uv * (1.0 - intersection.u - intersection.v) + b.uv * intersection.u + c.uv * intersection.v).xy;
+		//finalColor = texture(materials[intersection.triangle.materialIndex].diffuseTexture, triUvs).xyz;
+		finalColor = vec3(0, 1.0, 0);
+		//finalColor = vec3(triUvs, 0);
+		//finalColor = intersection.normal;
+		//finalColor = vec3(intersection.u, 0, 0);
+		//finalColor = abs(a.normal.xyz);
+	}
+	else {
+		finalColor = vec3(1.0, 0, 0);
+	}
+
+	//finalColor = rayWorld;
+	//finalColor = vec3(pixelUV, 0.0);
+
+	imageStore(destTex, globalId, vec4(finalColor, 1));
+}
+
+bool BVHIntersect(inout Ray ray, inout Intersection intersection) {
+	bool hit = false;
+
+	vec3 invDir = 1.0 / ray.dir;
+	ivec3 dirIsNeg = ivec3(invDir.x < 0, invDir.y < 0, invDir.z < 0);
+
+	int toVisitOffset = 0; 
+	int currentNodeIndex = 0;
+	int nodesToVisit[64];
+
+	while (true) {
+		LinearBVHNode node = nodes[currentNodeIndex];
+		// If this node intersects with our ray
+		if (IntersectRay(node.boundsMin, node.boundsMax, ray, invDir, dirIsNeg)) {
+
+			// Leaf node. Check all triangles within this leaf node.
+			if (node.numPrimitives > 0) {
+
+				for (int i = 0; i < node.numPrimitives; i+=1) {
+					if (TriangleIntersect(triangles[node.offset + i], ray, intersection)) {
+						hit = true;
+					}
+				}
+
+				if (toVisitOffset == 0) {
+					break;
+				}
+				currentNodeIndex = nodesToVisit[--toVisitOffset];
+			}
+			// Interior node. Check children nodes, using direction of ray to determine which child to check first.
+			else {
+				if (dirIsNeg[node.axis] > 0) {
+					nodesToVisit[toVisitOffset++] = currentNodeIndex + 1;
+					currentNodeIndex = node.offset;
+				}
+				else {
+					nodesToVisit[toVisitOffset++] = node.offset;
+					currentNodeIndex = currentNodeIndex + 1;
+				}
+			}
+		}
+		// No intersection. Check next node.
+		else {
+			if (toVisitOffset == 0) {
+				break;
+			}
+			currentNodeIndex = nodesToVisit[--toVisitOffset];
+		}
+	} // while
+
+	return hit;
+
+}
+
+/* https://en.wikipedia.org/wiki/Cramer%27s_rule */
+/* https://www.cs.cornell.edu/courses/cs4620/2015fa/lectures/06rtintersectWeb.pdf */
+bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersection intersection) {
+
+	// Plane normal and triangle area
+	GPUVertex a = vertices[triangle.indices[0]];
+	GPUVertex b = vertices[triangle.indices[1]];
+	GPUVertex c = vertices[triangle.indices[2]];
+
+	vec3 a_to_b = b.position.xyz - c.position.xyz;
+	vec3 a_to_c = c.position.xyz - a.position.xyz;
+	vec3 p_to_a = a.position.xyz - ray.pos;
+
+	// Calculate if triangle and ray are parallel.
+	if (abs(dot(a_to_b, p_to_a)) < SMALL_NUMBER) return false;
+
+	mat3 mat = mat3( a_to_b, a_to_c, ray.dir);
+	float det = 1.0 / determinant(mat);
+
+	// Calculate u
+	mat[0] = p_to_a;
+	float u = determinant(mat) * det;
+	if (u < 0.0 || u > 1.0) return false;
+
+	// Calculate v
+	mat[0] = a_to_b;
+	mat[1] = p_to_a;
+	float v = determinant(mat) * det;
+	if (v < 0.0 || u + v > 1.0) return false;
+
+	// Calculate t (behind or past closest triangle).
+	mat[1] = a_to_c;
+	mat[2] = p_to_a;
+	float t = determinant(mat) * det;
+	if (t < 0.0 || t > ray.tMax) return false;
+
+	// Check if triangle is facing us or not.
+//	vec3 barycentricNormal = ((1.0 - u - v) * a.normal.xyz + u * b.normal.xyz + v * c.normal.xyz).xyz;
+//	vec3 normal = normalize(barycentricNormal);
+//	if (dot(normal, ray.dir) > 0) return false;
+
+
+	// In the triangle
+	ray.tMax = t;
+	
+	intersection.triangle = triangle;
+	//intersection.normal = normal;
+	intersection.u = u;
+	intersection.point = ray.pos + t * ray.dir;
+	intersection.v = v;
+
+	return true;
+}
+
+	vec3 Slab(in vec3 boundsMin, in vec3 boundsMax, in int i) {
+		if (i == 0) return boundsMin;
+		return boundsMax;
+	}
+
+	bool IntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 invDir, in ivec3 dirIsNeg) {
+		float tMin = (Slab(boundsMin, boundsMax, dirIsNeg[0]).x - ray.pos.x) * invDir.x;
+		float tMax = (Slab(boundsMin, boundsMax, 1 - dirIsNeg[0]).x - ray.pos.x) * invDir.x;
+		float tyMin = (Slab(boundsMin, boundsMax, dirIsNeg[1]).y - ray.pos.y) * invDir.y;
+		float tyMax = (Slab(boundsMin, boundsMax, 1 - dirIsNeg[1]).y - ray.pos.y) * invDir.y;
+
+		if (tMin > tyMax || tyMin > tMax) {
+			return false;
+		}
+		if (tyMin > tMin) tMin = tyMin;
+		if (tyMax < tMax) tMax = tyMax;
+
+		float tzMin = (Slab(boundsMin, boundsMax, dirIsNeg[2]).z - ray.pos.z) * invDir.z;
+		float tzMax = (Slab(boundsMin, boundsMax, 1 - dirIsNeg[2]).z - ray.pos.z) * invDir.z;
+		if (tMin > tzMax || tzMin > tMax) {
+			return false;
+		}
+		if (tzMin > tMin) tMin = tzMin;
+		if (tzMax < tMax) tMax = tzMax;
+
+		return (tMin < ray.tMax) && (tMax > 0);
+	}

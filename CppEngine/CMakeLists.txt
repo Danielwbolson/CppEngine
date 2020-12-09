@@ -104,11 +104,14 @@ set(CORE_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/Scene.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/Camera.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/GameObject.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/BVH.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/core/BVHTypes.h
 )
 set(CORE_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/Scene.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/Camera.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/GameObject.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/core/BVH.cpp
 )
 
 set(LIGHTS_H
@@ -148,16 +151,20 @@ set(SYSTEMS_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/ColliderSystem.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/RendererSystem.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/PhysicsSystem.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/RayTracingSystem.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/RenderTypes.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/systems/Systems.h
 )
 set(SYSTEMS_CPP
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/ColliderSystem.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/RendererSystem.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/PhysicsSystem.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/src/source/systems/RayTracingSystem.cpp
 )
 
 set(UTILITY_H
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Globals.h
+	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/GlobalMacros.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/SDL_Static_Helper.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Utility.h
 	${CMAKE_CURRENT_SOURCE_DIR}/src/headers/utility/Configuration.h
@@ -191,6 +198,8 @@ set(SHADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/tiledLighting.comp
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/bakeLights.comp
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/rayTrace.comp
 )
 
 set(INCS

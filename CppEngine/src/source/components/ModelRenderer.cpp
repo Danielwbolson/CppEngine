@@ -7,6 +7,7 @@ ModelRenderer::ModelRenderer(Model* m) {
     componentType = "modelRenderer";
 
     model = m;
+	m->modelRenderer = this;
 	vaos.resize(model->meshes.size());
 	vbos.resize(model->meshes.size());
 

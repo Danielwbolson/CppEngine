@@ -65,7 +65,7 @@ int addInstance(const std::string& gameObjectName) {
 }
 
 int scaleInstance(const int& index, const float& x, const float& y, const float& z) {
-	mainScene->instances[index]->transform->scale = glm::vec3(x, y, z);
+	mainScene->instances[index]->transform->Scale(glm::vec3(x, y, z));
 	return 1;
 }
 
