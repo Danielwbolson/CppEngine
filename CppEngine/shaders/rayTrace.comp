@@ -293,3 +293,59 @@ bool AABBIntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 
 
 	return (tMin < ray.tMax) && (tMax > 0);
 }
+
+
+/***** * * * * * Deprecated functions * * * * * *****/
+// This didn't work with Cramers rule.
+/* https://en.wikipedia.org/wiki/Cramer%27s_rule */
+/* https://www.cs.cornell.edu/courses/cs4620/2015fa/lectures/06rtintersectWeb.pdf */
+bool DeprecatedTriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersection intersection) {
+
+	// Plane normal and triangle area
+	GPUVertex a = vertices[triangle.indices[0]];
+	GPUVertex b = vertices[triangle.indices[1]];
+	GPUVertex c = vertices[triangle.indices[2]];
+
+	vec3 a_to_b = b.position.xyz - a.position.xyz;
+	vec3 a_to_c = c.position.xyz - a.position.xyz;
+	vec3 p_to_a = a.position.xyz - ray.pos;
+
+	// Calculate if triangle and ray are parallel.
+	// If normal of triangle and ray are perpendicular, then they are parallel.
+	if (abs(dot(cross(a_to_b, a_to_c), p_to_a)) < SMALL_NUMBER) return false;
+
+	mat3 mat = mat3( a_to_b, a_to_c, ray.dir);
+	double det = determinant(mat);
+	if (abs(det) < SMALL_NUMBER) return false;
+	det = 1.0 / det;
+
+	// Calculate u
+	mat[0] = p_to_a;
+	float u = float(determinant(mat) * det);
+	if (u < 0.0 || u > 1.0) return false;
+
+	// Calculate v
+	mat[0] = a_to_b;
+	mat[1] = p_to_a;
+	float v = float(determinant(mat) * det);
+	if (v < 0.0 || u + v > 1.0) return false;
+
+	// Calculate t (behind or past closest triangle).
+	mat[1] = a_to_c;
+	mat[2] = p_to_a;
+	float t = float(determinant(mat) * det);
+	if (t < 0.0 || t > ray.tMax) return false;
+
+	// In the triangle	
+	ray.tMax = t;
+	
+	intersection.triangle = triangle;
+	vec3 barycentricNormal = ((1.0 - u - v) * a.normal.xyz + u * b.normal.xyz + v * c.normal.xyz).xyz;
+	vec3 normal = normalize(barycentricNormal);
+	intersection.normal = normal;
+	intersection.u = u;
+	intersection.point = ray.pos + t * ray.dir;
+	intersection.v = v;
+
+	return true;
+}
