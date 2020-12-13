@@ -105,7 +105,7 @@ struct Intersection {
 	float v;
 };
 
-bool BVHIntersect(inout Ray ray, inout Intersection intersection);
+bool BVHIntersect(inout Ray ray, inout Intersection intersection, inout vec3 finalColor);
 bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersection intersection);
 bool AABBIntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 invDir, in ivec3 dirIsNeg);
 
@@ -132,32 +132,31 @@ void main() {
 	// We now have a world space ray. We can intersect our BVH and calculate lighting.
 	vec3 finalColor = vec3(0,0,0);
 	Intersection intersection;
-
-	bool hit = false;
-	for (uint i = 0; i < triangles.length(); i+=1) {
-		if (TriangleIntersect(triangles[i], ray, intersection)) {
-			hit = true;
-			break;
-		}
-	}
-
-	if (hit) {
-		finalColor = vec3(0,1,0);
-	}
-//	if (BVHIntersect(ray, intersection)) {
-//		GPUVertex a = vertices[intersection.triangle.indices[0]];
-//		GPUVertex b = vertices[intersection.triangle.indices[1]];
-//		GPUVertex c = vertices[intersection.triangle.indices[2]];
-//		vec2 triUvs = (a.uv * (1.0 - intersection.u - intersection.v) + b.uv * intersection.u + c.uv * intersection.v).xy;
-//		//finalColor = texture(materials[intersection.triangle.materialIndex].diffuseTexture, triUvs).xyz;
-//		finalColor = vec3(triUvs,0.0);
-//		finalColor = vec3(1);
+//
+//	bool hit = false;
+//	for (uint i = 0; i < triangles.length(); i+=1) {
+//		if (TriangleIntersect(triangles[i], ray, intersection)) {
+//			hit = true;
+//			break;
+//		}
 //	}
+//
+//	if (hit) {
+//		finalColor = vec3(0,1,0);
+//	}
+	if (BVHIntersect(ray, intersection, finalColor)) {
+		GPUVertex a = vertices[intersection.triangle.indices[0]];
+		GPUVertex b = vertices[intersection.triangle.indices[1]];
+		GPUVertex c = vertices[intersection.triangle.indices[2]];
+		vec2 triUvs = (a.uv * (1.0 - intersection.u - intersection.v) + b.uv * intersection.u + c.uv * intersection.v).xy;
+		//finalColor = texture(materials[intersection.triangle.materialIndex].diffuseTexture, triUvs).xyz;
+		finalColor = vec3(triUvs,0.0);
+	}
 
 	imageStore(destTex, globalId, vec4(finalColor, 1));
 }
 
-bool BVHIntersect(inout Ray ray, inout Intersection intersection) {
+bool BVHIntersect(inout Ray ray, inout Intersection intersection, inout vec3 finalColor) {
 	bool hit = false;
 
 	vec3 invDir = 1.0 / ray.dir;
@@ -169,7 +168,10 @@ bool BVHIntersect(inout Ray ray, inout Intersection intersection) {
 
 	while (true) {
 		// Cap on number of nodes we can visit
-		if (toVisitOffset >= MAX_VISITED_NODES) return false;
+		if (toVisitOffset >= MAX_VISITED_NODES) {
+			finalColor = vec3(0,0,1);
+			return false;
+		}
 
 		LinearBVHNode node = nodes[currentNodeIndex];
 		// If this node intersects with our ray
@@ -216,6 +218,7 @@ bool BVHIntersect(inout Ray ray, inout Intersection intersection) {
 
 /* https://en.wikipedia.org/wiki/Cramer%27s_rule */
 /* https://www.cs.cornell.edu/courses/cs4620/2015fa/lectures/06rtintersectWeb.pdf */
+/* https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection */
 bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersection intersection) {
 
 	// Plane normal and triangle area
@@ -225,32 +228,29 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 
 	vec3 a_to_b = b.position.xyz - a.position.xyz;
 	vec3 a_to_c = c.position.xyz - a.position.xyz;
-	vec3 p_to_a = a.position.xyz - ray.pos;
+	vec3 pVec = cross(ray.dir, a_to_c);
+	float det = dot(a_to_b, pVec);
 
-	// Calculate if triangle and ray are parallel.
-	// If normal of triangle and ray are perpendicular, then they are parallel.
-	if (abs(dot(cross(a_to_b, a_to_c), p_to_a)) < SMALL_NUMBER) return false;
+	// If we are parallel
+	if (abs(det) < SMALL_NUMBER) {
+		return false;
+	}
 
-	mat3 mat = mat3( a_to_b, a_to_c, ray.dir);
-	double det = determinant(mat);
-	if (abs(det) < SMALL_NUMBER) return false;
-	det = 1.0 / det;
+	// Avoid excess divides
+	float invDet = 1.0 / det;
 
 	// Calculate u
-	mat[0] = p_to_a;
-	float u = float(determinant(mat) * det);
+	vec3 uVec = ray.pos - a.position.xyz;
+	float u = dot(uVec, pVec) * invDet; // how far does this uVec go in dir of our ray
 	if (u < 0.0 || u > 1.0) return false;
 
 	// Calculate v
-	mat[0] = a_to_b;
-	mat[1] = p_to_a;
-	float v = float(determinant(mat) * det);
+	vec3 vVec = cross(uVec, a_to_b);
+	float v = dot(ray.dir, vVec) * invDet; // how far does this vVec go in dir of our ray
 	if (v < 0.0 || u + v > 1.0) return false;
 
 	// Calculate t (behind or past closest triangle).
-	mat[1] = a_to_c;
-	mat[2] = p_to_a;
-	float t = float(determinant(mat) * det);
+	float t = dot(a_to_b, vVec) * invDet;
 	if (t < 0.0 || t > ray.tMax) return false;
 
 	// In the triangle	
