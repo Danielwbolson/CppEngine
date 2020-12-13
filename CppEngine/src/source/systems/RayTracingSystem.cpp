@@ -14,6 +14,21 @@
 
 #include "BVHTypes.h"
 
+GLfloat boundingBoxVertices[] = {
+  -0.5, -0.5, -0.5, 1.0,
+   0.5, -0.5, -0.5, 1.0,
+   0.5,  0.5, -0.5, 1.0,
+  -0.5,  0.5, -0.5, 1.0,
+  -0.5, -0.5,  0.5, 1.0,
+   0.5, -0.5,  0.5, 1.0,
+   0.5,  0.5,  0.5, 1.0,
+  -0.5,  0.5,  0.5, 1.0
+};
+GLushort boundingBoxElements[] = {
+  0, 1, 2, 3,
+  4, 5, 6, 7,
+  0, 4, 1, 5, 2, 6, 3, 7
+};
 
 RayTracingSystem::RayTracingSystem() {}
 
@@ -59,10 +74,41 @@ void RayTracingSystem::Setup() {
 		directionalLightsToGPU.push_back(d);
 	}
 
+	// Initialize our bounding box debug shader and data
+	{
+		boundingBoxShader = util::initVertFragShader("simpleDraw.vert", "simpleDraw.frag");
+
+		glGenVertexArrays(1, &bbVAO);
+		glBindVertexArray(bbVAO);
+
+		glGenBuffers(1, &bbVertices);
+		glBindBuffer(GL_ARRAY_BUFFER, bbVertices);
+		glBufferData(GL_ARRAY_BUFFER, sizeof(boundingBoxVertices), boundingBoxVertices, GL_STATIC_DRAW);
+
+		GLint posAttrib = glGetAttribLocation(boundingBoxShader, "inPos");
+		glEnableVertexAttribArray(posAttrib);
+		glVertexAttribPointer(
+			posAttrib,  // attribute
+			4,                  // number of elements per vertex, here (x,y,z,w)
+			GL_FLOAT,           // the type of each element
+			GL_FALSE,           // take our values as-is
+			0,                  // no extra data between each position
+			0                   // offset of first element
+		);
+
+		glGenBuffers(1, &bbIndices);
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bbIndices);
+		glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(boundingBoxElements), boundingBoxElements, GL_STATIC_DRAW);
+
+		glBindVertexArray(0);
+	}
+
 	// Initialize our compute shaders and gpu data
 	{
 		//bakeLightsComputeShader = util::initComputeShader("bakeLights.comp");
 		rayTraceComputeShader = util::initComputeShader("rayTrace.comp");
+		unsigned long long uboMemory = 0;
+		unsigned long long ssboMemory = 0;
 
 		// Constant memory lights
 		// Max of 65k bytes
@@ -72,6 +118,7 @@ void RayTracingSystem::Setup() {
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data(), GL_STATIC_DRAW);
 		glBindBufferBase(GL_UNIFORM_BUFFER, 0, pointLightsUBO);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		uboMemory += sizeof(PointLightToGPU) * pointLightsToGPU.size();
 
 		// Material buffer
 		//glGenBuffers(1, &materialsSSBO);
@@ -79,34 +126,58 @@ void RayTracingSystem::Setup() {
 		//glBufferData(GL_UNIFORM_BUFFER, sizeof(GPUMaterial) * AssetManager::gpuMaterials->size(), AssetManager::gpuMaterials->data(), GL_STATIC_DRAW);
 		//glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialsSSBO);
 		//glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		//uboMemory += sizeof(GPUMaterial) * AssetManager::gpuMaterials->size();
 
-		// BVH nodes
+		// BVH 
+		std::vector<LinearBVHNode>& nodes = bvh->GetLinearBVH();
 		glGenBuffers(1, &bvhSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, bvhSSBO);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(LinearBVHNode) * bvh->GetBVHSize(), bvh->GetLinearBVH().data(), GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bvhSSBO);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(LinearBVHNode) * nodes.size(), nodes.data(), GL_STATIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, bvhSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+		ssboMemory += sizeof(LinearBVHNode) * nodes.size();
 
-		// Vertex buffer
-		glGenVertexArrays(1, &worldVAO);
-		glBindVertexArray(worldVAO);
 
-		glGenBuffers(1, &verticesVBO);
-		glBindBuffer(GL_ARRAY_BUFFER, verticesVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(GPUVertex) * AssetManager::gpuVertices->size(), AssetManager::gpuVertices->data(), GL_STATIC_DRAW);
-		glVertexAttribFormat(0, 4, GL_FLOAT, GL_FALSE, 0); // position
-		glVertexAttribFormat(1, 4, GL_FLOAT, GL_FALSE, 1 * sizeof(float) * 4); // normals
-		glVertexAttribFormat(2, 4, GL_FLOAT, GL_FALSE, 2 * sizeof(float) * 4); // uvs
-		glVertexAttribFormat(3, 4, GL_FLOAT, GL_FALSE, 3 * sizeof(float) * 4); // tangents
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, verticesVBO);
+		// Vertices buffer
+		glGenBuffers(1, &verticesSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, verticesSSBO);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GPUVertex) * AssetManager::gpuVertices->size(), AssetManager::gpuVertices->data(), GL_STATIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, verticesSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+		ssboMemory += sizeof(GPUVertex) * AssetManager::gpuVertices->size();
+
 
 		// Triangle index buffer
 		glGenBuffers(1, &triangleSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, triangleSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GPUTriangle) * AssetManager::gpuTriangles->size(), AssetManager::gpuTriangles->data(), GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, triangleSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, triangleSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+		ssboMemory += sizeof(GPUTriangle) * AssetManager::gpuTriangles->size();
+
+
+		fprintf(stderr, "\nBVH -- Num: %zu\n", nodes.size());
+		fprintf(stderr, "BVH -- Bytes: %zu\n", sizeof(LinearBVHNode)* nodes.size());
+		uint32_t totalTris = 0;
+		for (uint32_t i = 0; i < nodes.size(); i += 1) {
+			totalTris += nodes[i].numPrimitives;
+		}
+		fprintf(stderr, "BVH -- Contained Tris: %u\n", totalTris);
+
+		fprintf(stderr, "\nVertices -- Num: %zu\n", AssetManager::gpuVertices->size());
+		fprintf(stderr, "Vertices -- Bytes: %zu\n", sizeof(GPUVertex) * AssetManager::gpuVertices->size());
+
+		fprintf(stderr, "\nTriangles -- Num: %zu\n", AssetManager::gpuTriangles->size());
+		fprintf(stderr, "Triangles -- Bytes: %zu\n", sizeof(GPUTriangle) * AssetManager::gpuTriangles->size());
+
+		fprintf(stderr, "\nUBO -- Constant/Shared Memory (b): %llu\n", uboMemory);
+		fprintf(stderr, "UBO -- Constant/Shared Memory (kb): %llu\n", uboMemory / 1024);
+		fprintf(stderr, "UBO -- Constant/Shared Memory (mb): %llu\n", uboMemory / 1024 / 1024);
+
+		fprintf(stderr, "\nSSBO -- Global Memory (b): %llu\n", ssboMemory);
+		fprintf(stderr, "SSBO -- Global Memory (kb): %llu\n", ssboMemory / 1024);
+		fprintf(stderr, "SSBO -- Global Memory (mb): %llu\n", ssboMemory / 1024 / 1024);
+
 	}
 	
 	// Create our final framebuffer and accompanying geometry and shaders for our final render
@@ -150,6 +221,8 @@ void RayTracingSystem::Setup() {
 		glEnableVertexAttribArray(posAttrib);
 		glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
+		glBindVertexArray(0);
+
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
@@ -183,19 +256,55 @@ void RayTracingSystem::Render() {
 	proj = mainCamera->proj;
 
 	// Clear our framebuffer
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClearColor(0, 0, 0, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
 	glClearColor(0, 0, 0, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 	// Cull our lights in a 3D grid for faster look-up in our ray tracer
 #if PROFILING
 	glBeginQuery(GL_TIME_ELAPSED, timeQuery);
-	LightCull();
+	//LightCull();
 	glEndQuery(GL_TIME_ELAPSED);
 	glGetQueryObjecti64v(timeQuery, GL_QUERY_RESULT, &bakeLightsTime);
 #else
 	LightCull();
+#endif
+
+	// Debug draw our bounding boxes.
+#if PROFILING
+
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//glDrawBuffer(GL_FRONT_AND_BACK);
+	//glClearColor(0, 0, 0, 1.0f);
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//glUseProgram(boundingBoxShader);
+	//glUniformMatrix4fv(glGetUniformLocation(boundingBoxShader, "projView"), 1, GL_FALSE, glm::value_ptr(proj * view));
+
+	//glBindVertexArray(bbVAO);
+	//glLineWidth(5);
+
+	//std::vector<LinearBVHNode> nodes = bvh->GetLinearBVH();
+	//for (int32_t i = 0; i < 5000;/*nodes.size();*/ i += 1)
+	//{
+	//	glm::vec3 size = nodes[i].boundsMax - nodes[i].boundsMin;
+	//	glm::vec3 center = (nodes[i].boundsMax + nodes[i].boundsMax) / 2.0f;
+	//	glm::mat4 transform = glm::translate(glm::mat4(1), center) * glm::scale(glm::mat4(1), size);
+
+	//	glUniformMatrix4fv(glGetUniformLocation(boundingBoxShader, "model"), 1, GL_FALSE, glm::value_ptr(transform));
+
+	//	glDrawElements(GL_LINE_LOOP, 4, GL_UNSIGNED_SHORT, 0);
+	//	glDrawElements(GL_LINE_LOOP, 4, GL_UNSIGNED_SHORT, (GLvoid*)(4 * sizeof(GLushort)));
+	//	glDrawElements(GL_LINES, 8, GL_UNSIGNED_SHORT, (GLvoid*)(8 * sizeof(GLushort)));
+	//}
+
+	//glBindVertexArray(0);
+
+#else
+	// Empty
 #endif
 
 	// Next, ray trace our scene
@@ -226,9 +335,8 @@ void RayTracingSystem::LightCull() {
 void RayTracingSystem::RayTrace() {
 
 	glUseProgram(rayTraceComputeShader);
-	glBindVertexArray(worldVAO);
 
-	// Set up other uniform variables
+	//Set up other uniform variables
 	glm::vec3 camPos = mainCamera->transform->position;
 	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
@@ -238,6 +346,8 @@ void RayTracingSystem::RayTrace() {
 	glUniformMatrix4fv(uniInvView, 1, GL_FALSE, glm::value_ptr(glm::inverse(view)));
 
 	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
+
+	glBindVertexArray(0);
 }
 
 void RayTracingSystem::PostProcess() {
@@ -259,4 +369,5 @@ void RayTracingSystem::PostProcess() {
 
 	glDrawArrays(GL_TRIANGLES, 0, 6); //Number of vertices
 
+	glBindVertexArray(0);
 }

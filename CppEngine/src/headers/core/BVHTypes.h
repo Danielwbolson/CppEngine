@@ -122,11 +122,12 @@ public:
 	}
 
 	float SurfaceArea() const {
-		float width = max.x - min.x;
-		float height = max.y - min.y;
-		float depth = max.z - min.z;
-
-		return 2 * (width * depth + height * depth + height * width);
+		glm::vec3 extentVector = max - min;
+		return 2 * (
+			extentVector.x * extentVector.y +
+			extentVector.x * extentVector.z +
+			extentVector.y * extentVector.z
+		);
 	}
 
 	glm::vec3 min;
@@ -149,7 +150,7 @@ public:
 
 struct BVHNode {
 public:
-	void InitLeaf(int first, int n, const SlimBounds& inBounds) {
+	void InitLeaf(uint32_t first, uint32_t n, const SlimBounds& inBounds) {
 		firstPrimOffset = first;
 		numPrimitives = n;
 		bounds = inBounds;
@@ -167,11 +168,11 @@ public:
 		numPrimitives = 0;
 	}
 
-	SlimBounds bounds; // 24 bytes
-	BVHNode* children[2]; // 16 bytes
-	SplitAxis splitAxis; // 4 bytes
-	uint16_t firstPrimOffset; // 2 bytes
-	int numPrimitives; // 4 bytes
+	SlimBounds bounds;
+	BVHNode* children[2];
+	SplitAxis splitAxis;
+	uint32_t firstPrimOffset;
+	uint32_t numPrimitives;
 };
 
 struct BVHTriangle {
@@ -187,7 +188,7 @@ public:
 struct LinearBVHNode {
 public:
 	glm::vec3 boundsMin;
-	int32_t offset; // primitivesOffset --> leaf, secondChildOffset --> interior
+	uint32_t offset; // primitivesOffset --> leaf, secondChildOffset --> interior
 
 	glm::vec3 boundsMax;
 	uint32_t numPrimitives;

@@ -197,6 +197,8 @@ set(SHADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/forwardPlusTransparency.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.vert
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/shadowMap.frag
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/simpleDraw.vert
+	${CMAKE_CURRENT_SOURCE_DIR}/shaders/simpleDraw.frag
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/tiledLighting.comp
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/bakeLights.comp
 	${CMAKE_CURRENT_SOURCE_DIR}/shaders/rayTrace.comp

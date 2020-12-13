@@ -68,14 +68,15 @@ struct GPUMaterial {
 	uint64_t specularHighlightTexture;
 	uint64_t normalTexture;
 	uint64_t alphaTexture;
+	uint64_t pad[3];
 
-	glm::u8vec4 diffuse;
-	glm::u8vec4 specular;
-	glm::u8vec4 transmissive;
-	float specularExponent;
-	float indexOfRefraction;
-	uint8_t usingNormal;
-	uint8_t pad[3];
+	//glm::u8vec4 diffuse;
+	//glm::u8vec4 specular;
+	//glm::u8vec4 transmissive;
+	//float specularExponent;
+	//float indexOfRefraction;
+	//uint8_t usingNormal;
+	//uint8_t pad[3];
 };
 #pragma pack(pop)
 ASSERT_GPU_ALIGNMENT(GPUMaterial);

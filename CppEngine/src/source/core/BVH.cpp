@@ -10,9 +10,9 @@
 BVH::BVH(
 	const std::vector<GPUVertex>& gpuVertices,
 	std::vector<GPUTriangle>& gpuTriangles,
-	int maxPrimsPerNode,
+	uint32_t maxPrimsPerNode,
 	SplitMethod splitMethod
-) : _maxPrimsPerNode(std::min(255, maxPrimsPerNode)), _splitMethod(splitMethod) {
+) : _maxPrimsPerNode(std::min((uint32_t)255, maxPrimsPerNode)), _splitMethod(splitMethod) {
 
 	if (gpuTriangles.size() == 0) {
 		return;
@@ -26,7 +26,7 @@ BVH::BVH(
 	// Get our necessary information for each primitive triangle
 	std::vector<BVHPrimitiveInfo> primitiveInfo;
 	primitiveInfo.reserve(numPrimitives);
-	for (unsigned int i = 0; i < numPrimitives; i++) {
+	for (uint32_t i = 0; i < numPrimitives; i++) {
 
 		SlimBounds slimBounds;
 
@@ -50,7 +50,7 @@ BVH::BVH(
 	}
 
 	// Now, build our bvh
-	int totalNodes = 0;
+	uint32_t totalNodes = 0;
 	std::vector<GPUTriangle> orderedGPUTriangles;
 	BVHNode* root = nullptr;
 	if (splitMethod == SplitMethod::SAH) {
@@ -62,7 +62,7 @@ BVH::BVH(
 	// Flatten our BVH hierarchy for sending to the GPU
 	if (root) {
 		_nodes = std::vector<LinearBVHNode>(totalNodes);
-		int offset = 0;
+		uint32_t offset = 0;
 		FlattenBVHTree(root, &offset);
 	}
 
@@ -70,9 +70,9 @@ BVH::BVH(
 
 BVHNode* BVH::RecursiveBuild(
 	std::vector<BVHPrimitiveInfo>& primitiveInfo,
-	int start,
-	int end,
-	int* totalNodes,
+	uint32_t start,
+	uint32_t end,
+	uint32_t* totalNodes,
 	const std::vector<GPUTriangle>& originalGPUTriangles,
 	std::vector<GPUTriangle>& orderedGPUTriangles
 ) {
@@ -81,11 +81,11 @@ BVHNode* BVH::RecursiveBuild(
 
 	// Calculate total bounds for everything within this box
 	SlimBounds bounds;
-	for (int32_t i = start; i < end; i += 1) {
+	for (uint32_t i = start; i < end; i += 1) {
 		bounds = SlimBounds::Union(bounds, primitiveInfo[i].bounds);
 	}
 
-	int numPrimitives = end - start;
+	uint32_t numPrimitives = end - start;
 
 	// leaf node
 	if (numPrimitives == 1) {
@@ -97,14 +97,12 @@ BVHNode* BVH::RecursiveBuild(
 
 		// Get a bounds of all the centers of our _primitives to determine the axis to split on
 		SlimBounds centroidBounds;
-		for (int32_t i = start; i < end; i += 1) {
+		for (uint32_t i = start; i < end; i += 1) {
 			centroidBounds = SlimBounds::Union(centroidBounds, primitiveInfo[i].center);
 		}
 		SplitAxis splitAxis = centroidBounds.MaximumExtent();
 
-		int mid = (start + end) / 2;
-		int quarter = (start + mid) / 2;
-		int threeQuarter = (mid + end) / 2;
+		uint32_t mid = (start + end) / 2;
 
 		// If our bounds has no volume, create a leaf node with all _primitives.
 		// Very unusual case.
@@ -115,7 +113,7 @@ BVHNode* BVH::RecursiveBuild(
 		}
 		else {
 
-			if (numPrimitives < 16) {
+			if (numPrimitives <= 4) {
 				// Divide into equal groups. SAH doesn't provide much value here anymore.
 
 				std::nth_element(
@@ -136,14 +134,14 @@ BVHNode* BVH::RecursiveBuild(
 				};
 				BucketInfo buckets[numBuckets];
 
-				for (int32_t i = start; i < end; i += 1) {
+				for (uint32_t i = start; i < end; i += 1) {
 					float value =
 						BVH::SplitAxisToVectorElement(
 							centroidBounds.Offset(primitiveInfo[i].center),
 							splitAxis
 						);
 
-					int32_t b = (int32_t)(numBuckets * value);
+					uint32_t b = (uint32_t)(numBuckets * value);
 					if (b == numBuckets) {
 						b = numBuckets - 1;
 					}
@@ -154,19 +152,19 @@ BVHNode* BVH::RecursiveBuild(
 
 				// Compute costs for splitting after each bucket
 				float cost[numBuckets - 1];
-				for (int32_t i = 0; i < numBuckets - 1; i += 1) {
+				for (uint32_t i = 0; i < numBuckets - 1; i += 1) {
 
 					SlimBounds b0;
 					SlimBounds b1;
-					int32_t count0 = 0;
-					int32_t count1 = 0;
+					uint32_t count0 = 0;
+					uint32_t count1 = 0;
 
-					for (int32_t j = 0; j <= i; j += 1) {
+					for (uint32_t j = 0; j <= i; j += 1) {
 						b0 = SlimBounds::Union(b0, buckets[j].bounds);
 						count0 += buckets[j].count;
 					}
 
-					for (int32_t j = i + 1; j < numBuckets; j += 1) {
+					for (uint32_t j = i + 1; j < numBuckets; j += 1) {
 						b1 = SlimBounds::Union(b1, buckets[j].bounds);
 						count1 += buckets[j].count;
 					}
@@ -176,8 +174,8 @@ BVHNode* BVH::RecursiveBuild(
 
 				// find bucket to split at the the minimal surface area heuristic metric
 				float minCost = cost[0];
-				int minCostSplitBucket = 0;
-				for (int32_t i = 1; i < numBuckets - 1; i += 1) {
+				uint32_t minCostSplitBucket = 0;
+				for (uint32_t i = 1; i < numBuckets - 1; i += 1) {
 					if (cost[i] < minCost) {
 						minCost = cost[i];
 						minCostSplitBucket = i;
@@ -192,13 +190,13 @@ BVHNode* BVH::RecursiveBuild(
 						&primitiveInfo[start], &primitiveInfo[end - 1] + 1,
 						[=](const BVHPrimitiveInfo& primInfo) {
 							float value = BVH::SplitAxisToVectorElement(centroidBounds.Offset(primInfo.center), splitAxis);
-							int32_t b = (int32_t)(numBuckets * value);
+							uint32_t b = (uint32_t)(numBuckets * value);
 							if (b == numBuckets) {
 								b = numBuckets - 1;
 							}
 							return b <= minCostSplitBucket;
 						});
-					mid = (int32_t)(primMid - &primitiveInfo[0]);
+					mid = (uint32_t)(primMid - &primitiveInfo[0]);
 				}
 				else {
 					CreateBVHLeafNode(node, start, end, numPrimitives, bounds, primitiveInfo, originalGPUTriangles, orderedGPUTriangles);
@@ -217,11 +215,11 @@ BVHNode* BVH::RecursiveBuild(
 }
 
 // TODO: Handle child nodes being null
-int32_t BVH::FlattenBVHTree(BVHNode* node, int32_t* offset) {
+uint32_t BVH::FlattenBVHTree(BVHNode* node, uint32_t* offset) {
 	LinearBVHNode* linearNode = &_nodes[*offset];
 	linearNode->boundsMin = node->bounds.min;
 	linearNode->boundsMax = node->bounds.max;
-	int32_t myOffset = (*offset) += 1;
+	uint32_t myOffset = (*offset) += 1;
 	if (node->numPrimitives > 0) {
 		linearNode->offset = node->firstPrimOffset;
 		linearNode->numPrimitives = node->numPrimitives;
@@ -239,18 +237,18 @@ int32_t BVH::FlattenBVHTree(BVHNode* node, int32_t* offset) {
 
 void BVH::CreateBVHLeafNode(
 	BVHNode* node,
-	const int32_t start,
-	const int32_t end,
-	const int32_t numPrimitives,
+	const uint32_t start,
+	const uint32_t end,
+	const uint32_t numPrimitives,
 	const SlimBounds& bounds,
 	const std::vector<BVHPrimitiveInfo>& primitiveInfo,
 	const std::vector<GPUTriangle>& originalGPUTriangles,
 	std::vector<GPUTriangle>& orderedGPUTriangles
 ) {
-	int firstPrimOffset = (int)orderedGPUTriangles.size();
+	uint32_t firstPrimOffset = (uint32_t)orderedGPUTriangles.size();
 
-	for (int32_t i = start; i < end; i += 1) {
-		int primNum = primitiveInfo[i].primitiveNumber;
+	for (uint32_t i = start; i < end; i += 1) {
+		uint32_t primNum = primitiveInfo[i].primitiveNumber;
 		orderedGPUTriangles.push_back(originalGPUTriangles[primNum]);
 	}
 
@@ -280,6 +278,6 @@ std::vector<LinearBVHNode> BVH::GetLinearBVH() const {
 	return _nodes;
 }
 
-int32_t BVH::GetBVHSize() const {
+uint32_t BVH::GetBVHSize() const {
 	return (int32_t)_nodes.size();
 }

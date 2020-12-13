@@ -958,7 +958,7 @@ namespace AssetManager {
 	void PostLoadScene() {
 		if (RAY_TRACING_ENABLED) {
 			AllocateGPUMemory();
-			bvh = MemoryManager::Allocate<BVH>(*gpuVertices, *gpuTriangles, 4, SplitMethod::SAH);
+			bvh = MemoryManager::Allocate<BVH>(*gpuVertices, *gpuTriangles, 2, SplitMethod::SAH);
 		}
 	}
 
@@ -1041,66 +1041,64 @@ namespace AssetManager {
 				Mesh* mesh = model->meshes[j];
 				Material* material = model->materials[j];
 
-				for (int32_t k = 0; k < mesh->indices.size(); k += 3) {
-
-					GPUVertex vertices[3];
-					GPUTriangle gpuTriangle;
-					for (int32_t index = 0; index < 3; index += 1) {
-						int32_t idk = index + k;
-						int32_t indicesIndex = mesh->indices[idk];
-						vertices[index].position = modelMatrix * glm::vec4(mesh->positions[indicesIndex], 1);
-						vertices[index].normal = glm::vec4(glm::normalize(glm::vec3(glm::transpose(glm::inverse(modelMatrix)) * glm::vec4(mesh->normals[indicesIndex], 0))), 0);
-						vertices[index].uv = glm::vec4(mesh->uvs[indicesIndex], 0, 0);
-						vertices[index].tangents = glm::normalize(modelMatrix * glm::vec4(mesh->tangents[indicesIndex], 0));
-						gpuVertices->push_back(vertices[index]);
-
-						gpuTriangle.indices[index] = idk + indexOffset;
-					}
-					gpuTriangle.materialIndex = j + materialOffset;
-					gpuTriangles->push_back(gpuTriangle);
+				for (int32_t k = 0; k < mesh->positions.size(); k += 1) {
+					GPUVertex vert;
+					vert.position = modelMatrix * glm::vec4(mesh->positions[k], 1.0);
+					vert.normal = glm::vec4(glm::normalize(glm::vec3(glm::transpose(glm::inverse(modelMatrix)) * glm::vec4(mesh->normals[k], 0.0))), 0);
+					vert.uv = glm::vec4(mesh->uvs[k], 0.0, 0.0);
+					vert.tangents = glm::normalize(modelMatrix * glm::vec4(mesh->tangents[k], 0.0));
+					gpuVertices->push_back(vert);
 				}
 
-
-				/*GPUMaterial gpuMaterial;
-				gpuMaterial.diffuseTexture =
-					LoadBindlessTexture("diffuse", material->diffuseTexture, material->diffuseIndex);
-				gpuMaterial.specularTexture =
-					LoadBindlessTexture("specular", material->specularTexture, material->specularIndex);
-				gpuMaterial.specularHighlightTexture =
-					LoadBindlessTexture("specularHighlight", material->specularHighLightTexture, material->specularHighLightIndex);
-				gpuMaterial.normalTexture =
-					LoadBindlessTexture("normal", material->normalTexture, material->normalIndex);
-				gpuMaterial.alphaTexture =
-					LoadBindlessTexture("alpha", material->alphaTexture, material->alphaIndex);
-
-				gpuMaterial.diffuse =
-					glm::u8vec4(
-						material->diffuse.x * 255,
-						material->diffuse.y * 255,
-						material->diffuse.z * 255,
-						255
-					);
-				gpuMaterial.specular =
-					glm::u8vec4(
-						material->specular.x * 255,
-						material->specular.y * 255,
-						material->specular.z * 255,
-						255
-					);
-				gpuMaterial.transmissive =
-					glm::u8vec4(
-						255,
-						255,
-						255,
-						255
-					);
-
-				gpuMaterial.specularExponent = material->specularExponent;
-				gpuMaterial.indexOfRefraction = 1.0f;
-				gpuMaterial.usingNormal = material->usingNormal;
-				gpuMaterials->push_back(gpuMaterial);*/
-
+				for (int32_t k = 0; k < mesh->indices.size(); k += 3) {
+					GPUTriangle tri;
+					tri.indices[0] = mesh->indices[k] + indexOffset;
+					tri.indices[1] = mesh->indices[k+1] + indexOffset;
+					tri.indices[2] = mesh->indices[k+2] + indexOffset;
+					tri.materialIndex = j + materialOffset;
+					gpuTriangles->push_back(tri);
+				}
 				indexOffset += (int32_t)mesh->positions.size();
+
+				//GPUMaterial gpuMaterial;
+				//gpuMaterial.diffuseTexture =
+				//	LoadBindlessTexture("diffuse", material->diffuseTexture, material->diffuseIndex);
+				//gpuMaterial.specularTexture =
+				//	LoadBindlessTexture("specular", material->specularTexture, material->specularIndex);
+				//gpuMaterial.specularHighlightTexture =
+				//	LoadBindlessTexture("specularHighlight", material->specularHighLightTexture, material->specularHighLightIndex);
+				//gpuMaterial.normalTexture =
+				//	LoadBindlessTexture("normal", material->normalTexture, material->normalIndex);
+				//gpuMaterial.alphaTexture =
+				//	LoadBindlessTexture("alpha", material->alphaTexture, material->alphaIndex);
+
+				//gpuMaterial.diffuse =
+				//	glm::u8vec4(
+				//		material->diffuse.x * 255,
+				//		material->diffuse.y * 255,
+				//		material->diffuse.z * 255,
+				//		255
+				//	);
+				//gpuMaterial.specular =
+				//	glm::u8vec4(
+				//		material->specular.x * 255,
+				//		material->specular.y * 255,
+				//		material->specular.z * 255,
+				//		255
+				//	);
+				//gpuMaterial.transmissive =
+				//	glm::u8vec4(
+				//		255,
+				//		255,
+				//		255,
+				//		255
+				//	);
+
+				//gpuMaterial.specularExponent = material->specularExponent;
+				//gpuMaterial.indexOfRefraction = 1.0f;
+				//gpuMaterial.usingNormal = material->usingNormal;
+				//gpuMaterials->push_back(gpuMaterial);
+
 			}
 			materialOffset += (int32_t)model->meshes.size();
 		}

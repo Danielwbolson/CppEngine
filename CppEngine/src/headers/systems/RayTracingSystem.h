@@ -10,9 +10,9 @@
 #include "glm/glm.hpp"
 
 #include "RenderTypes.h"
+#include "BVHTypes.h"
 
 #include <vector>
-
 
 class ModelRenderer;
 
@@ -24,10 +24,11 @@ private:
 
 	glm::mat4 proj; glm::mat4 view;
 
-	GLuint worldVAO; GLuint verticesVBO; GLuint triangleSSBO;
+	GLuint verticesSSBO; GLuint triangleSSBO;
 
 	GLuint bakeLightsComputeShader; 
 	GLuint rayTraceComputeShader;
+
 
 	GLuint pointLightsUBO; GLuint bvhSSBO; 
 	GLuint triangleLightsSSBO; GLuint materialsSSBO;
@@ -46,6 +47,10 @@ private:
 	GLint uniInvView;
 	GLint uniNumPointLights;
 
+	// Bounding box debug info
+	GLuint boundingBoxShader;
+	GLuint bbVAO;
+	GLuint bbVertices; GLuint bbIndices;
 public:
 
 	// Timings

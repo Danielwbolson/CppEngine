@@ -3,7 +3,6 @@
 
 # looking down hallway
 camera 20 3 -10 -1 0 0 0 1 0 1.2 0.01 1000
-#camera 20 50 -10 0 -1 0 0 0 -1 1.2 0.01 1000
 
 # looking at transparency
 #camera 16.25 0.75 -10.75 0 -0.5 -1 0 1 0 1.2 0.01 1000
