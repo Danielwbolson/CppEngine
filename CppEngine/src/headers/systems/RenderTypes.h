@@ -21,23 +21,12 @@ const float quadVerts[12] = {
 /***** * * * * * GPU * * * * * *****/
 
 #pragma pack(push, 1)
-struct LightsPerTriangle {
-public:
-	uint8_t lightIndices[255]; // 255 bytes
-	uint8_t numAffectingLights; // 1 byte
-};
-#pragma pack(pop)
-ASSERT_GPU_ALIGNMENT(LightsPerTriangle);
-ASSERT_STRUCT_UP_TO_DATE(LightsPerTriangle, 256);
-
-
-#pragma pack(push, 1)
 struct LightTile {
 	unsigned int pointLightIndices[1023]; // 1023 point lights supported
 	unsigned int numLights;
 };
 #pragma pack(pop)
-ASSERT_GPU_ALIGNMENT(LightTile);
+ASSERT_GPU_ALIGNMENT(LightTile, 4);
 ASSERT_STRUCT_UP_TO_DATE(LightTile, 1024 * 4);
 
 
@@ -47,7 +36,7 @@ struct PointLightToGPU {
 	glm::vec4 color_and_luminance;
 };
 #pragma pack(pop)
-ASSERT_GPU_ALIGNMENT(PointLightToGPU);
+ASSERT_GPU_ALIGNMENT(PointLightToGPU, 16);
 ASSERT_STRUCT_UP_TO_DATE(PointLightToGPU, 32);
 
 
@@ -57,41 +46,37 @@ struct DirectionalLightToGPU {
 	glm::vec4 color_and_luminance;
 };
 #pragma pack(pop)
-ASSERT_GPU_ALIGNMENT(DirectionalLightToGPU);
+ASSERT_GPU_ALIGNMENT(DirectionalLightToGPU, 16);
 ASSERT_STRUCT_UP_TO_DATE(DirectionalLightToGPU, 32);
 
 
 #pragma pack(push, 1)
 struct GPUMaterial {
 	uint64_t diffuseTexture;
-	uint64_t specularTexture;
-	uint64_t specularHighlightTexture;
 	uint64_t normalTexture;
-	uint64_t alphaTexture;
-	uint64_t pad[3];
 
-	//glm::u8vec4 diffuse;
-	//glm::u8vec4 specular;
-	//glm::u8vec4 transmissive;
-	//float specularExponent;
-	//float indexOfRefraction;
-	//uint8_t usingNormal;
-	//uint8_t pad[3];
+	uint64_t alphaTexture;
+	uint32_t diffuse; // 8/8/8/NA
+	uint32_t specular; // 8/8/8/NA
+
+	uint32_t transmissive_and_ior; // 8/8/8/8
+	uint32_t specularExponent_and_usingNormal; // 16/16
+	uint64_t pad;
 };
 #pragma pack(pop)
-ASSERT_GPU_ALIGNMENT(GPUMaterial);
-ASSERT_STRUCT_UP_TO_DATE(GPUMaterial, 64);
+ASSERT_GPU_ALIGNMENT(GPUMaterial, 8);
+ASSERT_STRUCT_UP_TO_DATE(GPUMaterial, 48);
 
 
 #pragma pack(push, 1)
 struct GPUVertex {
-	glm::vec4 position;
-	glm::vec4 normal;
-	glm::vec4 uv;
-	glm::vec4 tangents;
+	glm::vec4 position_and_u;
+	glm::vec4 normal_and_v;
+	glm::vec4 tangent;
+	glm::vec4 bitangent;
 };
 #pragma pack(pop)
-ASSERT_GPU_ALIGNMENT(GPUVertex);
+ASSERT_GPU_ALIGNMENT(GPUVertex, 16);
 ASSERT_STRUCT_UP_TO_DATE(GPUVertex, 64);
 
 
@@ -101,7 +86,7 @@ struct GPUTriangle {
 	uint32_t materialIndex;
 };
 #pragma pack(pop)
-ASSERT_GPU_ALIGNMENT(GPUTriangle);
+ASSERT_GPU_ALIGNMENT(GPUTriangle, 16);
 ASSERT_STRUCT_UP_TO_DATE(GPUTriangle, 16);
 
 

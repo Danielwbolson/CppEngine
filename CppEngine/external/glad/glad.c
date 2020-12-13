@@ -2574,7 +2574,7 @@ static void load_GL_NV_gpu_shader5(GLADloadproc load) {
 }
 static int find_extensionsGL(void) {
 	if (!get_exts()) return 0;
-	GLAD_GL_ARB_bindless_texture = 0;// has_ext("GL_ARB_bindless_texture");
+	GLAD_GL_ARB_bindless_texture = has_ext("GL_ARB_bindless_texture");
 	GLAD_GL_ARB_compute_shader = has_ext("GL_ARB_compute_shader");
 	GLAD_GL_KHR_debug = has_ext("GL_KHR_debug");
 	GLAD_GL_NV_gpu_shader5 = has_ext("GL_NV_gpu_shader5");

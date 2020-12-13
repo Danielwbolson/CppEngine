@@ -9,11 +9,9 @@
 #define NUM_GROUPS_X (windowWidth/WORK_GROUP_SIZE)
 #define NUM_GROUPS_Y (windowHeight/WORK_GROUP_SIZE)
 
-#define GPU_ALIGNMENT (4 * sizeof(uint32_t)) // 32 byte aligned
-
-#define ASSERT_GPU_ALIGNMENT(struct_name)\
+#define ASSERT_GPU_ALIGNMENT(struct_name, value)\
 	static_assert(\
-		(sizeof(struct_name) % GPU_ALIGNMENT) == 0,\
+		(sizeof(struct_name) % value) == 0,\
 		#struct_name " not GPU aligned.")
 
 #define ASSERT_STRUCT_UP_TO_DATE(struct_name, size)\

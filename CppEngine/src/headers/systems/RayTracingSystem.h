@@ -29,9 +29,8 @@ private:
 	GLuint bakeLightsComputeShader; 
 	GLuint rayTraceComputeShader;
 
-
 	GLuint pointLightsUBO; GLuint bvhSSBO; 
-	GLuint triangleLightsSSBO; GLuint materialsSSBO;
+	GLuint triangleLightsSSBO; GLuint materialsUBO;
 
 	GLuint finalQuadFBO; GLuint finalQuadRender; GLuint finalQuadDepth;
 	GLuint finalQuadShader;
@@ -46,11 +45,9 @@ private:
 	GLint uniInvProj;
 	GLint uniInvView;
 	GLint uniNumPointLights;
+	GLint uniDirectionalLightDir;
+	GLint uniDirectionalLightCol;
 
-	// Bounding box debug info
-	GLuint boundingBoxShader;
-	GLuint bbVAO;
-	GLuint bbVertices; GLuint bbIndices;
 public:
 
 	// Timings

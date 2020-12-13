@@ -32,7 +32,7 @@ BVH::BVH(
 
 		glm::fvec3 positions[3];
 		for (int32_t j = 0; j < 3; j += 1) {
-			positions[j] = gpuVertices[gpuTriangles[i].indices[j]].position;
+			positions[j] = glm::vec3(gpuVertices[gpuTriangles[i].indices[j]].position_and_u);
 		}
 
 		slimBounds.min = glm::vec3(
@@ -219,14 +219,13 @@ uint32_t BVH::FlattenBVHTree(BVHNode* node, uint32_t* offset) {
 	LinearBVHNode* linearNode = &_nodes[*offset];
 	linearNode->boundsMin = node->bounds.min;
 	linearNode->boundsMax = node->bounds.max;
-	uint32_t myOffset = (*offset) += 1;
+	uint32_t myOffset = (*offset)++;
 	if (node->numPrimitives > 0) {
 		linearNode->offset = node->firstPrimOffset;
-		linearNode->numPrimitives = node->numPrimitives;
+		linearNode->numPrimitives_and_axis = (node->numPrimitives << 16) | (0 & 0xFFFF);
 	}
 	else {
-		linearNode->axis = node->splitAxis;
-		linearNode->numPrimitives = 0;
+		linearNode->numPrimitives_and_axis = (node->numPrimitives << 16) | ((uint32_t)node->splitAxis & 0xFFFF);
 		FlattenBVHTree(node->children[0], offset);
 		linearNode->offset =
 			FlattenBVHTree(node->children[1], offset);

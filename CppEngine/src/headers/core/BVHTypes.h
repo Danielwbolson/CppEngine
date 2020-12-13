@@ -191,14 +191,11 @@ public:
 	uint32_t offset; // primitivesOffset --> leaf, secondChildOffset --> interior
 
 	glm::vec3 boundsMax;
-	uint32_t numPrimitives;
-
-	SplitAxis axis;
-	uint32_t pad[3];
+	uint32_t numPrimitives_and_axis; // 16/16
 };
 #pragma pack(pop)
-ASSERT_GPU_ALIGNMENT(LinearBVHNode);
-ASSERT_STRUCT_UP_TO_DATE(LinearBVHNode, 48);
+ASSERT_GPU_ALIGNMENT(LinearBVHNode, 16);
+ASSERT_STRUCT_UP_TO_DATE(LinearBVHNode, 32);
 
 
 #endif

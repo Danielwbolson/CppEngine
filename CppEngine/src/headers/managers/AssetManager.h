@@ -52,6 +52,7 @@ namespace AssetManager {
 
 	extern GLuint nullTexture;
 	extern GLubyte nullData[4];
+	extern uint64_t nullTextureHandle;
 
 	Model* tinyLoadObj(const std::string fileName, bool useTinyMats = false);
 	Scene* LoadScene(const std::string fileName);

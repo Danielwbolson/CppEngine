@@ -87,6 +87,7 @@ namespace AssetManager {
 
 	GLuint nullTexture;
 	GLubyte nullData[4] = { 255, 255, 255, 255 };
+	GLuint64 nullTextureHandle;
 
 	void Init() {
 		models = MemoryManager::Allocate < std::vector<Model*, MemoryAllocator<Model*> > >();
@@ -110,6 +111,8 @@ namespace AssetManager {
 		glGenTextures(1, &nullTexture);
 		glBindTexture(GL_TEXTURE_2D, nullTexture);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 1, 1, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullData);
+		nullTextureHandle = glGetTextureHandleARB(nullTexture);
+		glMakeTextureHandleResidentARB(nullTextureHandle);
 
 		Shader* deferredToTexture = MemoryManager::Allocate<Shader>("deferredToTexture.vert", "deferredToTexture.frag");
 		Shader* forwardPlusTransparency = MemoryManager::Allocate<Shader>("forwardPlusTransparency.vert", "forwardPlusTransparency.frag");
@@ -263,7 +266,7 @@ namespace AssetManager {
 						if (v[k].pos.z < minz) { minz = v[k].pos.z; }
 					}
 					// https://learnopengl.com/Advanced-Lighting/Normal-Mapping
-					// Compute tangents and bitangents
+					// Compute tangent and bitangent
 					glm::vec3 deltaPos1 = v[1].pos - v[0].pos;
 					glm::vec3 deltaPos2 = v[2].pos - v[0].pos;
 					glm::vec2 deltaUV1 = v[1].uv - v[0].uv;
@@ -348,7 +351,7 @@ namespace AssetManager {
 						if (v[j].pos.z < minz) { minz = v[j].pos.z; }
 					}
 
-					// Compute tangents and bitangents
+					// Compute tangent and bitangent
 					glm::vec3 deltaPos1 = v[1].pos - v[0].pos;
 					glm::vec3 deltaPos2 = v[2].pos - v[0].pos;
 					glm::vec2 deltaUV1 = v[1].uv - v[0].uv;
@@ -1043,10 +1046,10 @@ namespace AssetManager {
 
 				for (int32_t k = 0; k < mesh->positions.size(); k += 1) {
 					GPUVertex vert;
-					vert.position = modelMatrix * glm::vec4(mesh->positions[k], 1.0);
-					vert.normal = glm::vec4(glm::normalize(glm::vec3(glm::transpose(glm::inverse(modelMatrix)) * glm::vec4(mesh->normals[k], 0.0))), 0);
-					vert.uv = glm::vec4(mesh->uvs[k], 0.0, 0.0);
-					vert.tangents = glm::normalize(modelMatrix * glm::vec4(mesh->tangents[k], 0.0));
+					vert.position_and_u = glm::vec4(glm::vec3(modelMatrix * glm::vec4(mesh->positions[k], 1.0)), mesh->uvs[k].x);
+					vert.normal_and_v = glm::vec4(glm::normalize(glm::vec3(glm::transpose(glm::inverse(modelMatrix)) * glm::vec4(mesh->normals[k], 0.0))), mesh->uvs[k].y);
+					vert.tangent = glm::normalize(modelMatrix * glm::vec4(mesh->tangents[k], 0.0));
+					vert.bitangent = glm::normalize(modelMatrix * glm::vec4(mesh->bitangents[k], 0.0));
 					gpuVertices->push_back(vert);
 				}
 
@@ -1060,33 +1063,28 @@ namespace AssetManager {
 				}
 				indexOffset += (int32_t)mesh->positions.size();
 
-				//GPUMaterial gpuMaterial;
-				//gpuMaterial.diffuseTexture =
-				//	LoadBindlessTexture("diffuse", material->diffuseTexture, material->diffuseIndex);
-				//gpuMaterial.specularTexture =
-				//	LoadBindlessTexture("specular", material->specularTexture, material->specularIndex);
-				//gpuMaterial.specularHighlightTexture =
-				//	LoadBindlessTexture("specularHighlight", material->specularHighLightTexture, material->specularHighLightIndex);
-				//gpuMaterial.normalTexture =
-				//	LoadBindlessTexture("normal", material->normalTexture, material->normalIndex);
-				//gpuMaterial.alphaTexture =
-				//	LoadBindlessTexture("alpha", material->alphaTexture, material->alphaIndex);
+				GPUMaterial gpuMaterial;
+				gpuMaterial.diffuseTexture =
+					LoadBindlessTexture("diffuse", material->diffuseTexture, material->diffuseIndex);
+				gpuMaterial.normalTexture =
+					LoadBindlessTexture("normal", material->normalTexture, material->normalIndex);
+				gpuMaterial.alphaTexture =
+					LoadBindlessTexture("alpha", material->alphaTexture, material->alphaIndex);
 
-				//gpuMaterial.diffuse =
-				//	glm::u8vec4(
-				//		material->diffuse.x * 255,
-				//		material->diffuse.y * 255,
-				//		material->diffuse.z * 255,
-				//		255
-				//	);
-				//gpuMaterial.specular =
-				//	glm::u8vec4(
-				//		material->specular.x * 255,
-				//		material->specular.y * 255,
-				//		material->specular.z * 255,
-				//		255
-				//	);
-				//gpuMaterial.transmissive =
+				gpuMaterial.diffuse = (
+					(uint32_t)(material->diffuse.x * 255) << 24 |
+					(uint32_t)(material->diffuse.y * 255) << 16 |
+					(uint32_t)(material->diffuse.z * 255) << 8 |
+					0 & 0xFF
+					);
+
+				gpuMaterial.specular = (
+					(uint32_t)(material->specular.x * 255) << 24 |
+					(uint32_t)(material->specular.y * 255) << 16 |
+					(uint32_t)(material->specular.z * 255) << 8 |
+					0 & 0xFF
+					);
+				//gpuMaterial.transmissive_and_ior =
 				//	glm::u8vec4(
 				//		255,
 				//		255,
@@ -1094,10 +1092,11 @@ namespace AssetManager {
 				//		255
 				//	);
 
-				//gpuMaterial.specularExponent = material->specularExponent;
-				//gpuMaterial.indexOfRefraction = 1.0f;
-				//gpuMaterial.usingNormal = material->usingNormal;
-				//gpuMaterials->push_back(gpuMaterial);
+				gpuMaterial.specularExponent_and_usingNormal = (
+					(uint32_t)(material->specularExponent / FLT_MAX * 65535) << 16 |
+					(uint32_t)(material->usingNormal) & 0xFFFF
+					);
+				gpuMaterials->push_back(gpuMaterial);
 
 			}
 			materialOffset += (int32_t)model->meshes.size();
@@ -1106,9 +1105,9 @@ namespace AssetManager {
 
 	uint64_t LoadBindlessTexture(std::string texType, Texture* tex, int32_t index) {
 
-		// Only function on valid textures
+		// If we don't have a texture, use our null texture instead.
 		if (!tex) {
-			return 0;
+			return nullTextureHandle;
 		}
 
 		uint64_t handle;
