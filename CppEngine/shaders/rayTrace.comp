@@ -225,7 +225,7 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 
 	vec3 a_to_b = b.position.xyz - a.position.xyz;
 	vec3 a_to_c = c.position.xyz - a.position.xyz;
-	vec3 pVec = a.position.xyz - ray.pos;
+	vec3 p_to_a = a.position.xyz - ray.pos;
 
 	// Calculate if triangle and ray are parallel.
 	// If normal of triangle and ray are perpendicular, then they are parallel.
