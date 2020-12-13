@@ -180,7 +180,6 @@ void RayTracingSystem::Setup() {
 		glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
 		glBindVertexArray(0);
-
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	}
 
@@ -264,9 +263,7 @@ void RayTracingSystem::RayTrace() {
 	glUseProgram(rayTraceComputeShader);
 
 	//Set up other uniform variables
-	glm::vec3 camPos = mainCamera->transform->position;
-	glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
-
+	glUniform3fv(uniCamPos, 1, glm::value_ptr(mainCamera->transform->position));
 	glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(proj));
 	glUniformMatrix4fv(uniView, 1, GL_FALSE, glm::value_ptr(view));
 	glUniformMatrix4fv(uniInvProj, 1, GL_FALSE, glm::value_ptr(glm::inverse(proj)));
@@ -275,8 +272,6 @@ void RayTracingSystem::RayTrace() {
 	glUniform3fv(uniDirectionalLightCol, 1, glm::value_ptr(glm::vec3(mainScene->directionalLights[0].color)));
 
 	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
-
-	glBindVertexArray(0);
 }
 
 void RayTracingSystem::PostProcess() {

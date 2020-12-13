@@ -395,6 +395,7 @@ vec3 LightingNoMaterials(in Intersection intersection) {
 	return outColor;
 }
 
+// Same as BVH intersect but exiting after intersection with any triangle.
 bool FastBVHIntersect(in Ray ray) {
 
 	vec3 invDir = vec3(1.0 / ray.dir.x, 1.0 / ray.dir.y, 1.0 / ray.dir.z);
@@ -451,6 +452,7 @@ bool FastBVHIntersect(in Ray ray) {
 	return false;
 }
 
+// Same as TriangleIntersect but not saving intersection data.
 bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray) {
 	
 	// Plane normal and triangle area
