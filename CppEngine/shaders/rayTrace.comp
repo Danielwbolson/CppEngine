@@ -5,8 +5,8 @@
 #extension GL_NV_gpu_shader5		: enable
 
 #define rayMaxDist 10000000
-#define MAX_VISITED_NODES 64
-#define MAX_MATERIALS 32
+#define MAX_VISITED_NODES 32
+#define MAX_MATERIALS 25
 #define SMALL_NUMBER 0.0001
 #define REALLY_SMALL_NUMBER 0.0000001
 #define MAX_POINT_LIGHTS 512
@@ -108,7 +108,7 @@ uniform vec3 directionalLightCol;
 
 bool BVHIntersect(inout Ray ray, inout Intersection intersection);
 bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersection intersection);
-bool AABBIntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 invDir, in ivec3 dirIsNeg);
+bool AABBIntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 invDir);
 
 vec3 Lighting(in Intersection intersection);
 vec3 LightingNoMaterials(in Intersection intersection);
@@ -173,7 +173,7 @@ bool BVHIntersect(inout Ray ray, inout Intersection intersection) {
 
 		LinearBVHNode node = nodes[currentNodeIndex];
 		// If this node intersects with our ray
-		if (AABBIntersectRay(node.boundsMin, node.boundsMax, ray, invDir, dirIsNeg)) {
+		if (AABBIntersectRay(node.boundsMin, node.boundsMax, ray, invDir)) {
 
 			// Leaf node. Check all triangles within this leaf node.
 			uint numPrimitives = (node.numPrimitives_and_axis >> 16);
@@ -222,6 +222,8 @@ bool BVHIntersect(inout Ray ray, inout Intersection intersection) {
 /* https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection */
 bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersection intersection) {
 
+	bool noIntersect = false;
+
 	// Plane normal and triangle area
 	GPUVertex a = vertices[triangle.indices[0]];
 	GPUVertex b = vertices[triangle.indices[1]];
@@ -233,7 +235,7 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 	float det = dot(a_to_b, pVec);
 
 	// If we are parallel
-	if (abs(det) < SMALL_NUMBER) return false;
+	noIntersect = (abs(det) < SMALL_NUMBER);
 
 	// Avoid excess divides
 	float invDet = 1.0 / det;
@@ -241,16 +243,16 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 	// Calculate u
 	vec3 uVec = ray.pos - a.position_and_u.xyz;
 	float u = dot(uVec, pVec) * invDet; // how far does this uVec go in dir of our ray
-	if (u < 0.0 || u > 1.0) return false;
+	noIntersect = noIntersect || (u < 0.0 || u > 1.0);
 
 	// Calculate v
 	vec3 vVec = cross(uVec, a_to_b);
 	float v = dot(ray.dir, vVec) * invDet; // how far does this vVec go in dir of our ray
-	if (v < 0.0 || u + v > 1.0) return false;
+	noIntersect = noIntersect || (v < 0.0 || u + v > 1.0);
 
 	// Calculate t (behind or past closest triangle).
 	float t = dot(a_to_c, vVec) * invDet;
-	if (t < 0.0 || t > ray.tMax) return false;
+	noIntersect = noIntersect || (t < 0.0 || t > ray.tMax);
 
 	// Check against alpha
 	vec2 aUvs = vec2(a.position_and_u.w, a.normal_and_v.w);
@@ -258,7 +260,9 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 	vec2 cUvs = vec2(c.position_and_u.w, c.normal_and_v.w);
 	vec2 uvs = (aUvs * (1.0 - u - v) + bUvs * u + cUvs * v);
 	float alpha = texture(sampler2D(materials[triangle.materialIndex].alphaTexture), uvs).r;
-	if (alpha < SMALL_NUMBER) return false;
+	noIntersect = noIntersect || (alpha < SMALL_NUMBER);
+
+	if (noIntersect) return false;
 
 	// In the triangle
 	ray.tMax = t;
@@ -286,31 +290,22 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 	return true;
 }
 
-bool AABBIntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 invDir, in ivec3 dirIsNeg) {
+/* https://tavianator.com/2011/ray_box.html */
+bool AABBIntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 invDir) {
 
-	vec3 slabs [2] = { boundsMin, boundsMax };
+	vec3 t1 = (boundsMin - ray.pos) * invDir;
+	vec3 t2 = (boundsMax - ray.pos) * invDir;
 
-	float tMin  = ( slabs[  dirIsNeg[0]].x	- ray.pos.x) * invDir.x;
-	float tMax  = ( slabs[1-dirIsNeg[0]].x	- ray.pos.x) * invDir.x;
-	float tyMin = ( slabs[  dirIsNeg[1]].y	- ray.pos.y) * invDir.y;
-	float tyMax	= ( slabs[1-dirIsNeg[1]].y	- ray.pos.y) * invDir.y;
+	float tMin = min(t1.x, t2.x);
+	float tMax = max(t1.x, t2.x);
 
-	if (tMin > tyMax || tyMin > tMax) {
-		return false;
-	}
-	if (tyMin > tMin) tMin = tyMin;
-	if (tyMax < tMax) tMax = tyMax;
+	tMin = max(tMin, min(t1.y, t2.y));
+	tMax = min(tMax, max(t1.y, t2.y));
 
-	float tzMin = ( slabs[  dirIsNeg[2]].z	- ray.pos.z) * invDir.z;
-	float tzMax = ( slabs[1-dirIsNeg[2]].z	- ray.pos.z) * invDir.z;
+	tMin = max(tMin, min(t1.z, t2.z));
+	tMax = min(tMax, max(t1.z, t2.z));
 
-	if (tMin > tzMax || tzMin > tMax) {
-		return false;
-	}
-	if (tzMin > tMin) tMin = tzMin;
-	if (tzMax < tMax) tMax = tzMax;
-
-	return (tMin < ray.tMax) && (tMax > 0);
+	return (tMax > max(0.0f, tMin)) && (tMin < ray.tMax);
 }
 
 vec3 Lighting(in Intersection intersection) {
@@ -411,7 +406,7 @@ bool FastBVHIntersect(in Ray ray) {
 
 		LinearBVHNode node = nodes[currentNodeIndex];
 		// If this node intersects with our ray
-		if (AABBIntersectRay(node.boundsMin, node.boundsMax, ray, invDir, dirIsNeg)) {
+		if (AABBIntersectRay(node.boundsMin, node.boundsMax, ray, invDir)) {
 
 			// Leaf node. Check all triangles within this leaf node.
 			uint numPrimitives = (node.numPrimitives_and_axis >> 16);
@@ -455,6 +450,8 @@ bool FastBVHIntersect(in Ray ray) {
 // Same as TriangleIntersect but not saving intersection data.
 bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray) {
 	
+	bool noIntersect = false;
+
 	// Plane normal and triangle area
 	GPUVertex a = vertices[triangle.indices[0]];
 	GPUVertex b = vertices[triangle.indices[1]];
@@ -466,7 +463,7 @@ bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray) {
 	float det = dot(a_to_b, pVec);
 
 	// If we are parallel
-	if (abs(det) < SMALL_NUMBER) return false;
+	noIntersect = (abs(det) < SMALL_NUMBER);
 
 	// Avoid excess divides
 	float invDet = 1.0 / det;
@@ -474,16 +471,16 @@ bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray) {
 	// Calculate u
 	vec3 uVec = ray.pos - a.position_and_u.xyz;
 	float u = dot(uVec, pVec) * invDet; // how far does this uVec go in dir of our ray
-	if (u < 0.0 || u > 1.0) return false;
+	noIntersect = noIntersect || (u < 0.0 || u > 1.0);
 
 	// Calculate v
 	vec3 vVec = cross(uVec, a_to_b);
 	float v = dot(ray.dir, vVec) * invDet; // how far does this vVec go in dir of our ray
-	if (v < 0.0 || u + v > 1.0) return false;
+	noIntersect = noIntersect || (v < 0.0 || u + v > 1.0);
 
 	// Calculate t (behind or past closest triangle).
 	float t = dot(a_to_c, vVec) * invDet;
-	if (t < 0.0 || t > ray.tMax) return false;
+	noIntersect = noIntersect || (t < 0.0 || t > ray.tMax);
 
 	// Check against alpha
 	vec2 aUvs = vec2(a.position_and_u.w, a.normal_and_v.w);
@@ -491,8 +488,8 @@ bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray) {
 	vec2 cUvs = vec2(c.position_and_u.w, c.normal_and_v.w);
 	vec2 uvs = (aUvs * (1.0 - u - v) + bUvs * u + cUvs * v);
 	float alpha = texture(sampler2D(materials[triangle.materialIndex].alphaTexture), uvs).r;
-	if (alpha < SMALL_NUMBER) return false;
+	noIntersect = noIntersect || (alpha < SMALL_NUMBER);
 
 	// In the triangle
-	return true;
+	return !noIntersect;
 }
