@@ -63,7 +63,7 @@ namespace AssetManager {
 	void PostLoadScene();
 
 	void LoadTextureToGPU(const std::string texType, const int vecIndex, const int texIndex, Texture* tex);
-	uint64_t LoadBindlessTexture(std::string texType, Texture* tex, int32_t index);
+	uint64_t LoadBindlessTexture(std::string texType, Texture* tex, int32_t index, bool& usingType);
 
 	void AllocateGPUMemory();
 

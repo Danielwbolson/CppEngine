@@ -1064,12 +1064,24 @@ namespace AssetManager {
 				indexOffset += (int32_t)mesh->positions.size();
 
 				GPUMaterial gpuMaterial;
+				bool usingType = false;
+
 				gpuMaterial.diffuseTexture =
-					LoadBindlessTexture("diffuse", material->diffuseTexture, material->diffuseIndex);
+					LoadBindlessTexture("diffuse", material->diffuseTexture, material->diffuseIndex, usingType);
+				
 				gpuMaterial.normalTexture =
-					LoadBindlessTexture("normal", material->normalTexture, material->normalIndex);
+					LoadBindlessTexture("normal", material->normalTexture, material->normalIndex, usingType);
+				if (usingType) { 
+					material->usingNormal = true; 
+					usingType = false; 
+				}
+				
 				gpuMaterial.alphaTexture =
-					LoadBindlessTexture("alpha", material->alphaTexture, material->alphaIndex);
+					LoadBindlessTexture("alpha", material->alphaTexture, material->alphaIndex, usingType);
+				if (usingType) {
+					material->usingAlpha = true;
+					usingType = false;
+				}
 
 				gpuMaterial.diffuse = (
 					(uint32_t)(material->diffuse.x * 255) << 24 |
@@ -1092,10 +1104,11 @@ namespace AssetManager {
 				//		255
 				//	);
 
-				gpuMaterial.specularExponent_and_usingNormal = (
+				gpuMaterial.specularExponent_usingNormal_usingAlpha = (
 					(uint32_t)(material->specularExponent / FLT_MAX * 65535) << 16 |
-					(uint32_t)(material->usingNormal) & 0xFFFF
-					);
+					(uint32_t)(material->usingNormal) << 8 & 0xFF00|
+					(uint32_t)(material->usingAlpha) & 0xFF
+				);
 				gpuMaterials->push_back(gpuMaterial);
 
 			}
@@ -1103,7 +1116,7 @@ namespace AssetManager {
 		}
 	}
 
-	uint64_t LoadBindlessTexture(std::string texType, Texture* tex, int32_t index) {
+	uint64_t LoadBindlessTexture(std::string texType, Texture* tex, int32_t index, bool& usingType) {
 
 		// If we don't have a texture, use our null texture instead.
 		if (!tex) {
@@ -1142,6 +1155,7 @@ namespace AssetManager {
 			glBindTexture(GL_TEXTURE_2D, (*normalTextures)[index]);
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, tex->width, tex->height, 0, GL_RGB, GL_UNSIGNED_BYTE, tex->pixels);
 			textureIndex = (*normalTextures)[index];
+			usingType = true;
 		}
 		else if (texType == "displacement") {
 			glGenTextures(1, &(*displacementTextures)[index]);
@@ -1154,6 +1168,7 @@ namespace AssetManager {
 			glBindTexture(GL_TEXTURE_2D, (*alphaTextures)[index]);
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RED, tex->width, tex->height, 0, GL_RED, GL_UNSIGNED_BYTE, tex->pixels);
 			textureIndex = (*alphaTextures)[index];
+			usingType = true;
 		}
 		else {
 			fprintf(stderr, "Invalid texture type. Type: %s\n", texType.c_str());

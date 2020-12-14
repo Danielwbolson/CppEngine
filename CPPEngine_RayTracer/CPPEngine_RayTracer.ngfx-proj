@@ -109,10 +109,16 @@
         "activity/warpviz/general/lockclockstobase": true,
         "activity/warpviz/general/metricset": "Throughput Metrics",
         "activity/warpviz/general/vsyncmode": "Off",
-        "platform/win32/arguments": "",
+        "platform/win32/arguments": "games/sponza/",
+        "platform/win32/arguments/history": [
+            "games/sponza/"
+        ],
         "platform/win32/autoconnect": true,
         "platform/win32/environment": "",
-        "platform/win32/executable": "",
+        "platform/win32/executable": "E:/school/CppEngine/CppEngine/build/Release/CppEngine.exe",
+        "platform/win32/executable/history": [
+            "E:/school/CppEngine/CppEngine/build/Release/CppEngine.exe"
+        ],
         "platform/win32/workingdir": "",
         "platform/windows/device": "localhost"
     },

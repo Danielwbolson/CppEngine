@@ -5,9 +5,10 @@
 #define RAY_TRACING_ENABLED true
 #define PROFILING true
 
-#define WORK_GROUP_SIZE 16
-#define NUM_GROUPS_X (windowWidth/WORK_GROUP_SIZE)
-#define NUM_GROUPS_Y (windowHeight/WORK_GROUP_SIZE)
+#define WORK_GROUP_SIZE_X 16
+#define WORK_GROUP_SIZE_Y 16
+#define NUM_GROUPS_X (windowWidth/WORK_GROUP_SIZE_X)
+#define NUM_GROUPS_Y (windowHeight/WORK_GROUP_SIZE_Y)
 
 #define ASSERT_GPU_ALIGNMENT(struct_name, value)\
 	static_assert(\

@@ -10,9 +10,10 @@
 #define SMALL_NUMBER 0.0001
 #define REALLY_SMALL_NUMBER 0.0000001
 #define MAX_POINT_LIGHTS 512
-#define WORK_GROUP_SIZE 16
+#define WORK_GROUP_SIZE_X 16
+#define WORK_GROUP_SIZE_Y 16
 
-layout(local_size_x = WORK_GROUP_SIZE, local_size_y = WORK_GROUP_SIZE, local_size_z = 1) in;
+layout(local_size_x = WORK_GROUP_SIZE_X, local_size_y = WORK_GROUP_SIZE_Y, local_size_z = 1) in;
 
 
 /***** * * * * * Ray tracing Structs * * * * * *****/
@@ -30,6 +31,7 @@ struct Intersection {
 	vec2 uvs;
 	uint materialIndex;
 	bool usingNormal;
+	bool usingAlpha;
 };
 
 
@@ -52,7 +54,7 @@ struct GPUMaterial {
 	uint specular; // 8/8/8/NA
 
 	uint transmissive_and_ior; // 8/8/8/8
-	uint specularExponent_and_usingNormal; // 16/16
+	uint specularExponent_usingNormal_usingAlpha; // 16/8/8
 	uint64_t pad;
 	uint64_t pad1;
 	uint64_t pad2;
@@ -273,9 +275,13 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 	vec2 bUvs = vec2(b.position_and_u.w, b.normal_and_v.w);
 	vec2 cUvs = vec2(c.position_and_u.w, c.normal_and_v.w);
 	vec2 uvs = (aUvs * (1.0 - u - v) + bUvs * u + cUvs * v);
+
 	GPUMaterial mat = materials[triangle.materialIndex];
-	float alpha = texture(sampler2D(mat.alphaTexture), uvs).r;
-	noIntersect = noIntersect || (alpha < SMALL_NUMBER);
+	bool usingAlpha = (mat.specularExponent_usingNormal_usingAlpha & 0xFF) > 0;
+	if (usingAlpha) {
+		float alpha = texture(sampler2D(mat.alphaTexture), uvs).r;
+		noIntersect = noIntersect || (alpha < SMALL_NUMBER);
+	}
 
 	if (noIntersect) return false;
 
@@ -288,7 +294,8 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 	intersection.bitangent = normalize(((1.0 - u - v) * a.bitangent.xyz + u * b.bitangent.xyz + v * c.bitangent.xyz).xyz);
 	intersection.uvs = uvs;
 	intersection.materialIndex = triangle.materialIndex;
-	intersection.usingNormal = (mat.specularExponent_and_usingNormal & 0xFFFF) > 0;
+	intersection.usingNormal = (mat.specularExponent_usingNormal_usingAlpha & 0xFF00) > 0;
+	intersection.usingAlpha = usingAlpha;
 
 	return true;
 }
@@ -346,7 +353,7 @@ vec3 Lighting(in Intersection intersection) {
 			((mat.specular >> 16) & 0xFF) / 255.0f, 
 			((mat.specular >> 8) & 0xFF) / 255.0f
 		);
-		float specularExponent = (mat.specularExponent_and_usingNormal >> 16) / 65535.0f;
+		float specularExponent = (mat.specularExponent_usingNormal_usingAlpha >> 16) / 65535.0f;
 
 		// Diffuse
 		vec3 diffuseColor =
@@ -463,12 +470,16 @@ bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray) {
 	if (noIntersect) return false;
 
 	// Check against alpha
-	vec2 aUvs = vec2(a.position_and_u.w, a.normal_and_v.w);
-	vec2 bUvs = vec2(b.position_and_u.w, b.normal_and_v.w);
-	vec2 cUvs = vec2(c.position_and_u.w, c.normal_and_v.w);
-	vec2 uvs = (aUvs * (1.0 - u - v) + bUvs * u + cUvs * v);
-	float alpha = texture(sampler2D(materials[triangle.materialIndex].alphaTexture), uvs).r;
-	noIntersect = noIntersect || (alpha < SMALL_NUMBER);
+	GPUMaterial mat = materials[triangle.materialIndex];
+	bool usingAlpha = (mat.specularExponent_usingNormal_usingAlpha & 0xFF) > 0;
+	if (usingAlpha) {
+		vec2 aUvs = vec2(a.position_and_u.w, a.normal_and_v.w);
+		vec2 bUvs = vec2(b.position_and_u.w, b.normal_and_v.w);
+		vec2 cUvs = vec2(c.position_and_u.w, c.normal_and_v.w);
+		vec2 uvs = (aUvs * (1.0 - u - v) + bUvs * u + cUvs * v);
+		float alpha = texture(sampler2D(mat.alphaTexture), uvs).r;
+		noIntersect = noIntersect || (alpha < SMALL_NUMBER);
+	}
 
 	// In the triangle
 	return !noIntersect;

@@ -749,7 +749,7 @@ void RendererSystem::DrawTransparent() {
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
 		GLint uniNumTiles = glGetUniformLocation(transparentToDraw[0].shaderProgram, "numTiles");
-		glUniform2i(uniNumTiles, windowWidth / WORK_GROUP_SIZE, windowHeight / WORK_GROUP_SIZE);
+		glUniform2i(uniNumTiles, NUM_GROUPS_X, NUM_GROUPS_Y);
 
 		// Directional light
 		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "directionalLightDir");

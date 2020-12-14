@@ -60,7 +60,7 @@ struct GPUMaterial {
 	uint32_t specular; // 8/8/8/NA
 
 	uint32_t transmissive_and_ior; // 8/8/8/8
-	uint32_t specularExponent_and_usingNormal; // 16/16
+	uint32_t specularExponent_usingNormal_usingAlpha; // 16/8/8
 	uint64_t pad;
 	uint64_t pad1;
 	uint64_t pad2;
