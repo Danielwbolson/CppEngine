@@ -62,10 +62,12 @@ struct GPUMaterial {
 	uint32_t transmissive_and_ior; // 8/8/8/8
 	uint32_t specularExponent_and_usingNormal; // 16/16
 	uint64_t pad;
+	uint64_t pad1;
+	uint64_t pad2;
 };
 #pragma pack(pop)
 ASSERT_GPU_ALIGNMENT(GPUMaterial, 8);
-ASSERT_STRUCT_UP_TO_DATE(GPUMaterial, 48);
+ASSERT_STRUCT_UP_TO_DATE(GPUMaterial, 64);
 
 
 #pragma pack(push, 1)
