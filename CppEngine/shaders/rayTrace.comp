@@ -340,36 +340,36 @@ vec3 Lighting(in Intersection intersection) {
 		ray.dir = -directionalLightDir;
 		ray.tMax = rayMaxDist;
 		bool inShadow = FastBVHIntersect(ray);
-		if (inShadow) return outColor;
-		
-		// Unpack our color data
-		vec3 diffuseCoef = vec3(
-			((mat.diffuse >> 24) & 0xFF) / 255.0f, 
-			((mat.diffuse >> 16) & 0xFF) / 255.0f, 
-			((mat.diffuse >> 8) & 0xFF) / 255.0f
-		);
-		vec3 specularCoef = vec3(
-			((mat.specular >> 24) & 0xFF) / 255.0f, 
-			((mat.specular >> 16) & 0xFF) / 255.0f, 
-			((mat.specular >> 8) & 0xFF) / 255.0f
-		);
-		float specularExponent = (mat.specularExponent_usingNormal_usingAlpha >> 16) / 65535.0f;
+		if (!inShadow) {
+			// Unpack our color data
+			vec3 diffuseCoef = vec3(
+				((mat.diffuse >> 24) & 0xFF), 
+				((mat.diffuse >> 16) & 0xFF), 
+				((mat.diffuse >> 8) & 0xFF)
+			) / 255.0f;
+			vec3 specularCoef = vec3(
+				((mat.specular >> 24) & 0xFF), 
+				((mat.specular >> 16) & 0xFF), 
+				((mat.specular >> 8) & 0xFF)
+			) / 255.0f;
+			float specularExponent = (mat.specularExponent_usingNormal_usingAlpha >> 16) / 65535.0f;
 
-		// Diffuse
-		vec3 diffuseColor =
-			directionalLightCol * 
-			texture(sampler2D(mat.diffuseTexture), intersection.uvs).xyz *
-			diffuseCoef *
-			nDotL;
+			// Diffuse
+			vec3 diffuseColor =
+				directionalLightCol * 
+				texture(sampler2D(mat.diffuseTexture), intersection.uvs).xyz *
+				diffuseCoef *
+				nDotL;
 
-		// Specular
-		vec3 eye = normalize(camPos - intersection.point);
-		vec3 h = normalize(-directionalLightDir + eye);
-		float spec = pow(max(dot(h, intersection.normal), 0.0), specularExponent);
-		vec3 specularColor = specularCoef * spec;
+			// Specular
+			vec3 eye = normalize(camPos - intersection.point);
+			vec3 h = normalize(-directionalLightDir + eye);
+			float spec = pow(max(dot(h, intersection.normal), 0.0), specularExponent);
+			vec3 specularColor = specularCoef * spec;
 
-		// Total color
-		outColor += (1 - (int)inShadow) * (diffuseColor + specularColor);
+			// Total color
+			outColor += (1 - (int)inShadow) * (diffuseColor + specularColor);
+		}
 	}
 
 	return outColor;
