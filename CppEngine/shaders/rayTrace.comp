@@ -315,6 +315,15 @@ vec3 Lighting(in Intersection intersection) {
 	float nDotL = dot(intersection.normal, -directionalLightDir);
 
 	if (nDotL > 0.0) {
+		
+		// Shadow
+		Ray ray;
+		ray.pos = intersection.point + SMALL_NUMBER * intersection.normal;
+		ray.dir = -directionalLightDir;
+		ray.tMax = rayMaxDist;
+		bool inShadow = FastBVHIntersect(ray);
+		if (inShadow) return outColor;
+		
 		GPUMaterial mat = materials[intersection.materialIndex];
 
 		// Unpack our color data
@@ -342,13 +351,6 @@ vec3 Lighting(in Intersection intersection) {
 		vec3 h = normalize(-directionalLightDir + eye);
 		float spec = pow(max(dot(h, intersection.normal), 0.0), specularExponent);
 		vec3 specularColor = specularCoef * spec;
-
-		// Shadow
-		Ray ray;
-		ray.pos = intersection.point + SMALL_NUMBER * intersection.normal;
-		ray.dir = -directionalLightDir;
-		ray.tMax = rayMaxDist;
-		bool inShadow = FastBVHIntersect(ray);
 
 		// Total color
 		outColor += (1 - (int)inShadow) * (diffuseColor + specularColor);
