@@ -1095,7 +1095,7 @@ namespace AssetManager {
 					(uint32_t)(material->specular.y * 255) << 16 |
 					(uint32_t)(material->specular.z * 255) << 8 |
 					0 & 0xFF
-					);
+				);
 				//gpuMaterial.transmissive_and_ior =
 				//	glm::u8vec4(
 				//		255,
@@ -1105,12 +1105,12 @@ namespace AssetManager {
 				//	);
 
 				gpuMaterial.specularExponent_usingNormal_usingAlpha = (
-					(uint32_t)(material->specularExponent / FLT_MAX * 65535) << 16 |
+					(uint32_t)(material->specularExponent) << 16 |
 					(uint32_t)(material->usingNormal) << 8 & 0xFF00|
 					(uint32_t)(material->usingAlpha) & 0xFF
 				);
-				gpuMaterials->push_back(gpuMaterial);
 
+				gpuMaterials->push_back(gpuMaterial);
 			}
 			materialOffset += (int32_t)model->meshes.size();
 		}

@@ -7,13 +7,15 @@
 #define rayMaxDist 10000000
 #define MAX_VISITED_NODES 32
 #define MAX_MATERIALS 25
-#define SMALL_NUMBER 0.0001
+#define SMALL_NUMBER 0.001
 #define REALLY_SMALL_NUMBER 0.0000001
 #define MAX_POINT_LIGHTS 512
 #define WORK_GROUP_SIZE_X 16
 #define WORK_GROUP_SIZE_Y 16
 
+
 layout(local_size_x = WORK_GROUP_SIZE_X, local_size_y = WORK_GROUP_SIZE_Y, local_size_z = 1) in;
+
 
 
 /***** * * * * * Ray tracing Structs * * * * * *****/
@@ -26,13 +28,11 @@ struct Ray {
 struct Intersection {
 	vec3 point;
 	vec3 normal;
-	vec3 tangent;
-	vec3 bitangent;
 	vec2 uvs;
 	uint materialIndex;
-	bool usingNormal;
 	bool usingAlpha;
 };
+
 
 
 /***** * * * * * Buffers * * * * * *****/
@@ -95,6 +95,7 @@ layout (std430, binding = 4) readonly buffer Triangles {
 layout (binding = 0) uniform writeonly image2D destTex;
 
 
+
 /***** * * * * * Uniforms * * * * * *****/
 
 uniform mat4 proj;
@@ -109,6 +110,7 @@ uniform uint numPointLights;
 uniform vec3 directionalLightDir;
 uniform vec3 directionalLightCol;
 
+shared uint numHits;
 
 /***** * * * * * Functions Declarations * * * * * *****/
 
@@ -121,6 +123,7 @@ vec3 LightingNoMaterials(in Intersection intersection);
 
 bool FastBVHIntersect(in Ray ray);
 bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray);
+
 
 
 /***** * * * * * MAIN * * * * * *****/
@@ -146,26 +149,32 @@ void main() {
 	ray.tMax = rayMaxDist;
 
 	// We now have a world space ray. We can intersect our BVH and calculate lighting.
-	vec3 finalColor = vec3(0,0,0);
 	Intersection intersection;
+	vec3 finalColor = vec3(0,0,0);
+	vec3 multiplier = vec3(1,1,1);
 
-	if (BVHIntersect(ray, intersection)) {
-		finalColor = Lighting(intersection);
+	// 1 main ray. 2 reflection bounces.
+	for (uint i = 0; i < 3; ++i) {
+		if(BVHIntersect(ray, intersection)) {
+			finalColor += multiplier * Lighting(intersection);
+
+			ray.dir = ray.dir - 2 * intersection.normal * dot(ray.dir, intersection.normal);
+			ray.pos = intersection.point + SMALL_NUMBER * ray.dir;
+			ray.tMax = rayMaxDist;
+
+			GPUMaterial mat = materials[intersection.materialIndex];
+			uint m = mat.specular;
+			multiplier = vec3((m >> 24) & 0xFF, (m >> 16) & 0xFF, (m >> 8) & 0xFF) / 255.0f;
+		}
+		else {
+			break;
+		}
 	}
 
-//	ray.dir = ray.dir - 2 * intersection.normal * dot(ray.dir, intersection.normal);
-//	ray.pos = intersection.point + SMALL_NUMBER * ray.dir;
-//	ray.tMax = rayMaxDist;
-//
-//	GPUMaterial mat = materials[intersection.materialIndex];
-//	vec3 specular = vec3(
-//		((mat.specular >> 24) & 0xFF) / 255.0f, 
-//		((mat.specular >> 16) & 0xFF) / 255.0f, 
-//		((mat.specular >> 8) & 0xFF) / 255.0f
-//	);
-//	finalColor += specular * Lighting(intersection);
+	finalColor = clamp(finalColor, vec3(0.0f,0.0f,0.0f), vec3(1.0f,1.0f,1.0f));
 
 	imageStore(destTex, globalId, vec4(finalColor, 1));
+
 }
 
 
@@ -290,11 +299,18 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 	
 	intersection.point = ray.pos + t * ray.dir;
 	intersection.normal = normalize(((1.0 - u - v) * a.normal_and_v.xyz + u * b.normal_and_v.xyz + v * c.normal_and_v.xyz).xyz);
-	intersection.tangent = normalize(((1.0 - u - v) * a.tangent.xyz + u * b.tangent.xyz + v * c.tangent.xyz).xyz);
-	intersection.bitangent = normalize(((1.0 - u - v) * a.bitangent.xyz + u * b.bitangent.xyz + v * c.bitangent.xyz).xyz);
+
+	bool usingNormal = (mat.specularExponent_usingNormal_usingAlpha & 0xFF00) > 0;
+	if (usingNormal) {
+		vec3 tangent = normalize(((1.0 - u - v) * a.tangent.xyz + u * b.tangent.xyz + v * c.tangent.xyz).xyz);
+		vec3 bitangent = normalize(((1.0 - u - v) * a.bitangent.xyz + u * b.bitangent.xyz + v * c.bitangent.xyz).xyz);
+		vec3 n = texture(sampler2D(mat.normalTexture), uvs).xyz;
+		mat3 tbn = mat3(tangent, bitangent, intersection.normal);
+		intersection.normal = normalize(tbn * n);
+	}
+
 	intersection.uvs = uvs;
 	intersection.materialIndex = triangle.materialIndex;
-	intersection.usingNormal = (mat.specularExponent_usingNormal_usingAlpha & 0xFF00) > 0;
 	intersection.usingAlpha = usingAlpha;
 
 	return true;
@@ -315,19 +331,11 @@ bool AABBIntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 
 	tMin = max(tMin, min(t1.z, t2.z));
 	tMax = min(tMax, max(t1.z, t2.z));
 
-	return (tMax > max(0.0f, tMin)) && (tMin < ray.tMax);
+	return (tMax >= max(0.0f, tMin)) && (tMin < ray.tMax);
 }
 
 vec3 Lighting(in Intersection intersection) {
 	vec3 outColor = vec3(0,0,0);
-	GPUMaterial mat = materials[intersection.materialIndex];
-
-	// Calcuate normal
-	if (intersection.usingNormal) {
-		vec3 n = texture(sampler2D(mat.normalTexture), intersection.uvs).xyz;
-		mat3 tbn = mat3(intersection.tangent, intersection.bitangent, intersection.normal);
-		intersection.normal = normalize(tbn * n);
-	}
 
 	// First, calculate if our light is even in the same direction.
 	float nDotL = dot(intersection.normal, -directionalLightDir);
@@ -341,6 +349,9 @@ vec3 Lighting(in Intersection intersection) {
 		ray.tMax = rayMaxDist;
 		bool inShadow = FastBVHIntersect(ray);
 		if (!inShadow) {
+
+			GPUMaterial mat = materials[intersection.materialIndex];
+			
 			// Unpack our color data
 			vec3 diffuseCoef = vec3(
 				((mat.diffuse >> 24) & 0xFF), 
@@ -352,7 +363,7 @@ vec3 Lighting(in Intersection intersection) {
 				((mat.specular >> 16) & 0xFF), 
 				((mat.specular >> 8) & 0xFF)
 			) / 255.0f;
-			float specularExponent = (mat.specularExponent_usingNormal_usingAlpha >> 16) / 65535.0f;
+			float specularExponent = float(mat.specularExponent_usingNormal_usingAlpha >> 16);
 
 			// Diffuse
 			vec3 diffuseColor =
