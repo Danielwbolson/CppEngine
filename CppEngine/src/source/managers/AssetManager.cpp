@@ -1056,8 +1056,8 @@ namespace AssetManager {
 				for (int32_t k = 0; k < mesh->indices.size(); k += 3) {
 					GPUTriangle tri;
 					tri.indices[0] = mesh->indices[k] + indexOffset;
-					tri.indices[1] = mesh->indices[k+1] + indexOffset;
-					tri.indices[2] = mesh->indices[k+2] + indexOffset;
+					tri.indices[1] = mesh->indices[k + 1] + indexOffset;
+					tri.indices[2] = mesh->indices[k + 2] + indexOffset;
 					tri.materialIndex = j + materialOffset;
 					gpuTriangles->push_back(tri);
 				}
@@ -1068,14 +1068,21 @@ namespace AssetManager {
 
 				gpuMaterial.diffuseTexture =
 					LoadBindlessTexture("diffuse", material->diffuseTexture, material->diffuseIndex, usingType);
-				
+
 				gpuMaterial.normalTexture =
 					LoadBindlessTexture("normal", material->normalTexture, material->normalIndex, usingType);
-				if (usingType) { 
-					material->usingNormal = true; 
-					usingType = false; 
+				if (usingType) {
+					material->usingNormal = true;
+					usingType = false;
 				}
-				
+
+				gpuMaterial.specularTexture =
+					LoadBindlessTexture("specular", material->specularTexture, material->specularIndex, usingType);
+				if (usingType) {
+					material->usingSpecular = true;
+					usingType = false;
+				}
+
 				gpuMaterial.alphaTexture =
 					LoadBindlessTexture("alpha", material->alphaTexture, material->alphaIndex, usingType);
 				if (usingType) {
@@ -1088,7 +1095,7 @@ namespace AssetManager {
 					(uint32_t)(material->diffuse.y * 255) << 16 |
 					(uint32_t)(material->diffuse.z * 255) << 8 |
 					0 & 0xFF
-					);
+				);
 
 				gpuMaterial.specular = (
 					(uint32_t)(material->specular.x * 255) << 24 |
@@ -1096,18 +1103,14 @@ namespace AssetManager {
 					(uint32_t)(material->specular.z * 255) << 8 |
 					0 & 0xFF
 				);
-				//gpuMaterial.transmissive_and_ior =
-				//	glm::u8vec4(
-				//		255,
-				//		255,
-				//		255,
-				//		255
-				//	);
 
-				gpuMaterial.specularExponent_usingNormal_usingAlpha = (
-					(uint32_t)(material->specularExponent) << 16 |
-					(uint32_t)(material->usingNormal) << 8 & 0xFF00|
-					(uint32_t)(material->usingAlpha) & 0xFF
+				gpuMaterial.specularExponent = material->specularExponent;
+
+				gpuMaterial.usingNormal_Specular_Alpha = (
+					((uint32_t)(material->usingNormal) & 0xFF) << 24 |
+					((uint32_t)(material->usingSpecular) & 0xFF) << 16 |
+					((uint32_t)(material->usingAlpha) & 0xFF) << 8 |
+					0 & 0xFF
 				);
 
 				gpuMaterials->push_back(gpuMaterial);

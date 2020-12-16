@@ -20,6 +20,7 @@ class RayTracingSystem : public Systems {
 private:
 	std::vector<ModelRenderer*, MemoryAllocator<ModelRenderer*> > modelRenderers;
 	std::vector<PointLightToGPU, MemoryAllocator<PointLightToGPU> > pointLightsToGPU;
+	std::vector<PointLightIndicesToGPU, MemoryAllocator<PointLightIndicesToGPU> > pointLightIndicesToGPU;
 	std::vector<DirectionalLightToGPU, MemoryAllocator<DirectionalLightToGPU> > directionalLightsToGPU;
 
 	glm::mat4 proj; glm::mat4 view;
@@ -29,7 +30,9 @@ private:
 	GLuint bakeLightsComputeShader; 
 	GLuint rayTraceComputeShader;
 
-	GLuint pointLightsUBO; GLuint bvhSSBO; 
+	GLuint pointLightsUBO; 
+	GLuint pointLightIndicesBuffer;
+	GLuint bvhSSBO;
 	GLuint triangleLightsSSBO; GLuint materialsUBO;
 
 	GLuint finalQuadFBO; GLuint finalQuadRender; GLuint finalQuadDepth;
@@ -47,8 +50,12 @@ private:
 	GLint uniNumPointLights;
 	GLint uniDirectionalLightDir;
 	GLint uniDirectionalLightCol;
+	GLint uniMinBounds;
+	GLint uniMaxBounds;
 
 public:
+	unsigned long long uboMemory = 0;
+	unsigned long long ssboMemory = 0;
 
 	// Timings
 	GLuint timeQuery;

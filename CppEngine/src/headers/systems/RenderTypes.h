@@ -8,6 +8,8 @@
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
+#define MAX_LIGHTS_PER_BLOCK 7
+
 const float quadVerts[12] = {
 	-1.0f, 1.0f,
 	-1.0f, -1.0f,
@@ -41,6 +43,16 @@ ASSERT_STRUCT_UP_TO_DATE(PointLightToGPU, 32);
 
 
 #pragma pack(push, 1)
+struct PointLightIndicesToGPU {
+	uint32_t indices[MAX_LIGHTS_PER_BLOCK];
+	uint32_t numLights;
+};
+#pragma pack(pop)
+ASSERT_GPU_ALIGNMENT(PointLightIndicesToGPU, 16);
+ASSERT_STRUCT_UP_TO_DATE(PointLightIndicesToGPU, 32);
+
+
+#pragma pack(push, 1)
 struct DirectionalLightToGPU {
 	glm::vec4 direction;
 	glm::vec4 color_and_luminance;
@@ -55,15 +67,16 @@ struct GPUMaterial {
 	uint64_t diffuseTexture;
 	uint64_t normalTexture;
 
+	uint64_t specularTexture;
 	uint64_t alphaTexture;
+
 	uint32_t diffuse; // 8/8/8/NA
 	uint32_t specular; // 8/8/8/NA
+	float specularExponent;
+	uint32_t usingNormal_Specular_Alpha; // 8/8/8/0
 
-	uint32_t transmissive_and_ior; // 8/8/8/8
-	uint32_t specularExponent_usingNormal_usingAlpha; // 16/8/8
 	uint64_t pad;
 	uint64_t pad1;
-	uint64_t pad2;
 };
 #pragma pack(pop)
 ASSERT_GPU_ALIGNMENT(GPUMaterial, 8);
