@@ -44,6 +44,7 @@ layout(std140, binding = 0) uniform PointLightBUffer {
 	PointLightToGPU pointLights[MAX_POINT_LIGHTS];
 }; // Constant
 
+// 16 bytes each
 struct PointLightIndicesToGPU {
 	uvec4 indices_and_numLights; // 8/8/8/8 8/8/8/8 8/8/8/8 8/8/8/8
 };
@@ -60,6 +61,7 @@ struct GPUMaterial {
 
 	uint diffuse; // 8/8/8/NA
 	uint specular; // 8/8/8/NA
+
 	float specularExponent;
 	uint using_Normal_Specular_Alpha; // 8/8/8/NA
 
@@ -132,6 +134,7 @@ bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray);
 
 /***** * * * * * MAIN * * * * * *****/
 
+
 void main() {
 
 	// position in global shader (texture position)
@@ -140,7 +143,7 @@ void main() {
 
 	// Compute our thread into world space coordinates
 	vec2 rayUV = vec2(globalId.x / float(resolution.x), globalId.y / float(resolution.y));
-	vec4 rayNDC = vec4(2.0 * rayUV - 1.0, 1.0, 1.0);
+	vec4 rayNDC = vec4(2.0 * rayUV - 1.0, -1.0, 1.0);
 	vec4 rayViewSpace = invProj * rayNDC;
 	rayViewSpace /= rayViewSpace.w;
 	vec3 rayWorldSpace = (invView * rayViewSpace).xyz;
@@ -163,11 +166,13 @@ void main() {
 
 			GPUMaterial mat = materials[intersection.materialIndex];
 			uint m = mat.specular;
+
 			if (m > 0) {
 				ray.dir = ray.dir - 2 * intersection.normal * dot(ray.dir, intersection.normal);
 				ray.pos = intersection.point + SMALL_NUMBER * ray.dir;
 				ray.tMax = rayMaxDist;
 
+				// Unpack our specular uint into a 8bit vec3
 				multiplier = vec3((m >> 24) & 0xFF, (m >> 16) & 0xFF, (m >> 8) & 0xFF) / 255.0f;
 			} else {
 				// There is no specualar on this intersection. So no need for reflection.
@@ -312,7 +317,7 @@ bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersectio
 	if (usingNormal) {
 		vec3 tangent = normalize(((1.0 - u - v) * a.tangent.xyz + u * b.tangent.xyz + v * c.tangent.xyz).xyz);
 		vec3 bitangent = normalize(((1.0 - u - v) * a.bitangent.xyz + u * b.bitangent.xyz + v * c.bitangent.xyz).xyz);
-		vec3 n = texture(sampler2D(mat.normalTexture), uvs).xyz;
+		vec3 n = texture(sampler2D(mat.normalTexture), uvs).xyz * 2.0f - 1.0f;
 		mat3 tbn = mat3(tangent, bitangent, intersection.normal);
 		intersection.normal = normalize(tbn * n);
 	}
@@ -428,7 +433,7 @@ vec3 PointLighting(in Intersection intersection) {
 	uint linearLocation = gridLoc.z * GRID_SIZE * GRID_SIZE + 
 						  gridLoc.y * GRID_SIZE + 
 						  gridLoc.x;
-
+	
 	PointLightIndicesToGPU pli = pointLightIndices[linearLocation];
 	uint numLights = pli.indices_and_numLights.w & 0xFF;
 
