@@ -15,9 +15,6 @@
 #include "BVHTypes.h"
 
 
-#define GRID_SIZE 8
-
-
 RayTracingSystem::RayTracingSystem() {}
 
 RayTracingSystem::~RayTracingSystem() {
@@ -62,6 +59,7 @@ void RayTracingSystem::Setup() {
 		directionalLightsToGPU.push_back(d);
 	}
 
+	pointLightIndicesSSBOToGPU = std::vector<PointLightIndicesSSBO, MemoryAllocator<PointLightIndicesSSBO> >(GRID_SIZE * GRID_SIZE * GRID_SIZE);
 	std::vector<LinearBVHNode>& nodes = bvh->GetLinearBVH();
 
 	// Initialize our compute shaders and gpu data
@@ -81,7 +79,7 @@ void RayTracingSystem::Setup() {
 		glGenBuffers(1, &materialsUBO);
 		glBindBuffer(GL_UNIFORM_BUFFER, materialsUBO);
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(GPUMaterial) * AssetManager::gpuMaterials->size(), AssetManager::gpuMaterials->data(), GL_STATIC_DRAW);
-		glBindBufferBase(GL_UNIFORM_BUFFER, 1, materialsUBO);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 2, materialsUBO);
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);
 		uboMemory += sizeof(GPUMaterial) * AssetManager::gpuMaterials->size();
 
@@ -89,16 +87,15 @@ void RayTracingSystem::Setup() {
 		glGenBuffers(1, &bvhSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, bvhSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(LinearBVHNode) * nodes.size(), nodes.data(), GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bvhSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 3, bvhSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		ssboMemory += sizeof(LinearBVHNode) * nodes.size();
-
 
 		// Vertices buffer
 		glGenBuffers(1, &verticesSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, verticesSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GPUVertex) * AssetManager::gpuVertices->size(), AssetManager::gpuVertices->data(), GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, verticesSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 4, verticesSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		ssboMemory += sizeof(GPUVertex) * AssetManager::gpuVertices->size();
 
@@ -107,7 +104,7 @@ void RayTracingSystem::Setup() {
 		glGenBuffers(1, &triangleSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, triangleSSBO);
 		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(GPUTriangle) * AssetManager::gpuTriangles->size(), AssetManager::gpuTriangles->data(), GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 2, triangleSSBO);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 5, triangleSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 		ssboMemory += sizeof(GPUTriangle) * AssetManager::gpuTriangles->size();
 
@@ -162,10 +159,10 @@ void RayTracingSystem::Setup() {
 	{
 
 		// Point light indices as an SSBO to be written to.
-		glGenBuffers(1, &pointLightIndicesBuffer);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightIndicesBuffer);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightIndicesToGPU)* GRID_SIZE* GRID_SIZE* GRID_SIZE, NULL, GL_STATIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLightIndicesBuffer);
+		glGenBuffers(1, &pointLightIndicesSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightIndicesSSBO);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightIndicesSSBO) * GRID_SIZE* GRID_SIZE* GRID_SIZE, NULL, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, pointLightIndicesSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 #if PROFILING
@@ -177,15 +174,52 @@ void RayTracingSystem::Setup() {
 		LightCull();
 #endif
 
-		// Fix bindings for rendering.
-		glBindBuffer(GL_UNIFORM_BUFFER, pointLightIndicesBuffer);
-		glBindBufferBase(GL_UNIFORM_BUFFER, 2, pointLightIndicesBuffer);
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
-		uboMemory += sizeof(PointLightIndicesToGPU) * GRID_SIZE * GRID_SIZE * GRID_SIZE;
-
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, bvhSSBO);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, bvhSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightIndicesSSBO);
+		glGetBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, sizeof(PointLightIndicesSSBO) * GRID_SIZE * GRID_SIZE* GRID_SIZE, pointLightIndicesSSBOToGPU.data());
+		glDeleteBuffers(1, &pointLightIndicesSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
+
+		for (uint32_t i = 0; i < pointLightIndicesSSBOToGPU.size(); ++i) {
+			PointLightIndicesSSBO p = pointLightIndicesSSBOToGPU[i];
+			PointLightIndicesUBO pu;
+			glm::uvec4 vec;
+
+			vec.x = (
+				(p.indices[0] & 0xFF) << 24 |
+				(p.indices[1] & 0xFF) << 16 |
+				(p.indices[2] & 0xFF) << 8 |
+				(p.indices[3] & 0xFF)
+				);
+			vec.y = (
+				(p.indices[4] & 0xFF) << 24 |
+				(p.indices[5] & 0xFF) << 16 |
+				(p.indices[6] & 0xFF) << 8 |
+				(p.indices[7] & 0xFF)
+				);
+			vec.z = (
+				(p.indices[8] & 0xFF) << 24 |
+				(p.indices[9] & 0xFF) << 16 |
+				(p.indices[10] & 0xFF) << 8 |
+				(p.indices[11] & 0xFF)
+				);
+			vec.w = (
+				(p.indices[12] & 0xFF) << 24 |
+				(p.indices[13] & 0xFF) << 16 |
+				(p.indices[14] & 0xFF) << 8 |
+				(p.numLights & 0xFF)
+				);
+
+			pu.indices_and_num_lights = vec;
+			pointLightIndicesUBOToGPU.push_back(pu);
+		}
+
+		glGenBuffers(1, &pointLightIndicesUBO);
+		glBindBuffer(GL_UNIFORM_BUFFER, pointLightIndicesUBO);
+		glBufferData(GL_UNIFORM_BUFFER, sizeof(PointLightIndicesUBO) * GRID_SIZE * GRID_SIZE * GRID_SIZE, pointLightIndicesUBOToGPU.data(), GL_STATIC_DRAW);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 1, pointLightIndicesUBO);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		uboMemory += sizeof(PointLightIndicesSSBO) * GRID_SIZE * GRID_SIZE * GRID_SIZE;
+
 	}
 
 	// Set up uniforms for our ray trace compute shader
@@ -292,11 +326,6 @@ void RayTracingSystem::LightCull() {
 	glm::vec3 maxBounds = nodes[0].boundsMax;
 	glUniform3fv(uniMinBounds, 1, glm::value_ptr(minBounds));
 	glUniform3fv(uniMaxBounds, 1, glm::value_ptr(maxBounds));
-
-	// Bind our Point light indices as an SSBO
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightIndicesBuffer);
-	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLightIndicesBuffer);
-	glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
 	glDispatchCompute(GRID_SIZE, GRID_SIZE, GRID_SIZE);
 	glMemoryBarrier(GL_ALL_BARRIER_BITS);

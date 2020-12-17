@@ -9,12 +9,10 @@
 #define MAX_MATERIALS 25
 #define SMALL_NUMBER 0.0001
 #define REALLY_SMALL_NUMBER 0.0000001
-#define MAX_POINT_LIGHTS 256
+#define MAX_POINT_LIGHTS 32
 #define WORK_GROUP_SIZE_X 16
 #define WORK_GROUP_SIZE_Y 16
 #define GRID_SIZE 8
-#define MAX_LIGHTS_PER_BLOCK 7
-
 
 layout(local_size_x = WORK_GROUP_SIZE_X, local_size_y = WORK_GROUP_SIZE_Y, local_size_z = 1) in;
 
@@ -46,6 +44,13 @@ layout(std140, binding = 0) uniform PointLightBUffer {
 	PointLightToGPU pointLights[MAX_POINT_LIGHTS];
 }; // Constant
 
+struct PointLightIndicesToGPU {
+	uvec4 indices_and_numLights; // 8/8/8/8 8/8/8/8 8/8/8/8 8/8/8/8
+};
+layout(std140, binding = 1) uniform PointLightIndexBuffer {
+	PointLightIndicesToGPU pointLightIndices[GRID_SIZE * GRID_SIZE * GRID_SIZE];
+}; // Constant
+
 struct GPUMaterial {
 	uint64_t diffuseTexture;
 	uint64_t normalTexture;
@@ -61,17 +66,9 @@ struct GPUMaterial {
 	uint64_t pad;
 	uint64_t pad1;
 };
-layout (std140, binding = 1) uniform Materials {
+layout (std140, binding = 2) uniform Materials {
 	GPUMaterial materials[MAX_MATERIALS];
 }; // Constant
-
-struct PointLightIndices {
-	uint indices[MAX_LIGHTS_PER_BLOCK];
-	uint numLights;
-};
-layout(std140, binding = 2) uniform PointLightIndexBuffer {
-	PointLightIndices pointLightIndices[GRID_SIZE * GRID_SIZE * GRID_SIZE];
-}; // Global
 
 struct LinearBVHNode {
 	vec3 boundsMin;
@@ -80,7 +77,7 @@ struct LinearBVHNode {
 	vec3 boundsMax;
 	uint numPrimitives_and_axis; // 16/16
 };
-layout (std430, binding = 0) readonly buffer BVH {
+layout (std430, binding = 3) readonly buffer BVH {
 	LinearBVHNode nodes[];
 }; // Global
 
@@ -90,7 +87,7 @@ struct GPUVertex {
 	vec4 tangent;
 	vec4 bitangent;
 };
-layout (std430, binding = 1) readonly buffer Vertices {
+layout (std430, binding = 4) readonly buffer Vertices {
 	GPUVertex vertices[];
 }; // Global
 
@@ -98,7 +95,7 @@ struct GPUTriangle {
 	uint indices[3];
 	uint materialIndex;
 };
-layout (std430, binding = 2) readonly buffer Triangles {
+layout (std430, binding = 5) readonly buffer Triangles {
 	GPUTriangle triangles[];
 }; // Global
 
@@ -427,45 +424,41 @@ vec3 PointLighting(in Intersection intersection) {
 	vec3 eye = normalize(camPos - intersection.point);
 
 	// Grid location for point lights
-	ivec3 gridLoc = ivec3(((maxBounds - minBounds) / GRID_SIZE) * (intersection.point - maxBounds) + GRID_SIZE);
-	uint linearLocation = gridLoc.z * GRID_SIZE * GRID_SIZE + gridLoc.y * GRID_SIZE + gridLoc.x;
+	uvec3 gridLoc = uvec3((GRID_SIZE * (intersection.point - minBounds)) / (maxBounds - minBounds));
+	uint linearLocation = gridLoc.z * GRID_SIZE * GRID_SIZE + 
+						  gridLoc.y * GRID_SIZE + 
+						  gridLoc.x;
+
+	PointLightIndicesToGPU pli = pointLightIndices[linearLocation];
+	uint numLights = pli.indices_and_numLights.w & 0xFF;
 
 	// Now, calculate lighting for each light.
-	for (int i = 0; i < pointLightIndices[linearLocation].numLights; ++i) {
-		
-		PointLightToGPU p = pointLights[pointLightIndices[linearLocation].indices[i]];
+	for (int i = 0; i < numLights; ++i) {
+
+		uint offset = 3 - (i % 4);
+		uint index = i / 4;
+		index = (pli.indices_and_numLights[index] >> (offset * 8)) & 0xFF;
+
+		PointLightToGPU p = pointLights[index];
+
 		vec3 toLight = p.position_and_radius.xyz - intersection.point;
 		float dist = length(toLight);
-		if (dist < p.position_and_radius.w) {
-			toLight =  normalize(toLight);
+		toLight =  normalize(toLight);
 
-			// First, calculate if our light is even in the same direction.
-			float nDotL = dot(intersection.normal, toLight);
+		// First, calculate if our light is even in the same direction.
+		float nDotL = max(0.0, dot(intersection.normal, toLight));
 
-			if (nDotL > 0.0) {
-		
-				// Shadow
-				Ray ray;
-				ray.pos = intersection.point + SMALL_NUMBER * intersection.normal;
-				ray.dir = toLight;
-				ray.tMax = dist;
-				bool inShadow = FastBVHIntersect(ray);
-				if (!inShadow) {
+		// Diffuse
+		vec3 diffuseColor = baseDiffuse * p.color_and_luminance.xyz * nDotL;
 
-					// Diffuse
-					vec3 diffuseColor = baseDiffuse * p.color_and_luminance.xyz * nDotL;
+		// Specular
+		vec3 h = normalize(toLight + eye);
+		float spec = pow(max(dot(h, intersection.normal), 0.0), mat.specularExponent);
+		vec3 specularColor = baseSpecular * spec;
 
-					// Specular
-					vec3 h = normalize(toLight + eye);
-					float spec = pow(max(dot(h, intersection.normal), 0.0), mat.specularExponent);
-					vec3 specularColor = baseSpecular * spec;
-
-					// Total color
-					float attenuation = p.color_and_luminance.w / (1 + 1 * dist + 2 * dist * dist);
-					outColor += attenuation * (1 - (int)inShadow) * (diffuseColor + specularColor);
-				}
-			}
-		}
+		// Total color
+		float attenuation = p.color_and_luminance.w / (1 + 1 * dist + 2 * dist * dist);
+		outColor += attenuation * (diffuseColor + specularColor);
 	}
 
 	return outColor;

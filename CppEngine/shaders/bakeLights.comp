@@ -2,11 +2,10 @@
 
 #extension GL_ARB_compute_shader : enable
 
-#define WORK_GROUP_SIZE_X 16
-#define WORK_GROUP_SIZE_Y 16
-#define MAX_POINT_LIGHTS 256
+#define WORK_GROUP_SIZE_X 8
+#define WORK_GROUP_SIZE_Y 8
 #define GRID_SIZE 8
-#define MAX_LIGHTS_PER_BLOCK 7
+#define MAX_POINT_LIGHTS 32
 
 layout(local_size_x = WORK_GROUP_SIZE_X, local_size_y = WORK_GROUP_SIZE_Y, local_size_z = 1) in;
 
@@ -20,12 +19,12 @@ layout(std140, binding = 0) uniform PointLightBUffer {
 	PointLightToGPU pointLights[MAX_POINT_LIGHTS];
 }; // Constant
 
-struct PointLightIndices {
-	uint indices[MAX_LIGHTS_PER_BLOCK];
+struct PointLightIndicesToGPU {
+	uint indices[15];
 	uint numLights;
 };
-layout(std430, binding = 0) writeonly buffer PointLightIndexBuffer {
-	PointLightIndices pointLightIndices[GRID_SIZE * GRID_SIZE * GRID_SIZE];
+layout(std430, binding = 1) writeonly buffer PointLightIndexBuffer {
+	PointLightIndicesToGPU pointLightIndices[GRID_SIZE * GRID_SIZE * GRID_SIZE];
 }; // Constant
 
 uniform uint numPointLights;
@@ -40,17 +39,15 @@ bool AABBSphereIntersection(in vec3 boundsMin, in vec3 boundsMax, in vec4 positi
 void main() {
 
 	lightIndex = 0;
-	uint linearGridLocation = gl_WorkGroupID.z * gl_WorkGroupSize.y * gl_WorkGroupSize.y +
-						gl_WorkGroupID.y * gl_WorkGroupSize.x +
-						gl_WorkGroupID.x;
-	pointLightIndices[linearGridLocation].numLights = 0;
+	uint linearGridLocation = gl_WorkGroupID.z * gl_WorkGroupSize.y * gl_WorkGroupSize.x +
+							  gl_WorkGroupID.y * gl_WorkGroupSize.x +
+							  gl_WorkGroupID.x;
 	barrier();
 
-	vec3 minToMax = maxBounds - minBounds;
 	uint threadId = gl_LocalInvocationIndex;
 
-	vec3 blockMin = minBounds + minToMax * (gl_WorkGroupID / float(GRID_SIZE));
-	vec3 blockMax = minBounds + minToMax * ((gl_WorkGroupID + 1) / float(GRID_SIZE));
+	vec3 blockMin = (maxBounds - minBounds) * (gl_WorkGroupID) / (GRID_SIZE) + minBounds;
+	vec3 blockMax = (maxBounds - minBounds) * (gl_WorkGroupID + 1) / (GRID_SIZE) + minBounds;
 
 	while (threadId < numPointLights) {
 		PointLightToGPU p = pointLights[threadId];
@@ -58,7 +55,7 @@ void main() {
 		if (AABBSphereIntersection(blockMin, blockMax, p.position_and_radius)) {
 			
 			uint index = atomicAdd(lightIndex, 1);
-			if (index < MAX_LIGHTS_PER_BLOCK) {
+			if (index < 15) {
 				uint arrayIndex = atomicAdd(pointLightIndices[linearGridLocation].numLights, 1);
 				pointLightIndices[linearGridLocation].indices[arrayIndex] = threadId;
 			}
@@ -66,29 +63,22 @@ void main() {
 
 		threadId += WORK_GROUP_SIZE_X * WORK_GROUP_SIZE_Y;
 	}
-
-
 }
 
 /* https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test */
 bool AABBSphereIntersection(in vec3 boundsMin, in vec3 boundsMax, in vec4 position_and_radius) {
 
 	float radiusSq = position_and_radius.w * position_and_radius.w;
+	float d = 0;
 
-	float dMin = (position_and_radius.x - boundsMin.x) * (position_and_radius.x - boundsMin.x);
-	float dMax = (position_and_radius.x - boundsMax.x) * (position_and_radius.x - boundsMax.x);
-
-	float d = min(dMin, dMax);
-
-	dMin = (position_and_radius.y - boundsMin.y) * (position_and_radius.y - boundsMin.y);
-	dMax = (position_and_radius.y - boundsMax.y) * (position_and_radius.y - boundsMax.y);
-
-	d += min(dMin, dMax);
-
-	dMin = (position_and_radius.z - boundsMin.z) * (position_and_radius.z - boundsMin.z);
-	dMax = (position_and_radius.z - boundsMax.z) * (position_and_radius.z - boundsMax.z);
-
-	d += min(dMin, dMax);
+	for (uint i = 0; i < 3; ++i) {
+		if (position_and_radius[i] < boundsMin[i]) {
+			d += (position_and_radius[i] - boundsMin[i]) * (position_and_radius[i] - boundsMin[i]);
+		}
+		else if (position_and_radius[i] > boundsMax[i]) {
+			d += (position_and_radius[i] - boundsMax[i]) * (position_and_radius[i] - boundsMax[i]);
+		}
+	}
 
 	return d <= radiusSq;
 }

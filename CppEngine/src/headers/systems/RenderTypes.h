@@ -8,8 +8,6 @@
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
-#define MAX_LIGHTS_PER_BLOCK 7
-
 const float quadVerts[12] = {
 	-1.0f, 1.0f,
 	-1.0f, -1.0f,
@@ -43,13 +41,21 @@ ASSERT_STRUCT_UP_TO_DATE(PointLightToGPU, 32);
 
 
 #pragma pack(push, 1)
-struct PointLightIndicesToGPU {
-	uint32_t indices[MAX_LIGHTS_PER_BLOCK];
+struct PointLightIndicesSSBO {
+	uint32_t indices[15];
 	uint32_t numLights;
 };
 #pragma pack(pop)
-ASSERT_GPU_ALIGNMENT(PointLightIndicesToGPU, 16);
-ASSERT_STRUCT_UP_TO_DATE(PointLightIndicesToGPU, 32);
+ASSERT_GPU_ALIGNMENT(PointLightIndicesSSBO, 16);
+ASSERT_STRUCT_UP_TO_DATE(PointLightIndicesSSBO, 64);
+
+#pragma pack(push, 1)
+struct PointLightIndicesUBO {
+	glm::uvec4 indices_and_num_lights;
+};
+#pragma pack(pop)
+ASSERT_GPU_ALIGNMENT(PointLightIndicesUBO, 16);
+ASSERT_STRUCT_UP_TO_DATE(PointLightIndicesUBO, 16);
 
 
 #pragma pack(push, 1)

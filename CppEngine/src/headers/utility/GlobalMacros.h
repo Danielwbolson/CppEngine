@@ -10,6 +10,8 @@
 #define NUM_GROUPS_X (windowWidth/WORK_GROUP_SIZE_X)
 #define NUM_GROUPS_Y (windowHeight/WORK_GROUP_SIZE_Y)
 
+#define GRID_SIZE 8
+
 #define ASSERT_GPU_ALIGNMENT(struct_name, value)\
 	static_assert(\
 		(sizeof(struct_name) % value) == 0,\
