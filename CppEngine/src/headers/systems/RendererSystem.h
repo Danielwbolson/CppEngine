@@ -44,6 +44,7 @@ private:
 
 	// Tiled lighting variables
 	GLuint tiledComputeShader;
+
 	GLuint pointLightsSSBO;
 	GLuint lightTilesSSBO; // Max of 512 lights per tile
 

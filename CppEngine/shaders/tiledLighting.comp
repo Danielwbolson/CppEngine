@@ -59,6 +59,7 @@ void main() {
 		maxDepth = 0;
 		numTilePointLights = 0;
 		numTileTransparentPointLights = 0;
+
 	}
 	barrier();
 
@@ -74,8 +75,7 @@ void main() {
 
 	// Get depth value from texture
 	float depthFloat = texture(gDepth, samplerUV).r;
-	uint depthInt = uint(depthFloat * float(0x7f7fffff));
-	
+
 	// Calculate min/max depth of out work group or tile
 	atomicMax(maxDepth, depthInt);
 	atomicMin(minDepth, depthInt);
@@ -175,25 +175,25 @@ void main() {
 		// Near plane for opaque geometry
 		dist = dot(frustumPlanes[5], viewPos);
 		inFrustum = inFrustum && (dist >= -rad);
+
 		if (inFrustum) {
 			uint id = atomicAdd(numTilePointLights, 1);
 			sharedPointLights[id] = pointLights[index];
 		}
-
 	}
 
 	barrier();
 
 	// At this point, our tile should be filled with all of the point lights it needs
 	// Calculate lighting
-	vec3 outColor = vec3(0, 0, 0);
 
 	// Don't normalize normal or we will ruin the encoding
 	vec3 normal       = octahedronDecompress(texture(gNormal, samplerUV).rgb);
 	uvec4 diffuseSpec = texture(gDiffuseSpec, samplerUV);
 	
 	vec3 diffuseColor; vec3 specularColor;
-	
+
+	// Calculate fragment position from depth
 	float z = 2.0 * depthFloat - 1;
 	vec4 clipSpacePos = vec4(samplerUV * 2.0 - 1.0, z, 1.0);
 	vec4 viewSpacePos = invProj * clipSpacePos;
@@ -202,6 +202,8 @@ void main() {
 
 	// eye
 	vec3 eye = normalize(camPos-fragPos);
+
+	vec3 outColor = vec3(0, 0, 0);
 
 	// Run through all lights for this tile
 	for (int i = 0; i < numTilePointLights; i++) {
@@ -236,8 +238,9 @@ void main() {
 			// attenuation
 			float attenuation = sharedPointLights[i].color_and_luminance.w / (1 + 1 * dist + 2 * dist * dist);
 
-			outColor += diffuse * attenuation; // diffuse
-			outColor += specular * attenuation; // specular
+			outColor += diffuse * attenuation;
+			outColor += specular * attenuation;
+
 
 		}
 	}
@@ -245,6 +248,7 @@ void main() {
 	imageStore(destTex, globalId, vec4(outColor, 1.0));
 
 }
+
 
 // Decompresses our octahedron encoded normals into a useable float3x32 format
 vec3 octahedronDecompress(vec3 v) {
