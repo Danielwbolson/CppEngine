@@ -33,8 +33,8 @@ sol::state lua;
 sol::function frameUpdate;
 sol::function keyInput;
 
-int windowWidth = 2560;
-int windowHeight = 1440;
+int windowWidth = 1920;
+int windowHeight = 1080;
 int engineComponentsSize = 3;
 
 float luaTimeSpeed = 1;

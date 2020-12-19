@@ -41,7 +41,7 @@ namespace SDL_Input {
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
     
         //Create a window (offsetx, offsety, width, height, flags)
-        *window = SDL_CreateWindow("My OpenGL Program", 100, 100,
+        *window = SDL_CreateWindow("My OpenGL Program", 0, 25,
                 screenWidth, screenHeight, SDL_WINDOW_OPENGL);
         if (!*window) {
             printf("Could not create window: %s\n", SDL_GetError());
