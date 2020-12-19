@@ -24,17 +24,19 @@ Bounds::Bounds(const float minVx, const float minVy, const float minVz,
 	points[6] = glm::vec4(minX, maxY, minZ, 1);
 	points[7] = glm::vec4(minX, minY, minZ, 1);
 
+	center = glm::vec3((maxX + minX) / 2.0f, (maxY + minY) / 2.0f, (maxZ + minZ) / 2.0f);
+
 }
 
 Bounds::Bounds(const Bounds& b) {
 	this->minX = b.minX;
 	this->minY = b.minY;
 	this->minZ = b.minZ;
-
 	this->maxX = b.maxX;
 	this->maxY = b.maxY;
 	this->maxZ = b.maxZ;
 
+	this->center = b.center;
 	this->points = b.points;
 }
 
@@ -50,6 +52,7 @@ Bounds& Bounds::operator=(const Bounds& b) {
 	maxY = b.maxY;
 	maxZ = b.maxZ;
 
+	center = b.center;
 	points = b.points;
 
 	return *this;
@@ -64,6 +67,8 @@ void Bounds::Init() {
 	points[5] = glm::vec4(minX, minY, maxZ, 1);
 	points[6] = glm::vec4(minX, maxY, minZ, 1);
 	points[7] = glm::vec4(minX, minY, minZ, 1);
+
+	center = glm::vec3((maxX + minX) / 2.0f, (maxY + minY) / 2.0f, (maxZ + minZ) / 2.0f);
 }
 
 glm::vec3 Bounds::Max(const glm::mat4 t) {

@@ -107,7 +107,8 @@ void Transform::Translate(const glm::vec3& amount) {
 }
 
 void Transform::Scale(const glm::vec3& amount) {
-	model = glm::scale(model, amount);
+	scale = amount;
+	model = glm::scale(model, scale);
 }
 
 void Transform::Update(const float& dt) {

@@ -11,15 +11,18 @@
 #include "Scene.h"
 
 #include "Camera.h"
-#include "Globals.h"
 
 #include "Material.h"
 #include "Shader.h"
-
-
-#define WORK_GROUP_SIZE 16
-#define NUM_GROUPS_X (windowWidth/WORK_GROUP_SIZE)
-#define NUM_GROUPS_Y (windowHeight/WORK_GROUP_SIZE)
+#include "GameObject.h"
+#include "ModelRenderer.h"
+#include "PointLight.h"
+#include "DirectionalLight.h"
+#include "Model.h"
+#include "Mesh.h"
+#include "Texture.h"
+#include "Light.h"
+#include "Bounds.h"
 
 
 RendererSystem::RendererSystem() {}
@@ -81,11 +84,15 @@ void RendererSystem::Setup() {
 
 	directionalLightsToGPU.reserve(mainScene->directionalLights.size());
 	for (int i = 0; i < mainScene->directionalLights.size(); i++) {
-		DirectionalLightToGPU d = DirectionalLightToGPU{
-			d.direction = mainScene->directionalLights[i].direction,
-			d.color = glm::vec3(mainScene->directionalLights[i].color),
-			d.luminance = mainScene->directionalLights[i].lum
-		};
+		DirectionalLightToGPU d;
+		d.direction = mainScene->directionalLights[i].direction;
+
+		glm::vec3 color = mainScene->directionalLights[i].color;
+		d.color_and_luminance =
+			glm::vec4(
+				color,
+				mainScene->directionalLights[i].lum
+			);
 		directionalLightsToGPU.push_back(d);
 	}
 
@@ -742,7 +749,7 @@ void RendererSystem::DrawTransparent() {
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
 
 		GLint uniNumTiles = glGetUniformLocation(transparentToDraw[0].shaderProgram, "numTiles");
-		glUniform2i(uniNumTiles, windowWidth / WORK_GROUP_SIZE, windowHeight / WORK_GROUP_SIZE);
+		glUniform2i(uniNumTiles, NUM_GROUPS_X, NUM_GROUPS_Y);
 
 		// Directional light
 		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "directionalLightDir");

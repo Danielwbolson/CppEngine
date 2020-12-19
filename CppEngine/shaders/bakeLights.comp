@@ -1,0 +1,84 @@
+#version 450 compatibility
+
+#extension GL_ARB_compute_shader : enable
+
+#define WORK_GROUP_SIZE_X 8
+#define WORK_GROUP_SIZE_Y 8
+#define GRID_SIZE 8
+#define MAX_POINT_LIGHTS 32
+
+layout(local_size_x = WORK_GROUP_SIZE_X, local_size_y = WORK_GROUP_SIZE_Y, local_size_z = 1) in;
+
+/***** * * * * * Buffers * * * * * *****/
+
+struct PointLightToGPU {
+	vec4 position_and_radius;
+	vec4 color_and_luminance;
+};
+layout(std140, binding = 0) uniform PointLightBUffer {
+	PointLightToGPU pointLights[MAX_POINT_LIGHTS];
+}; // Constant
+
+struct PointLightIndicesToGPU {
+	uint indices[15];
+	uint numLights;
+};
+layout(std430, binding = 1) writeonly buffer PointLightIndexBuffer {
+	PointLightIndicesToGPU pointLightIndices[GRID_SIZE * GRID_SIZE * GRID_SIZE];
+}; // Constant
+
+uniform uint numPointLights;
+
+uniform vec3 minBounds;
+uniform vec3 maxBounds;
+
+shared uint lightIndex;
+
+bool AABBSphereIntersection(in vec3 boundsMin, in vec3 boundsMax, in vec4 position_and_radius);
+
+void main() {
+
+	lightIndex = 0;
+	uint linearGridLocation = gl_WorkGroupID.z * gl_WorkGroupSize.y * gl_WorkGroupSize.x +
+							  gl_WorkGroupID.y * gl_WorkGroupSize.x +
+							  gl_WorkGroupID.x;
+	barrier();
+
+	uint threadId = gl_LocalInvocationIndex;
+
+	vec3 blockMin = (maxBounds - minBounds) * (gl_WorkGroupID) / (GRID_SIZE) + minBounds;
+	vec3 blockMax = (maxBounds - minBounds) * (gl_WorkGroupID + 1) / (GRID_SIZE) + minBounds;
+
+	while (threadId < numPointLights) {
+		PointLightToGPU p = pointLights[threadId];
+
+		if (AABBSphereIntersection(blockMin, blockMax, p.position_and_radius)) {
+			
+			uint index = atomicAdd(lightIndex, 1);
+			if (index < 15) {
+				uint arrayIndex = atomicAdd(pointLightIndices[linearGridLocation].numLights, 1);
+				pointLightIndices[linearGridLocation].indices[arrayIndex] = threadId;
+			}
+		}
+
+		threadId += WORK_GROUP_SIZE_X * WORK_GROUP_SIZE_Y;
+	}
+}
+
+/* https://stackoverflow.com/questions/4578967/cube-sphere-intersection-test */
+bool AABBSphereIntersection(in vec3 boundsMin, in vec3 boundsMax, in vec4 position_and_radius) {
+
+	float radiusSq = position_and_radius.w * position_and_radius.w;
+	float d = 0;
+
+	for (uint i = 0; i < 3; ++i) {
+		if (position_and_radius[i] < boundsMin[i]) {
+			d += (position_and_radius[i] - boundsMin[i]) * (position_and_radius[i] - boundsMin[i]);
+		}
+		else if (position_and_radius[i] > boundsMax[i]) {
+			d += (position_and_radius[i] - boundsMax[i]) * (position_and_radius[i] - boundsMax[i]);
+		}
+	}
+
+	return d <= radiusSq;
+}

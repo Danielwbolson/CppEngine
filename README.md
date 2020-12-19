@@ -1,6 +1,6 @@
 # CppEngine
 
-### A multi-pass rendering engine featuring Tiled Deferred and Forward+ shading. Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects and interact with the sun.
+### A multi-pass rendering engine featuring Tiled Deferred and Forward+ shading as well as a Real-time Ray Tracing solution. Currently runs with some very basic functions in Lua for the user to spawn lights and gameobjects and interact with the sun.
 
 ## Engine Features:  
 - Entity-Component-Systems Architecture
@@ -11,6 +11,7 @@
 - Custom dynamic memory allocation (no 'new') to optimize cache performance
 - Post-processing step (currently just gamma correction)
 - Material and texturing support
+- Real-time Ray Tracing enabled through a macro. Requires 31 point lights or less.
 
 
 ## To clone, build, and run:  

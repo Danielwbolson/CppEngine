@@ -9,10 +9,11 @@
 #define GLM_FORCE_RADIANS
 #include "glm/glm.hpp"
 
-#include "Bounds.h"
-#include "MemoryAllocator.h"
-
 #include <vector>
+#include <string>
+
+
+class Bounds;
 
 class Mesh {
 public:
@@ -37,4 +38,5 @@ public:
     std::string ComponentType() const { return "mesh"; }
 
 };
+
 #endif

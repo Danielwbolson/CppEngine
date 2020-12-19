@@ -27,6 +27,7 @@ public:
 	std::vector<glm::vec4, MemoryAllocator<glm::vec4> > points;
 	float minX, minY, minZ;
 	float maxX, maxY, maxZ;
+	glm::vec3 center;
 };
 
 #endif // BOUNDS_H_

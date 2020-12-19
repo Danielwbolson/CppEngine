@@ -2,12 +2,10 @@
 #ifndef SYSTEMS_H_
 #define SYSTEMS_H_
 
-#include "GameObject.h"
-#include "Light.h"
-#include "Component.h"
-
 #include <vector>
 #include <string>
+
+class Component;
 
 class Systems {
 protected:

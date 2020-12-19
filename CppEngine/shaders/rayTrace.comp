@@ -1,0 +1,579 @@
+#version 450 compatibility
+
+#extension GL_ARB_compute_shader	: enable
+#extension GL_ARB_bindless_texture	: enable
+#extension GL_NV_gpu_shader5		: enable
+
+#define rayMaxDist 10000000
+#define MAX_VISITED_NODES 32
+#define MAX_MATERIALS 25
+#define SMALL_NUMBER 0.0001
+#define REALLY_SMALL_NUMBER 0.0000001
+#define MAX_POINT_LIGHTS 32
+#define WORK_GROUP_SIZE_X 16
+#define WORK_GROUP_SIZE_Y 16
+#define GRID_SIZE 8
+
+layout(local_size_x = WORK_GROUP_SIZE_X, local_size_y = WORK_GROUP_SIZE_Y, local_size_z = 1) in;
+
+
+
+/***** * * * * * Ray tracing Structs * * * * * *****/
+
+struct Ray {
+	vec3 pos;
+	vec3 dir;
+	float tMax;
+};
+struct Intersection {
+	vec3 point;
+	vec3 normal;
+	vec2 uvs;
+	uint materialIndex;
+};
+
+
+
+/***** * * * * * Buffers * * * * * *****/
+
+struct PointLightToGPU {
+	vec4 position_and_radius;
+	vec4 color_and_luminance;
+};
+layout(std140, binding = 0) uniform PointLightBUffer {
+	PointLightToGPU pointLights[MAX_POINT_LIGHTS];
+}; // Constant
+
+// 16 bytes each
+struct PointLightIndicesToGPU {
+	uvec4 indices_and_numLights; // 8/8/8/8 8/8/8/8 8/8/8/8 8/8/8/8
+};
+layout(std140, binding = 1) uniform PointLightIndexBuffer {
+	PointLightIndicesToGPU pointLightIndices[GRID_SIZE * GRID_SIZE * GRID_SIZE];
+}; // Constant
+
+struct GPUMaterial {
+	uint64_t diffuseTexture;
+	uint64_t normalTexture;
+
+	uint64_t specularTexture;
+	uint64_t alphaTexture;
+
+	uint diffuse; // 8/8/8/NA
+	uint specular; // 8/8/8/NA
+
+	float specularExponent;
+	uint using_Normal_Specular_Alpha; // 8/8/8/NA
+
+	uint64_t pad;
+	uint64_t pad1;
+};
+layout (std140, binding = 2) uniform Materials {
+	GPUMaterial materials[MAX_MATERIALS];
+}; // Constant
+
+struct LinearBVHNode {
+	vec3 boundsMin;
+	uint offset; // leaf node - primitiveOffset, interior node - secondChildOffset
+
+	vec3 boundsMax;
+	uint numPrimitives_and_axis; // 16/16
+};
+layout (std430, binding = 3) readonly buffer BVH {
+	LinearBVHNode nodes[];
+}; // Global
+
+struct GPUVertex {
+	vec4 position_and_u;
+	vec4 normal_and_v;
+	vec4 tangent;
+	vec4 bitangent;
+};
+layout (std430, binding = 4) readonly buffer Vertices {
+	GPUVertex vertices[];
+}; // Global
+
+struct GPUTriangle {
+	uint indices[3];
+	uint materialIndex;
+};
+layout (std430, binding = 5) readonly buffer Triangles {
+	GPUTriangle triangles[];
+}; // Global
+
+layout (binding = 0) uniform writeonly image2D destTex;
+
+
+
+/***** * * * * * Uniforms * * * * * *****/
+
+uniform mat4 invProj;
+uniform mat4 invView;
+
+uniform vec3 camPos;
+
+uniform vec3 directionalLightDir;
+uniform vec3 directionalLightCol;
+
+uniform vec3 minBounds;
+uniform vec3 maxBounds;
+
+/***** * * * * * Functions Declarations * * * * * *****/
+
+bool BVHIntersect(inout Ray ray, inout Intersection intersection);
+bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersection intersection);
+bool AABBIntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 invDir);
+
+vec3 PointLighting(in Intersection intersection);
+vec3 DirectionalLighting(in Intersection intersection);
+
+bool FastBVHIntersect(in Ray ray);
+bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray);
+
+
+
+/***** * * * * * MAIN * * * * * *****/
+
+
+void main() {
+
+	// position in global shader (texture position)
+	ivec2 globalId = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 resolution = imageSize(destTex);
+
+	// Compute our thread into world space coordinates
+	vec2 rayUV = vec2(globalId.x / float(resolution.x), globalId.y / float(resolution.y));
+	vec4 rayNDC = vec4(2.0 * rayUV - 1.0, -1.0, 1.0);
+	vec4 rayViewSpace = invProj * rayNDC;
+	rayViewSpace /= rayViewSpace.w;
+	vec3 rayWorldSpace = (invView * rayViewSpace).xyz;
+
+	// Create our ray
+	Ray ray;
+	ray.pos = camPos;
+	ray.dir = normalize(rayWorldSpace - camPos);
+	ray.tMax = rayMaxDist;
+
+	// We now have a world space ray. We can intersect our BVH and calculate lighting.
+	Intersection intersection;
+	vec3 finalColor = vec3(0,0,0);
+	vec3 multiplier = vec3(1,1,1);
+
+	// 1 main ray. 2 reflection bounces.
+	for (uint i = 0; i < 3; ++i) {
+		if(BVHIntersect(ray, intersection)) {
+			finalColor += multiplier * (DirectionalLighting(intersection) + PointLighting(intersection));
+
+			GPUMaterial mat = materials[intersection.materialIndex];
+			uint m = mat.specular;
+
+			if (m > 0) {
+				ray.dir = ray.dir - 2 * intersection.normal * dot(ray.dir, intersection.normal);
+				ray.pos = intersection.point + SMALL_NUMBER * ray.dir;
+				ray.tMax = rayMaxDist;
+
+				// Unpack our specular uint into a 8bit vec3
+				multiplier = vec3((m >> 24) & 0xFF, (m >> 16) & 0xFF, (m >> 8) & 0xFF) / 255.0f;
+			} else {
+				// There is no specualar on this intersection. So no need for reflection.
+				break;
+			}
+		} else {
+			// We did not intersect. No need to continue.
+			break;
+		}
+	}
+
+	finalColor = clamp(finalColor, vec3(0.0f,0.0f,0.0f), vec3(1.0f,1.0f,1.0f));
+
+	imageStore(destTex, globalId, vec4(finalColor, 1));
+
+}
+
+
+/***** * * * * * Functions Definitions * * * * * *****/
+
+bool BVHIntersect(inout Ray ray, inout Intersection intersection) {
+	bool hit = false;
+
+	vec3 invDir = vec3(1.0 / ray.dir.x, 1.0 / ray.dir.y, 1.0 / ray.dir.z);
+	ivec3 dirIsNeg = ivec3(invDir.x < 0, invDir.y < 0, invDir.z < 0);
+
+	uint toVisitOffset = 0; 
+	uint currentNodeIndex = 0;
+	uint nodesToVisit[MAX_VISITED_NODES];
+
+	while (true) {
+		// Cap on number of nodes we can visit
+		if (toVisitOffset >= MAX_VISITED_NODES) return false;
+
+		LinearBVHNode node = nodes[currentNodeIndex];
+		// If this node intersects with our ray
+		if (AABBIntersectRay(node.boundsMin, node.boundsMax, ray, invDir)) {
+
+			// Leaf node. Check all triangles within this leaf node.
+			uint numPrimitives = (node.numPrimitives_and_axis >> 16);
+			if (numPrimitives > 0) {
+
+				for (uint i = 0; i < numPrimitives; i+=1) {
+					if (TriangleIntersect(triangles[node.offset + i], ray, intersection)) {
+						hit = true;
+					}
+				}
+
+				if (toVisitOffset == 0) {
+					break;
+				}
+				currentNodeIndex = nodesToVisit[--toVisitOffset];
+			}
+			// Interior node. Check children nodes, using direction of ray to determine which child to check first.
+			else {
+				if (dirIsNeg[(node.numPrimitives_and_axis & 0xFFFF)] > 0) {
+					nodesToVisit[toVisitOffset++] = currentNodeIndex + 1;
+					currentNodeIndex = node.offset;
+				}
+				else {
+					nodesToVisit[toVisitOffset++] = node.offset;
+					currentNodeIndex = currentNodeIndex + 1;
+				}
+			}
+		}
+		// No intersection. Check next node.
+		else {
+			if (toVisitOffset == 0) {
+				break;
+			}
+			currentNodeIndex = nodesToVisit[--toVisitOffset];
+		}
+	} // while
+
+	return hit;
+
+}
+
+// Attempted with Cramers rul but didn't work. Not sure why.
+/* https://en.wikipedia.org/wiki/Cramer%27s_rule */
+/* https://www.cs.cornell.edu/courses/cs4620/2015fa/lectures/06rtintersectWeb.pdf */
+// Using this method.
+/* https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection */
+bool TriangleIntersect(in GPUTriangle triangle, inout Ray ray, inout Intersection intersection) {
+
+	bool noIntersect = false;
+
+	// Plane normal and triangle area
+	GPUVertex a = vertices[triangle.indices[0]];
+	GPUVertex b = vertices[triangle.indices[1]];
+	GPUVertex c = vertices[triangle.indices[2]];
+
+	vec3 a_to_b = b.position_and_u.xyz - a.position_and_u.xyz;
+	vec3 a_to_c = c.position_and_u.xyz - a.position_and_u.xyz;
+	vec3 pVec = cross(ray.dir, a_to_c);
+	float det = dot(a_to_b, pVec);
+
+	// If we are parallel
+	noIntersect = (abs(det) < REALLY_SMALL_NUMBER);
+
+	// Avoid excess divides
+	float invDet = 1.0 / det;
+
+	// Calculate u
+	vec3 uVec = ray.pos - a.position_and_u.xyz;
+	float u = dot(uVec, pVec) * invDet; // how far does this uVec go in dir of our ray
+	noIntersect = noIntersect || (u < 0.0 || u > 1.0);
+
+	// Calculate v
+	vec3 vVec = cross(uVec, a_to_b);
+	float v = dot(ray.dir, vVec) * invDet; // how far does this vVec go in dir of our ray
+	noIntersect = noIntersect || (v < 0.0 || u + v > 1.0);
+
+	// Calculate t (behind or past closest triangle).
+	float t = dot(a_to_c, vVec) * invDet;
+	noIntersect = noIntersect || (t < 0.0 || t > ray.tMax);
+
+	if (noIntersect) return false;
+
+	// Check against alpha
+	vec2 aUvs = vec2(a.position_and_u.w, a.normal_and_v.w);
+	vec2 bUvs = vec2(b.position_and_u.w, b.normal_and_v.w);
+	vec2 cUvs = vec2(c.position_and_u.w, c.normal_and_v.w);
+	vec2 uvs = (aUvs * (1.0 - u - v) + bUvs * u + cUvs * v);
+
+	GPUMaterial mat = materials[triangle.materialIndex];
+	bool usingAlpha = ((mat.using_Normal_Specular_Alpha >> 8) & 0xFF) > 0;
+	if (usingAlpha) {
+		float alpha = texture(sampler2D(mat.alphaTexture), uvs).r;
+		noIntersect = noIntersect || (alpha < REALLY_SMALL_NUMBER);
+	}
+
+	if (noIntersect) return false;
+
+	// In the triangle
+	ray.tMax = t;
+	
+	intersection.point = ray.pos + t * ray.dir;
+	intersection.normal = normalize(((1.0 - u - v) * a.normal_and_v.xyz + u * b.normal_and_v.xyz + v * c.normal_and_v.xyz).xyz);
+
+	bool usingNormal = ((mat.using_Normal_Specular_Alpha >> 24) & 0xFF) > 0;
+	if (usingNormal) {
+		vec3 tangent = normalize(((1.0 - u - v) * a.tangent.xyz + u * b.tangent.xyz + v * c.tangent.xyz).xyz);
+		vec3 bitangent = normalize(((1.0 - u - v) * a.bitangent.xyz + u * b.bitangent.xyz + v * c.bitangent.xyz).xyz);
+		vec3 n = texture(sampler2D(mat.normalTexture), uvs).xyz * 2.0f - 1.0f;
+		mat3 tbn = mat3(tangent, bitangent, intersection.normal);
+		intersection.normal = normalize(tbn * n);
+	}
+
+	intersection.uvs = uvs;
+	intersection.materialIndex = triangle.materialIndex;
+
+	return true;
+}
+
+/* https://tavianator.com/2011/ray_box.html */
+bool AABBIntersectRay(in vec3 boundsMin, in vec3 boundsMax, in Ray ray, in vec3 invDir) {
+
+	vec3 t1 = (boundsMin - ray.pos) * invDir;
+	vec3 t2 = (boundsMax - ray.pos) * invDir;
+
+	float tMin = min(t1.x, t2.x);
+	float tMax = max(t1.x, t2.x);
+
+	tMin = max(tMin, min(t1.y, t2.y));
+	tMax = min(tMax, max(t1.y, t2.y));
+
+	tMin = max(tMin, min(t1.z, t2.z));
+	tMax = min(tMax, max(t1.z, t2.z));
+
+	return (tMax >= max(0.0f, tMin)) && (tMin < ray.tMax);
+}
+
+vec3 DirectionalLighting(in Intersection intersection) {
+	vec3 outColor = vec3(0,0,0);
+
+	// First, calculate if our light is even in the same direction.
+	float nDotL = dot(intersection.normal, -directionalLightDir);
+
+	if (nDotL > 0.0) {
+		
+		// Shadow
+		Ray ray;
+		ray.pos = intersection.point + SMALL_NUMBER * intersection.normal;
+		ray.dir = -directionalLightDir;
+		ray.tMax = rayMaxDist;
+		bool inShadow = FastBVHIntersect(ray);
+		if (!inShadow) {
+
+			GPUMaterial mat = materials[intersection.materialIndex];
+			
+			// Unpack our color data
+			vec3 diffuseCoef = vec3(
+				((mat.diffuse >> 24) & 0xFF), 
+				((mat.diffuse >> 16) & 0xFF), 
+				((mat.diffuse >> 8) & 0xFF)
+			) / 255.0f;
+			vec3 specularCoef = vec3(
+				((mat.specular >> 24) & 0xFF), 
+				((mat.specular >> 16) & 0xFF), 
+				((mat.specular >> 8) & 0xFF)
+			) / 255.0f;
+
+			// Diffuse
+			vec3 diffuseColor =
+				directionalLightCol * 
+				texture(sampler2D(mat.diffuseTexture), intersection.uvs).xyz *
+				diffuseCoef *
+				nDotL;
+
+			// Specular
+			vec3 eye = normalize(camPos - intersection.point);
+			vec3 h = normalize(-directionalLightDir + eye);
+			float spec = pow(max(dot(h, intersection.normal), 0.0), mat.specularExponent);
+			vec3 specularColor = specularCoef * spec;
+
+			bool usingSpecular = ((mat.using_Normal_Specular_Alpha >> 16) & 0xFF) > 0;
+			if (usingSpecular) {
+				specularColor *= texture(sampler2D(mat.specularTexture), intersection.uvs).x;
+			}
+
+			// Total color
+			outColor += (1 - (int)inShadow) * (diffuseColor + specularColor);
+		}
+	}
+
+	return outColor;
+}
+
+vec3 PointLighting(in Intersection intersection) {
+	vec3 outColor = vec3(0,0,0);
+	GPUMaterial mat = materials[intersection.materialIndex];
+
+	// Unpack our color data
+	vec3 diffuseCoef = vec3(
+		((mat.diffuse >> 24) & 0xFF), 
+		((mat.diffuse >> 16) & 0xFF), 
+		((mat.diffuse >> 8) & 0xFF)
+	) / 255.0f;
+	vec3 specularCoef = vec3(
+		((mat.specular >> 24) & 0xFF), 
+		((mat.specular >> 16) & 0xFF), 
+		((mat.specular >> 8) & 0xFF)
+	) / 255.0f;
+
+	// Get our starting diffuse and specular colors.
+	vec3 baseDiffuse = diffuseCoef * texture(sampler2D(mat.diffuseTexture), intersection.uvs).xyz;
+	vec3 baseSpecular = specularCoef;
+	bool usingSpecular = ((mat.using_Normal_Specular_Alpha >> 16) & 0xFF) > 0;
+	if (usingSpecular) {
+		baseSpecular *= texture(sampler2D(mat.specularTexture), intersection.uvs).x;
+	}
+
+	vec3 eye = normalize(camPos - intersection.point);
+
+	// Grid location for point lights
+	uvec3 gridLoc = uvec3((GRID_SIZE * (intersection.point - minBounds)) / (maxBounds - minBounds));
+	uint linearLocation = gridLoc.z * GRID_SIZE * GRID_SIZE + 
+						  gridLoc.y * GRID_SIZE + 
+						  gridLoc.x;
+	
+	PointLightIndicesToGPU pli = pointLightIndices[linearLocation];
+	uint numLights = pli.indices_and_numLights.w & 0xFF;
+
+	// Now, calculate lighting for each light.
+	for (int i = 0; i < numLights; ++i) {
+
+		uint offset = 3 - (i % 4);
+		uint index = i / 4;
+		index = (pli.indices_and_numLights[index] >> (offset * 8)) & 0xFF;
+
+		PointLightToGPU p = pointLights[index];
+
+		vec3 toLight = p.position_and_radius.xyz - intersection.point;
+		float dist = length(toLight);
+		toLight =  normalize(toLight);
+
+		// First, calculate if our light is even in the same direction.
+		float nDotL = max(0.0, dot(intersection.normal, toLight));
+
+		// Diffuse
+		vec3 diffuseColor = baseDiffuse * p.color_and_luminance.xyz * nDotL;
+
+		// Specular
+		vec3 h = normalize(toLight + eye);
+		float spec = pow(max(dot(h, intersection.normal), 0.0), mat.specularExponent);
+		vec3 specularColor = baseSpecular * spec;
+
+		// Total color
+		float attenuation = p.color_and_luminance.w / (1 + 1 * dist + 2 * dist * dist);
+		outColor += attenuation * (diffuseColor + specularColor);
+	}
+
+	return outColor;
+}
+// Same as BVH intersect but exiting after intersection with any triangle.
+bool FastBVHIntersect(in Ray ray) {
+
+	vec3 invDir = vec3(1.0 / ray.dir.x, 1.0 / ray.dir.y, 1.0 / ray.dir.z);
+	ivec3 dirIsNeg = ivec3(invDir.x < 0, invDir.y < 0, invDir.z < 0);
+
+	uint toVisitOffset = 0; 
+	uint currentNodeIndex = 0;
+	uint nodesToVisit[MAX_VISITED_NODES];
+
+	while (true) {
+		// Cap on number of nodes we can visit
+		if (toVisitOffset >= MAX_VISITED_NODES) return false;
+
+		LinearBVHNode node = nodes[currentNodeIndex];
+		// If this node intersects with our ray
+		if (AABBIntersectRay(node.boundsMin, node.boundsMax, ray, invDir)) {
+
+			// Leaf node. Check all triangles within this leaf node.
+			uint numPrimitives = (node.numPrimitives_and_axis >> 16);
+			if (numPrimitives > 0) {
+
+				for (uint i = 0; i < numPrimitives; i+=1) {
+					if (FastTriangleIntersect(triangles[node.offset + i], ray)) {
+						return true;
+					}
+				}
+
+				if (toVisitOffset == 0) {
+					break;
+				}
+				currentNodeIndex = nodesToVisit[--toVisitOffset];
+			}
+			// Interior node. Check children nodes, using direction of ray to determine which child to check first.
+			else {
+				if (dirIsNeg[(node.numPrimitives_and_axis & 0xFFFF)] > 0) {
+					nodesToVisit[toVisitOffset++] = currentNodeIndex + 1;
+					currentNodeIndex = node.offset;
+				}
+				else {
+					nodesToVisit[toVisitOffset++] = node.offset;
+					currentNodeIndex = currentNodeIndex + 1;
+				}
+			}
+		}
+		// No intersection. Check next node.
+		else {
+			if (toVisitOffset == 0) {
+				break;
+			}
+			currentNodeIndex = nodesToVisit[--toVisitOffset];
+		}
+	} // while
+
+	return false;
+}
+
+// Same as TriangleIntersect but not saving intersection data.
+bool FastTriangleIntersect(in GPUTriangle triangle, in Ray ray) {
+	
+	bool noIntersect = false;
+
+	// Plane normal and triangle area
+	GPUVertex a = vertices[triangle.indices[0]];
+	GPUVertex b = vertices[triangle.indices[1]];
+	GPUVertex c = vertices[triangle.indices[2]];
+
+	vec3 a_to_b = b.position_and_u.xyz - a.position_and_u.xyz;
+	vec3 a_to_c = c.position_and_u.xyz - a.position_and_u.xyz;
+	vec3 pVec = cross(ray.dir, a_to_c);
+	float det = dot(a_to_b, pVec);
+
+	// If we are parallel
+	noIntersect = (abs(det) < REALLY_SMALL_NUMBER);
+
+	// Avoid excess divides
+	float invDet = 1.0 / det;
+
+	// Calculate u
+	vec3 uVec = ray.pos - a.position_and_u.xyz;
+	float u = dot(uVec, pVec) * invDet; // how far does this uVec go in dir of our ray
+	noIntersect = noIntersect || (u < 0.0 || u > 1.0);
+
+	// Calculate v
+	vec3 vVec = cross(uVec, a_to_b);
+	float v = dot(ray.dir, vVec) * invDet; // how far does this vVec go in dir of our ray
+	noIntersect = noIntersect || (v < 0.0 || u + v > 1.0);
+
+	// Calculate t (behind or past closest triangle).
+	float t = dot(a_to_c, vVec) * invDet;
+	noIntersect = noIntersect || (t < 0.0 || t > ray.tMax);
+
+	if (noIntersect) return false;
+
+	// Check against alpha
+	GPUMaterial mat = materials[triangle.materialIndex];
+	bool usingAlpha = (mat.using_Normal_Specular_Alpha >> 8 & 0xFF) > 0;
+	if (usingAlpha) {
+		vec2 aUvs = vec2(a.position_and_u.w, a.normal_and_v.w);
+		vec2 bUvs = vec2(b.position_and_u.w, b.normal_and_v.w);
+		vec2 cUvs = vec2(c.position_and_u.w, c.normal_and_v.w);
+		vec2 uvs = (aUvs * (1.0 - u - v) + bUvs * u + cUvs * v);
+		float alpha = texture(sampler2D(mat.alphaTexture), uvs).r;
+		noIntersect = noIntersect || (alpha < REALLY_SMALL_NUMBER);
+	}
+
+	// In the triangle
+	return !noIntersect;
+}
