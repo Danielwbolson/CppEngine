@@ -4,6 +4,7 @@
 
 #define RAY_TRACING_ENABLED true
 #define PROFILING true
+#define USE_NORMAL_MAPS true
 
 #define WORK_GROUP_SIZE_X 16
 #define WORK_GROUP_SIZE_Y 16

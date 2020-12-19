@@ -1107,7 +1107,7 @@ namespace AssetManager {
 				gpuMaterial.specularExponent = material->specularExponent;
 
 				gpuMaterial.usingNormal_Specular_Alpha = (
-					((uint32_t)(material->usingNormal) & 0xFF) << 24 |
+					((uint32_t)(material->usingNormal && USE_NORMAL_MAPS) & 0xFF) << 24 |
 					((uint32_t)(material->usingSpecular) & 0xFF) << 16 |
 					((uint32_t)(material->usingAlpha) & 0xFF) << 8 |
 					0 & 0xFF
