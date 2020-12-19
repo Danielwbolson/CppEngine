@@ -2,6 +2,8 @@
 #include "Mesh.h"
 #include "Globals.h"
 
+#include "Bounds.h"
+
 Mesh::Mesh() {
 	bounds = nullptr;
 }

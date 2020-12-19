@@ -3,18 +3,12 @@
 #define RENDERER_SYSTEM_H_
 
 #include "Systems.h"
+#include "Globals.h"
+#include "RenderTypes.h"
 
-#include "glad/glad.h"
-#define GLM_FORCE_RADIANS
-#include "glm/glm.hpp"
-
-#include "GameObject.h"
-#include "ModelRenderer.h"
-#include "PointLight.h"
-#include "DirectionalLight.h"
-#include "Model.h"
-#include "Mesh.h"
-#include "Texture.h"
+class ModelRenderer;
+class Component;
+class Mesh;
 
 #include <vector>
 
@@ -23,40 +17,6 @@ struct GBuffer {
 	GLuint normals;
 	GLuint diffuseSpec;
 	GLuint depth;
-};
-
-const float quadVerts[12] = {
-	-1.0f, 1.0f,
-	-1.0f, -1.0f,
-	1.0f, -1.0f,
-
-	1.0f, -1.0f,
-	1.0f, 1.0f,
-	-1.0f, 1.0f
-};
-
-struct MeshToDraw {
-	Mesh* mesh;
-	Material* material; 
-	glm::mat4 model;
-	GLuint vao;
-	GLuint shaderProgram;
-	glm::vec3 position;
-
-	~MeshToDraw() {
-		mesh = nullptr;
-		material = nullptr;
-	}
-};
-
-struct PointLightToGPU {
-	glm::vec4 position_and_radius;
-	glm::vec4 color_and_luminance;
-};
-struct DirectionalLightToGPU {
-	glm::vec4 direction;
-	glm::vec3 color;
-	float luminance;
 };
 
 class RendererSystem : public Systems {
@@ -84,12 +44,13 @@ private:
 
 	// Tiled lighting variables
 	GLuint tiledComputeShader;
-	GLuint tiledPointLightsSSBO;
+
+	GLuint pointLightsSSBO;
+	GLuint lightTilesSSBO; // Max of 512 lights per tile
 
 	// Shadows
 	GLuint shadowMapShader;
 	GLuint depthMapFBO; GLuint depthMap;
-	GLuint pointLightsSSBO = 0;
 	const int shadowWidth = 4096; const int shadowHeight = 4096;
 
 	// Post processing

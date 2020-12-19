@@ -7,12 +7,13 @@ scaleInstance(id, 0.01, 0.01, 0.01)
 
 
 --sun = addDirectionalLight(0.945, 0.9, 0.8, -0.5, -1.2, -0.7)
-sun = addDirectionalLight(.945 * 1.5, .9 * 1.5, .8 * 1.5, 0, -1, 0)
+sun = addDirectionalLight(.945, .9, .8, 0, -1, 0)
 
 
 pointLightArray = {}
 idPoint = 1
-for i = 0,500 do
+-- inclusive 0
+for i = 0,31 do
 	local r = 0.945
 	local g = 0.9
 	local b = 0.8

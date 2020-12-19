@@ -8,10 +8,12 @@
 
 class Camera;
 class Scene;
+class BVH;
 
 
 extern Camera* mainCamera;
 extern Scene* mainScene;
+extern BVH* bvh;
 
 extern int windowWidth;
 extern int windowHeight;

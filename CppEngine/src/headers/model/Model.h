@@ -9,6 +9,7 @@
 class Mesh;
 class Material;
 class Bounds;
+class ModelRenderer;
 
 class Model {
 
@@ -17,6 +18,7 @@ public:
 	std::vector<Mesh*, MemoryAllocator<Mesh*> > meshes;
 	std::vector<Material*, MemoryAllocator<Material*> > materials;
 	Bounds* bounds;
+	ModelRenderer* modelRenderer;
 
 	Model();
 	~Model();

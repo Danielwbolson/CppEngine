@@ -17,7 +17,9 @@
 #include "glm/glm.hpp"
 
 #include "MemoryAllocator.h"
+#include "RenderTypes.h"
 
+class BVH;
 class Model;
 class Material;
 class Scene;
@@ -42,8 +44,15 @@ namespace AssetManager {
 	extern std::vector<GLuint, MemoryAllocator<GLuint> >* displacementTextures;
 	extern std::vector<GLuint, MemoryAllocator<GLuint> >* alphaTextures;
 
+	// GPU data
+	extern std::vector<GPUVertex>* gpuVertices;
+	extern std::vector<GPUTriangle>* gpuTriangles;
+	extern std::vector<GPUMaterial>* gpuMaterials;
+
+
 	extern GLuint nullTexture;
 	extern GLubyte nullData[4];
+	extern uint64_t nullTextureHandle;
 
 	Model* tinyLoadObj(const std::string fileName, bool useTinyMats = false);
 	Scene* LoadScene(const std::string fileName);
@@ -51,7 +60,12 @@ namespace AssetManager {
 	Material* LoadMaterial(const std::string& fileName);
 	Material* tinyLoadMaterial(const tinyobj::material_t& mat, const std::string& name);
 
+	void PostLoadScene();
+
 	void LoadTextureToGPU(const std::string texType, const int vecIndex, const int texIndex, Texture* tex);
+	uint64_t LoadBindlessTexture(std::string texType, Texture* tex, int32_t index, bool& usingType);
+
+	void AllocateGPUMemory();
 
 };
 

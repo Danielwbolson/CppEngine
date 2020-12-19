@@ -3,6 +3,7 @@
 
 #include <chrono>
 #include <cmath>
+#include <algorithm>
 #include "glm/gtc/type_ptr.hpp"
 
 #include "Utility.h"
@@ -10,15 +11,18 @@
 #include "Scene.h"
 
 #include "Camera.h"
-#include "Globals.h"
 
 #include "Material.h"
 #include "Shader.h"
-
-
-#define WORK_GROUP_SIZE 16
-#define NUM_GROUPS_X (windowWidth/WORK_GROUP_SIZE)
-#define NUM_GROUPS_Y (windowHeight/WORK_GROUP_SIZE)
+#include "GameObject.h"
+#include "ModelRenderer.h"
+#include "PointLight.h"
+#include "DirectionalLight.h"
+#include "Model.h"
+#include "Mesh.h"
+#include "Texture.h"
+#include "Light.h"
+#include "Bounds.h"
 
 
 RendererSystem::RendererSystem() {}
@@ -80,11 +84,15 @@ void RendererSystem::Setup() {
 
 	directionalLightsToGPU.reserve(mainScene->directionalLights.size());
 	for (int i = 0; i < mainScene->directionalLights.size(); i++) {
-		DirectionalLightToGPU d = DirectionalLightToGPU{
-			d.direction = mainScene->directionalLights[i].direction,
-			d.color = glm::vec3(mainScene->directionalLights[i].color),
-			d.luminance = mainScene->directionalLights[i].lum
-		};
+		DirectionalLightToGPU d;
+		d.direction = mainScene->directionalLights[i].direction;
+
+		glm::vec3 color = mainScene->directionalLights[i].color;
+		d.color_and_luminance =
+			glm::vec4(
+				color,
+				mainScene->directionalLights[i].lum
+			);
 		directionalLightsToGPU.push_back(d);
 	}
 
@@ -210,12 +218,17 @@ void RendererSystem::Setup() {
 	{
 		tiledComputeShader = util::initComputeShader("tiledLighting.comp");
 
-		glGenBuffers(1, &tiledPointLightsSSBO);
-		glBindBuffer(GL_SHADER_STORAGE_BUFFER, tiledPointLightsSSBO);
-		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data(), GL_DYNAMIC_DRAW);
-		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, tiledPointLightsSSBO);
+		glGenBuffers(1, &pointLightsSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, pointLightsSSBO);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(PointLightToGPU) * pointLightsToGPU.size(), pointLightsToGPU.data(), GL_STATIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, pointLightsSSBO);
 		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 
+		glGenBuffers(1, &lightTilesSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, lightTilesSSBO);
+		glBufferData(GL_SHADER_STORAGE_BUFFER, sizeof(LightTile) * NUM_GROUPS_X * NUM_GROUPS_Y, NULL, GL_DYNAMIC_DRAW);
+		glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, lightTilesSSBO);
+		glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0);
 	}
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -341,7 +354,7 @@ void RendererSystem::Render() {
 	view = mainCamera->view;
 	proj = mainCamera->proj;
 
-	// Clear color/depth from our final framebuffer
+	// Clear color from our final framebuffer (depth will be overridden)
 	glBindFramebuffer(GL_FRAMEBUFFER, finalQuadFBO);
 	glClearColor(0, 0, 0, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -620,7 +633,6 @@ void RendererSystem::TiledCompute() {
 
 	glUseProgram(tiledComputeShader);
 
-
 	// Connect our gbuffer textures
 	glActiveTexture(GL_TEXTURE0 + 0);
 	glBindTexture(GL_TEXTURE_2D, gBuffer.normals);
@@ -658,7 +670,6 @@ void RendererSystem::TiledCompute() {
 
 	//TODO:
 	// Need to decide if this compute shader is an all-in-one or if it will just calculate light tiles
-
 	glDispatchCompute(NUM_GROUPS_X, NUM_GROUPS_Y, 1);
 	glMemoryBarrier(GL_ALL_BARRIER_BITS);
 }
@@ -691,7 +702,6 @@ void RendererSystem::DeferredLighting() {
 		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D, depthMap);
 		glUniform1i(glGetUniformLocation(directionalLightShader, "depthMap"), 3);
-
 
 		GLint uniProj = glGetUniformLocation(directionalLightShader, "invProj");
 		glUniformMatrix4fv(uniProj, 1, GL_FALSE, glm::value_ptr(glm::inverse(proj)));
@@ -734,11 +744,11 @@ void RendererSystem::DrawTransparent() {
 	if (transparentToDraw.size() > 0) {
 		glUseProgram(transparentToDraw[0].shaderProgram);
 
-		GLint uniNumLights = glGetUniformLocation(transparentToDraw[0].shaderProgram, "numLights");
-		glUniform1i(uniNumLights, static_cast<int>(pointLightsToGPU.size()));
-
 		GLint uniCamPos = glGetUniformLocation(transparentToDraw[0].shaderProgram, "camPos");
 		glUniform3f(uniCamPos, camPos.x, camPos.y, camPos.z);
+
+		GLint uniNumTiles = glGetUniformLocation(transparentToDraw[0].shaderProgram, "numTiles");
+		glUniform2i(uniNumTiles, NUM_GROUPS_X, NUM_GROUPS_Y);
 
 		// Directional light
 		GLint lightDir = glGetUniformLocation(transparentToDraw[0].shaderProgram, "directionalLightDir");
